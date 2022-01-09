@@ -6,7 +6,7 @@ mod config;
 mod handler;
 mod parse;
 
-const NEVE: &str = "neve";
+const WALLE_Q: &str = "Walle-Q";
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +14,7 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(env).init();
     let config = config::Config::load_or_new();
     let ob = walle_core::impls::OneBot::new(
-        NEVE,
+        WALLE_Q,
         "qq",
         &config.qq.uin.to_string(),
         config.onebot,

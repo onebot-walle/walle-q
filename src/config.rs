@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use walle_core::ImplConfig;
 
-const CONFIG_PATH: &str = "neve.yaml";
+const CONFIG_PATH: &str = "walle-q.yaml";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct Config {

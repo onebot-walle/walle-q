@@ -680,21 +680,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
 
 [[package]]
-name = "neve"
-version = "0.0.1"
-dependencies = [
- "async-trait",
- "rs-qq",
- "serde",
- "serde_json",
- "serde_yaml",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "walle-core",
-]
-
-[[package]]
 name = "ntapi"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1539,6 +1524,21 @@ dependencies = [
  "tokio-tungstenite",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "walle-q"
+version = "0.0.1"
+dependencies = [
+ "async-trait",
+ "rs-qq",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "walle-core",
 ]
 
 [[package]]

@@ -1,4 +1,6 @@
-# (WIP) NEVE - Neo EVE
+# (WIP) Walle-Q
+
+> Walle Mk.Q
 
 一个 QQ 平台的 OneBot 协议实现端
 
