@@ -1,0 +1,17 @@
+[package]
+name = "neve"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+walle-core = { path = "Walle-core", features = ["impl", "websocket", "http"] }
+rs-qq = { path = "rs-qq" }
+tokio = { version = "1", features = ["full"] }
+async-trait = "*"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.8"
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
