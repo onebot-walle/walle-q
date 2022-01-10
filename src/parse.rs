@@ -1,4 +1,4 @@
-use rs_qq::client::{msg::MsgElem, handler::Msgs};
+use rs_qq::client::{msg::MsgElem, handler::Msg};
 use std::collections::HashMap;
 use walle_core::{MessageSegment, Event};
 
@@ -27,14 +27,14 @@ impl Parse<MsgElem> for MessageSegment {
     }
 }
 
-impl Parse<Event> for Msgs {
+impl Parse<Event> for Msg {
     fn parse(self) -> Event {
         unimplemented!()
     }
 }
 
-impl Parse<Msgs> for Event {
-    fn parse(self) -> Msgs {
+impl Parse<Msg> for Event {
+    fn parse(self) -> Msg {
         unimplemented!()
     }
 }

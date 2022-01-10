@@ -1531,6 +1531,7 @@ name = "walle-q"
 version = "0.0.1"
 dependencies = [
  "async-trait",
+ "md5",
  "rs-qq",
  "serde",
  "serde_json",

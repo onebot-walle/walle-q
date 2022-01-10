@@ -10,18 +10,17 @@ impl ActionHandler<Action, Resps> for AHandler {
     }
 }
 
-use rs_qq::client::handler::{Handler, Msgs};
-use walle_core::{impls::OneBot, Event};
-use std::sync::Arc;
 use crate::parse::Parse;
+use rs_qq::client::handler::{Handler, Msg};
+use std::sync::Arc;
+use walle_core::{impls::OneBot, Event};
 
 pub(crate) struct QHandler(pub(crate) Arc<OneBot>);
 
 #[async_trait]
 impl Handler for QHandler {
-    async fn handle(&self, msg: Msgs) -> Result<(), Box<dyn std::error::Error>> {
+    async fn handle(&self, msg: Msg) {
         let e: Event = msg.parse();
-        self.0.send_event(e)?;
-        Ok(())
+        self.0.send_event(e).unwrap();
     }
 }

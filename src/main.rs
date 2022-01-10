@@ -4,6 +4,7 @@ use rs_qq::client::Client;
 
 mod config;
 mod handler;
+mod login;
 mod parse;
 
 const WALLE_Q: &str = "Walle-Q";
@@ -24,7 +25,7 @@ async fn main() {
     let qh = handler::QHandler(ob.clone());
     let qclient = Arc::new(Client::new_with_config(config.qq, qh).await);
     let net = qclient.run().await;
-    // login here
+    login::login(&qclient).await.unwrap();
 
     ob.run().await.unwrap();
     net.await.unwrap();
