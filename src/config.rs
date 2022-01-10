@@ -26,7 +26,9 @@ impl Config {
         let mut file = std::fs::File::open(CONFIG_PATH)?;
         let mut buf = String::new();
         file.read_to_string(&mut buf)?;
-        Ok(serde_yaml::from_str(&buf).unwrap())
+        let mut config: Self = serde_yaml::from_str(&buf).unwrap(); //todo
+        config.qq.device_info = DeviceInfo::load_or_new();
+        Ok(config)
     }
 
     pub(crate) fn save_to_file(&self) -> Result<(), std::io::Error> {

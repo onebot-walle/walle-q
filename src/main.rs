@@ -11,7 +11,7 @@ const WALLE_Q: &str = "Walle-Q";
 
 #[tokio::main]
 async fn main() {
-    let env = tracing_subscriber::EnvFilter::from("Walle-core=debug");
+    let env = tracing_subscriber::EnvFilter::from("debug");
     tracing_subscriber::fmt().with_env_filter(env).init();
     let config = config::Config::load_or_new();
     let ob = walle_core::impls::OneBot::new(
