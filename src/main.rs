@@ -1,32 +1,48 @@
 use std::sync::Arc;
 
+use parse::Parser;
 use rs_qq::client::Client;
 
 mod config;
+mod database;
 mod handler;
 mod login;
 mod parse;
 
 const WALLE_Q: &str = "Walle-Q";
 
+use database::Database;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref SLED_DB: database::sled::SledDb = database::sled::SledDb::init();
+}
+
 #[tokio::main]
 async fn main() {
     let env = tracing_subscriber::EnvFilter::from("debug");
     tracing_subscriber::fmt().with_env_filter(env).init();
     let config = config::Config::load_or_new();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let qh = handler::QHandler(tx);
+    let self_id = config.qq.uin.to_string();
+    let qclient = Arc::new(Client::new_with_config(config.qq, qh).await);
     let ob = walle_core::impls::OneBot::new(
         WALLE_Q,
         "qq",
-        &config.qq.uin.to_string(),
+        &self_id,
         config.onebot,
-        Arc::new(handler::AHandler),
+        Arc::new(handler::AHandler(qclient.clone())),
     )
     .arc();
-    let qh = handler::QHandler(ob.clone());
-    let qclient = Arc::new(Client::new_with_config(config.qq, qh).await);
-    let net = qclient.run().await;
+    let _ = qclient.run().await;
     login::login(&qclient).await.unwrap();
 
     ob.run().await.unwrap();
-    net.await.unwrap();
+    while let Some(msg) = rx.recv().await {
+        if let Some(event) = ob.parse(msg) {
+            SLED_DB.insert_event(&event);
+            ob.send_event(event).unwrap();
+        }
+    }
 }

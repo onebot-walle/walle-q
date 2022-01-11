@@ -3,6 +3,7 @@ use std::time::Duration;
 use rs_qq::client::income::decoder::wtlogin::{LoginResponse, QRCodeState};
 use rs_qq::client::Client;
 use rs_qq::error::{RQError, RQResult};
+use std::sync::Arc;
 use tracing::{debug, info, warn};
 
 const EMPTY_MD5: [u8; 16] = [
@@ -10,14 +11,24 @@ const EMPTY_MD5: [u8; 16] = [
 ];
 
 /// if passwords is empty use qrcode login else use password login
-pub(crate) async fn login(cli: &Client) -> RQResult<()> {
+///
+/// if login success, start client heartbeat
+pub(crate) async fn login(cli: &Arc<Client>) -> RQResult<()> {
     if &cli.password_md5[..] == &EMPTY_MD5 {
         info!("login with qrcode");
-        qrcode_login(cli).await
+        qrcode_login(cli).await?;
     } else {
         info!("login with password");
-        password_login(cli).await
+        password_login(cli).await?;
     }
+    cli.register_client().await?;
+    let ncli = cli.clone();
+    tokio::spawn(async move {
+        ncli.do_heartbeat().await;
+    });
+    cli.reload_friend_list().await?;
+    cli.reload_group_list().await?;
+    Ok(())
 }
 
 async fn qrcode_login(cli: &Client) -> RQResult<()> {
