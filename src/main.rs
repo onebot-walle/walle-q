@@ -22,11 +22,10 @@ lazy_static! {
 async fn main() {
     let env = tracing_subscriber::EnvFilter::from("debug");
     tracing_subscriber::fmt().with_env_filter(env).init();
-    let config = config::Config::load_or_new();
+    let config = config::Config::load().unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let qh = handler::QHandler(tx);
     let self_id = config.qq.uin.to_string();
-    let qclient = Arc::new(Client::new_with_config(config.qq, qh).await);
+    let qclient = Arc::new(Client::new_with_config(config.qq, tx).await);
     let ob = walle_core::impls::OneBot::new(
         WALLE_Q,
         "qq",

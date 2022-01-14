@@ -1,7 +1,6 @@
 use crate::database::Database;
 use crate::parse::Parse;
 use async_trait::async_trait;
-use rs_qq::client::handler::{Handler, Msg};
 use std::{collections::HashMap, sync::Arc};
 use walle_core::{
     action::SendMessageContent, impls::OneBot, resp::SendMessageRespContent, Action, ActionHandler,
@@ -54,14 +53,5 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
         } else {
             Err(Resps::unsupported_action())
         }
-    }
-}
-
-pub(crate) struct QHandler(pub(crate) tokio::sync::mpsc::UnboundedSender<Msg>);
-
-#[async_trait]
-impl Handler for QHandler {
-    async fn handle(&self, msg: Msg) {
-        self.0.send(msg).unwrap();
     }
 }
