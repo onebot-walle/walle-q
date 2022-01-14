@@ -1,3 +1,4 @@
+use std::fs;
 use std::time::Duration;
 
 use rs_qq::client::income::decoder::wtlogin::{LoginResponse, QRCodeState};
@@ -9,17 +10,38 @@ use tracing::{debug, info, warn};
 const EMPTY_MD5: [u8; 16] = [
     0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04, 0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
 ];
+const TOKEN_PATH: &str = "session.token";
 
 /// if passwords is empty use qrcode login else use password login
 ///
 /// if login success, start client heartbeat
 pub(crate) async fn login(cli: &Arc<Client>) -> RQResult<()> {
-    if &cli.password_md5[..] == &EMPTY_MD5 {
-        info!("login with qrcode");
-        qrcode_login(cli).await?;
-    } else {
-        info!("login with password");
-        password_login(cli).await?;
+    let token_login: bool = match fs::read(TOKEN_PATH) {
+        Ok(token) => {
+            info!("成功读取 Token, 尝试使用 Token 登录");
+            match cli.token_login(token.as_slice()).await {
+                Ok(_) => {
+                    info!("Token 登录成功");
+                    true
+                }
+                Err(_) => {
+                    warn!("Token 登录失败");
+                    false
+                }
+            }
+        }
+        Err(_) => false,
+    };
+    if !token_login {
+        if &cli.password_md5[..] == &EMPTY_MD5 {
+            info!("login with qrcode");
+            qrcode_login(cli).await?;
+        } else {
+            info!("login with password");
+            password_login(cli).await?;
+        }
+        let token = cli.gen_token().await;
+        fs::write(TOKEN_PATH, token).unwrap();
     }
     cli.register_client().await?;
     let ncli = cli.clone();
@@ -27,8 +49,7 @@ pub(crate) async fn login(cli: &Arc<Client>) -> RQResult<()> {
         ncli.do_heartbeat().await;
     });
     cli.reload_friend_list().await?;
-    cli.reload_group_list().await?;
-    Ok(())
+    cli.reload_group_list().await
 }
 
 async fn qrcode_login(cli: &Client) -> RQResult<()> {
