@@ -1,4 +1,4 @@
-use rs_qq::client::{handler::Msg, msg::MsgElem};
+use rs_qq::client::{handler::QEvent, msg::MsgElem};
 use std::collections::HashMap;
 use tracing::warn;
 use walle_core::{Event, MessageContent, MessageSegment};
@@ -55,10 +55,10 @@ impl Parse<Vec<MsgElem>> for Vec<MessageSegment> {
     }
 }
 
-impl Parser<Msg, Event> for walle_core::impls::OneBot {
-    fn parse(&self, msg: Msg) -> Option<Event> {
+impl Parser<QEvent, Event> for walle_core::impls::OneBot {
+    fn parse(&self, msg: QEvent) -> Option<Event> {
         match msg {
-            Msg::GroupMessage(group_message) => Some(
+            QEvent::GroupMessage(group_message) => Some(
                 self.new_event(
                     MessageContent::new_group_message_content(
                         group_message.elements.parse(),

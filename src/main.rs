@@ -20,7 +20,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let env = tracing_subscriber::EnvFilter::from("debug");
+    let env = tracing_subscriber::EnvFilter::from("debug,sled=warn");
     tracing_subscriber::fmt().with_env_filter(env).init();
     let config = config::Config::load().unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -42,6 +42,7 @@ async fn main() {
     while let Some(msg) = rx.recv().await {
         if let Some(event) = ob.parse(msg) {
             SLED_DB.insert_event(&event);
+            tracing::info!("{:?}", event);
             ob.send_event(event).unwrap();
         }
     }
