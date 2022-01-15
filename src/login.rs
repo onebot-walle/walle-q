@@ -7,6 +7,7 @@ use rs_qq::error::{RQError, RQResult};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
+#[allow(dead_code)]
 const EMPTY_MD5: [u8; 16] = [
     0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04, 0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
 ];
@@ -15,7 +16,7 @@ const TOKEN_PATH: &str = "session.token";
 /// if passwords is empty use qrcode login else use password login
 ///
 /// if login success, start client heartbeat
-pub(crate) async fn login(cli: &Arc<Client>) -> RQResult<()> {
+pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -> RQResult<()> {
     let token_login: bool = match fs::read(TOKEN_PATH) {
         Ok(token) => {
             info!("成功读取 Token, 尝试使用 Token 登录");
@@ -33,12 +34,12 @@ pub(crate) async fn login(cli: &Arc<Client>) -> RQResult<()> {
         Err(_) => false,
     };
     if !token_login {
-        if &cli.password_md5[..] == &EMPTY_MD5 {
+        if let (Some(uin), Some(password)) = (config.uin, &config.password) {
+            info!("login with password");
+            handle_login_resp(cli, cli.password_login(uin as i64, password).await?).await?;
+        } else {
             info!("login with qrcode");
             qrcode_login(cli).await?;
-        } else {
-            info!("login with password");
-            password_login(cli).await?;
         }
         let token = cli.gen_token().await;
         fs::write(TOKEN_PATH, token).unwrap();
@@ -84,10 +85,6 @@ async fn qrcode_login(cli: &Client) -> RQResult<()> {
         warn!("二维码获取失败");
         Err(RQError::Other("二维码获取失败".to_owned()))
     }
-}
-
-async fn password_login(cli: &Client) -> RQResult<()> {
-    handle_login_resp(cli, cli.password_login().await?).await
 }
 
 async fn handle_login_resp(cli: &Client, mut resp: LoginResponse) -> RQResult<()> {

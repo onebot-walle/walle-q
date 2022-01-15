@@ -24,18 +24,19 @@ async fn main() {
     tracing_subscriber::fmt().with_env_filter(env).init();
     let config = config::Config::load().unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-    let self_id = config.qq.uin.to_string();
-    let qclient = Arc::new(Client::new_with_config(config.qq, tx).await);
+    let self_id = config.qq.uin.unwrap_or(0);
+    let qclient =
+        Arc::new(Client::new_with_config(config::load_device(&config.qq).unwrap(), tx).await);
     let ob = walle_core::impls::OneBot::new(
         WALLE_Q,
         "qq",
-        &self_id,
+        &self_id.to_string(),
         config.onebot,
         Arc::new(handler::AHandler(qclient.clone())),
     )
     .arc();
     let _ = qclient.run().await;
-    login::login(&qclient).await.unwrap();
+    login::login(&qclient, &config.qq).await.unwrap();
 
     ob.run().await.unwrap();
     while let Some(msg) = rx.recv().await {

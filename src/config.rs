@@ -1,5 +1,6 @@
 use rs_qq::client::protocol::device::Device;
-use rs_qq::Config as QQConfig;
+use rs_qq::client::protocol::version::{get_version, Protocol};
+use rs_qq::Config as RsQQConfig;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tracing::{info, warn};
@@ -13,7 +14,28 @@ const DEVICE_PATH: &str = "device.json";
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct Config {
     pub onebot: ImplConfig,
+    #[serde(flatten)]
     pub qq: QQConfig,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub(crate) struct QQConfig {
+    pub(crate) uin: Option<u64>,
+    pub(crate) password: Option<String>,
+    pub(crate) protocol: Option<u8>,
+    pub(crate) str_protocol: Option<String>,
+}
+
+impl QQConfig {
+    fn get_protocol(&self) -> Protocol {
+        if let Some(protocol) = self.protocol {
+            protocol.try_into().unwrap()
+        } else if let Some(str_protocol) = &self.str_protocol {
+            str_protocol.as_str().try_into().unwrap()
+        } else {
+            Protocol::IPad
+        }
+    }
 }
 
 trait NewConfig: Sized {
@@ -35,15 +57,12 @@ trait LoadConfig: for<'de> Deserialize<'de> + Serialize + NewConfig {
         Self::de(&data)
     }
 
-    fn load_or_new<F>(path: &str, f: F) -> IOResult<Self>
-    where
-        F: FnOnce(&mut Self) -> IOResult<()>,
-    {
+    fn load_or_new(path: &str) -> IOResult<Self> {
         info!("loading {}", path);
-        let mut config = match Self::load_from_file(path) {
+        match Self::load_from_file(path) {
             Ok(config) => {
                 info!("success load from {}", path);
-                config
+                Ok(config)
             }
             Err(e) => match e.kind() {
                 std::io::ErrorKind::Other => {
@@ -55,12 +74,10 @@ trait LoadConfig: for<'de> Deserialize<'de> + Serialize + NewConfig {
                     info!("creating new {}", path);
                     let config = Self::new_config();
                     config.save_to_file(path)?;
-                    config
+                    Ok(config)
                 }
             },
-        };
-        f(&mut config)?;
-        Ok(config)
+        }
     }
 }
 
@@ -98,9 +115,13 @@ impl LoadConfig for Device {}
 
 impl Config {
     pub(crate) fn load() -> Result<Self, std::io::Error> {
-        Self::load_or_new(CONFIG_PATH, |config| {
-            config.qq.device = Device::load_or_new(DEVICE_PATH, |_| Ok(()))?;
-            Ok(())
-        })
+        Self::load_or_new(CONFIG_PATH)
     }
+}
+
+pub(crate) fn load_device(con: &QQConfig) -> IOResult<RsQQConfig> {
+    Ok(RsQQConfig {
+        device: Device::load_or_new(DEVICE_PATH)?,
+        version: get_version(con.get_protocol()),
+    })
 }
