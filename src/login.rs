@@ -1,9 +1,9 @@
 use std::fs;
 use std::time::Duration;
 
-use rs_qq::client::income::decoder::wtlogin::{LoginResponse, QRCodeState};
 use rs_qq::client::Client;
-use rs_qq::error::{RQError, RQResult};
+use rs_qq::engine::command::wtlogin::{LoginResponse, QRCodeState};
+use rs_qq::{RQError, RQResult};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -73,6 +73,7 @@ async fn qrcode_login(cli: &Client) -> RQResult<()> {
                     tmp_pwd,
                     tmp_no_pic_sig,
                     tgt_qr,
+                    ..
                 } => {
                     info!("二维码已确认");
                     let resp = cli.qrcode_login(&tmp_pwd, &tmp_no_pic_sig, &tgt_qr).await?;
@@ -90,18 +91,19 @@ async fn qrcode_login(cli: &Client) -> RQResult<()> {
 async fn handle_login_resp(cli: &Client, mut resp: LoginResponse) -> RQResult<()> {
     loop {
         match resp {
-            LoginResponse::Success => break Ok(()),
-            LoginResponse::SMSOrVerifyNeededError {
+            LoginResponse::Success { .. } => break Ok(()),
+            LoginResponse::DeviceLocked {
                 verify_url,
                 sms_phone,
-                error_message,
+                message,
+                ..
             } => {
-                warn!("password login error: {}", error_message);
-                warn!("{}", sms_phone);
-                warn!("手机打开url，处理完成后重启程序: {}", verify_url);
+                warn!("password login error: {}", message.unwrap());
+                warn!("{}", sms_phone.unwrap());
+                warn!("手机打开url，处理完成后重启程序: {}", verify_url.unwrap());
                 return Err(RQError::Other("password login failure".to_string()));
             }
-            LoginResponse::NeedDeviceLockLogin => {
+            LoginResponse::DeviceLockLogin { .. } => {
                 resp = cli.device_lock_login().await?;
             }
             _ => unimplemented!(),

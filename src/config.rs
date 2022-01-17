@@ -1,5 +1,5 @@
-use rs_qq::client::protocol::device::Device;
-use rs_qq::client::protocol::version::{get_version, Protocol};
+use rs_qq::engine::protocol::device::Device;
+use rs_qq::engine::protocol::version::{get_version, Protocol};
 use rs_qq::Config as RsQQConfig;
 use serde::{Deserialize, Serialize};
 use std::io::Read;

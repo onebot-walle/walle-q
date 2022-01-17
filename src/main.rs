@@ -40,7 +40,7 @@ async fn main() {
 
     ob.run().await.unwrap();
     while let Some(msg) = rx.recv().await {
-        if let Some(event) = ob.parse(msg) {
+        if let Some(event) = ob.parse(msg).await {
             SLED_DB.insert_event(&event);
             tracing::info!("{:?}", event);
             ob.send_event(event).unwrap();

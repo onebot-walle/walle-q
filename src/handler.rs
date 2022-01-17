@@ -34,12 +34,12 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
             let event = ob.new_event(
                 MessageContent::new_group_message_content(
                     content.message,
-                    ob.self_id.clone(),
+                    ob.self_id.read().await.clone(),
                     group_id,
                     HashMap::new(),
                 )
                 .into(),
-            );
+            ).await;
             crate::SLED_DB.insert_event(&event);
             Ok(Resps::success(
                 SendMessageRespContent {

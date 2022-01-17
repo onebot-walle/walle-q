@@ -1,14 +1,16 @@
+use async_trait::async_trait;
 use rs_qq::client::{handler::QEvent, msg::MsgElem};
 use std::collections::HashMap;
-use tracing::warn;
+use tracing::{warn, info};
 use walle_core::{Event, MessageContent, MessageSegment};
 
 pub(crate) trait Parse<T> {
     fn parse(self) -> T;
 }
 
+#[async_trait]
 pub(crate) trait Parser<X, Y> {
-    fn parse(&self, input: X) -> Option<Y>;
+    async fn parse(&self, input: X) -> Option<Y>;
 }
 
 impl Parse<MessageSegment> for MsgElem {
@@ -55,9 +57,15 @@ impl Parse<Vec<MsgElem>> for Vec<MessageSegment> {
     }
 }
 
+#[async_trait]
 impl Parser<QEvent, Event> for walle_core::impls::OneBot {
-    fn parse(&self, msg: QEvent) -> Option<Event> {
+    async fn parse(&self, msg: QEvent) -> Option<Event> {
         match msg {
+            QEvent::LoginEvent(uin) => {
+                info!("Walle-Q Login success with uin: {}", uin);
+                *self.self_id.write().await = uin.to_string();
+                None
+            }
             QEvent::GroupMessage(group_message) => Some(
                 self.new_event(
                     MessageContent::new_group_message_content(
@@ -67,7 +75,8 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         HashMap::new(),
                     )
                     .into(),
-                ),
+                )
+                .await,
             ),
             msg => {
                 warn!("unsupported Msg: {:?}", msg);
