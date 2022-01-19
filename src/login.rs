@@ -43,8 +43,8 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
         }
         let token = cli.gen_token().await;
         fs::write(TOKEN_PATH, token).unwrap();
+        cli.register_client().await?;
     }
-    cli.register_client().await?;
     let ncli = cli.clone();
     tokio::spawn(async move {
         ncli.do_heartbeat().await;

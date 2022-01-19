@@ -1,7 +1,8 @@
 use async_trait::async_trait;
-use rs_qq::client::{handler::QEvent, msg::MsgElem};
+use rs_qq::client::handler::QEvent;
+use rs_qq::engine::*;
 use std::collections::HashMap;
-use tracing::{warn, info};
+use tracing::{info, warn};
 use walle_core::{Event, MessageContent, MessageSegment};
 
 pub(crate) trait Parse<T> {
@@ -72,6 +73,17 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         group_message.elements.parse(),
                         group_message.sender.uin.to_string(),
                         group_message.group_code.to_string(),
+                        HashMap::new(),
+                    )
+                    .into(),
+                )
+                .await,
+            ),
+            QEvent::PrivateMessage(private) => Some(
+                self.new_event(
+                    MessageContent::new_private_message_content(
+                        private.elements.parse(),
+                        private.sender.uin.to_string(),
                         HashMap::new(),
                     )
                     .into(),
