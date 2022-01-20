@@ -20,7 +20,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let env = tracing_subscriber::EnvFilter::from("debug,sled=warn,mio=debug");
+    let env = tracing_subscriber::EnvFilter::from("rs_qq=trace,sled=warn,info");
     tracing_subscriber::fmt().with_env_filter(env).init();
     let config = config::Config::load().unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
