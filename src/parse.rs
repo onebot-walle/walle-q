@@ -14,19 +14,19 @@ pub(crate) trait Parser<X, Y> {
     async fn parse(&self, input: X) -> Option<Y>;
 }
 
-impl Parse<MessageSegment> for MsgElem {
-    fn parse(self) -> MessageSegment {
+impl Parse<Option<MessageSegment>> for MsgElem {
+    fn parse(self) -> Option<MessageSegment> {
         match self {
-            Self::Text { content } => MessageSegment::Text {
-                text: content,
-                extend: HashMap::new(),
-            },
+            Self::Text { content } => Some(MessageSegment::text(content)),
+            Self::Other(_) => None,
+            Self::At { target: 0, .. } => Some(MessageSegment::mention_all()),
+            Self::At { target, .. } => Some(MessageSegment::mention(target.to_string())),
             elem => {
                 warn!("unsupported MsgElem: {:?}", elem);
-                MessageSegment::Text {
+                Some(MessageSegment::Text {
                     text: "unsupported MsgElem".to_string(),
                     extend: HashMap::new(),
-                }
+                })
             }
         }
     }
@@ -34,7 +34,7 @@ impl Parse<MessageSegment> for MsgElem {
 
 impl Parse<Vec<MessageSegment>> for Vec<MsgElem> {
     fn parse(self) -> Vec<MessageSegment> {
-        self.into_iter().map(|elem| elem.parse()).collect()
+        self.into_iter().filter_map(|elem| elem.parse()).collect()
     }
 }
 

@@ -10,6 +10,7 @@ mod login;
 mod parse;
 
 const WALLE_Q: &str = "Walle-Q";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use database::Database;
 use lazy_static::lazy_static;
@@ -20,8 +21,14 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let env = tracing_subscriber::EnvFilter::from("rs_qq=trace,sled=warn,info");
-    tracing_subscriber::fmt().with_env_filter(env).init();
+    let timer = tracing_subscriber::fmt::time::LocalTime::new(time::macros::format_description!(
+        "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
+    ));
+    let env = tracing_subscriber::EnvFilter::from("rs_qq=debug,sled=warn,info");
+    tracing_subscriber::fmt()
+        .with_env_filter(env)
+        .with_timer(timer)
+        .init();
     let config = config::Config::load().unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let self_id = config.qq.uin.unwrap_or(0);
