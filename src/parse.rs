@@ -39,27 +39,19 @@ impl Parse<Vec<MessageSegment>> for MessageChain {
     }
 }
 
-impl Parse<RQElem> for MessageSegment {
-    fn parse(self) -> RQElem {
-        match self {
-            Self::Text { text, .. } => elem::Text { content: text }.into(),
-            msg_seg => {
-                warn!("unsupported MessageSegment: {:?}", msg_seg);
-                elem::Text {
-                    content: "unsupported MessageSegment".to_string(),
-                }
-                .into()
-            }
-        }
-    }
-}
-
 impl Parse<MessageChain> for Vec<MessageSegment> {
     fn parse(self) -> MessageChain {
         let mut chain = MessageChain::default();
         for msg_seg in self {
-            let elem: RQElem = msg_seg.parse();
-            chain.push(elem);
+            match msg_seg {
+                MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
+                seg => {
+                    warn!("unsupported MessageSegment: {:?}", seg);
+                    chain.push(elem::Text {
+                        content: "unsupported MessageSegment".to_string(),
+                    })
+                }
+            }
         }
         chain
     }
