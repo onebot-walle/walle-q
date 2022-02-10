@@ -32,8 +32,10 @@ async fn main() {
     let config = config::Config::load().unwrap();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let self_id = config.qq.uin.unwrap_or(0);
-    let qclient =
-        Arc::new(Client::new_with_config(config::load_device(&config.qq).unwrap(), tx).await);
+    let qclient = Arc::new(Client::new_with_config(
+        config::load_device(&config.qq).unwrap(),
+        tx,
+    ));
     let ob = walle_core::impls::OneBot::new(
         WALLE_Q,
         "qq",
@@ -42,7 +44,9 @@ async fn main() {
         Arc::new(handler::AHandler(qclient.clone())),
     )
     .arc();
-    let _ = qclient.run().await;
+    let qcli2 = qclient.clone();
+    tokio::spawn(async move { qcli2.start().await.unwrap() });
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     login::login(&qclient, &config.qq).await.unwrap();
 
     ob.run().await.unwrap();

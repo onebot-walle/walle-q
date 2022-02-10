@@ -122,13 +122,13 @@ impl ActionHandler<GroupIdContent, Resps, OneBot> for AHandler {
         let group_id: i64 = action.group_id.parse().map_err(|_| Resps::bad_param())?;
         let info = self
             .0
-            .find_group(group_id)
+            .find_group(group_id, true)
             .await
             .ok_or(Resps::empty_fail(35001, "未找到该好友".to_owned()))?;
         Ok(Resps::success(
             GroupInfoContent {
-                group_id: info.0.uin.to_string(),
-                group_name: info.0.name.to_string(),
+                group_id: info.info.uin.to_string(),
+                group_name: info.info.name.to_string(),
             }
             .into(),
         ))
@@ -183,13 +183,13 @@ impl AHandler {
     async fn get_friend_list(&self) -> Resps {
         Resps::success(
             self.0
-                .friend_list
+                .friends
                 .read()
                 .await
                 .iter()
                 .map(|i| UserInfoContent {
-                    user_id: i.uin.to_string(),
-                    nickname: i.nick.to_string(),
+                    user_id: i.0.to_string(),
+                    nickname: i.1.nick.to_string(),
                 })
                 .collect::<Vec<_>>()
                 .into(),
@@ -198,13 +198,13 @@ impl AHandler {
     async fn get_group_list(&self) -> Resps {
         Resps::success(
             self.0
-                .group_list
+                .groups
                 .read()
                 .await
                 .iter()
                 .map(|i| GroupInfoContent {
-                    group_id: i.0.uin.to_string(),
-                    group_name: i.0.name.to_string(),
+                    group_id: i.0.to_string(),
+                    group_name: i.1.info.name.clone(),
                 })
                 .collect::<Vec<_>>()
                 .into(),
@@ -214,11 +214,11 @@ impl AHandler {
         let group_id: i64 = group_id.group_id.parse().map_err(|_| Resps::bad_param())?;
         let group = self
             .0
-            .find_group(group_id)
+            .find_group(group_id, true)
             .await
             .ok_or(Resps::empty_fail(35001, "未找到该群".to_owned()))?;
         let v = group
-            .1
+            .members
             .read()
             .await
             .iter()
@@ -234,10 +234,10 @@ impl AHandler {
         let uin: i64 = ids.user_id.parse().map_err(|_| Resps::bad_param())?;
         let group = self
             .0
-            .find_group(group_id)
+            .find_group(group_id, true)
             .await
             .ok_or(Resps::empty_fail(35001, "未找到该群".to_owned()))?;
-        let list = group.1.read().await;
+        let list = group.members.read().await;
         let v: Vec<_> = list.iter().filter(|i| i.uin == uin).collect();
         if v.is_empty() {
             return Err(Resps::empty_fail(35001, "未找到该群成员".to_owned()));

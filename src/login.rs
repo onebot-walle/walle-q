@@ -2,7 +2,7 @@ use std::fs;
 use std::time::Duration;
 
 use rs_qq::client::Client;
-use rs_qq::engine::command::wtlogin::{LoginResponse, QRCodeState};
+use rs_qq::{LoginResponse, QRCodeState};
 use rs_qq::{RQError, RQResult};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
@@ -49,11 +49,11 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
     tokio::spawn(async move {
         ncli.do_heartbeat().await;
     });
-    cli.reload_friend_list().await?;
-    cli.reload_group_list().await
+    cli.reload_friends().await?;
+    cli.reload_groups().await
 }
 
-async fn qrcode_login(cli: &Client) -> RQResult<()> {
+async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
     let resp = cli.fetch_qrcode().await?;
     if let QRCodeState::QRCodeImageFetch { image_data, sig } = resp {
         tokio::fs::write("qrcode.png", &image_data)
@@ -88,7 +88,7 @@ async fn qrcode_login(cli: &Client) -> RQResult<()> {
     }
 }
 
-async fn handle_login_resp(cli: &Client, mut resp: LoginResponse) -> RQResult<()> {
+async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResult<()> {
     loop {
         match resp {
             LoginResponse::Success { .. } => break Ok(()),
