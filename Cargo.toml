@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 walle-core = { path = "Walle-core", features = ["impl", "websocket", "http"] }
+walle-v11 = { path = "Walle-core/walle-v11" }
 rs-qq = { path = "rs-qq" }
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"

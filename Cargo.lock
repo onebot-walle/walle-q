@@ -1789,6 +1789,23 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walle-core",
+ "walle-v11",
+]
+
+[[package]]
+name = "walle-v11"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "colored",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "walle-core",
 ]
 
 [[package]]
