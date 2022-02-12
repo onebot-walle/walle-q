@@ -5,7 +5,7 @@ use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use std::collections::HashMap;
 use tracing::{info, warn};
-use walle_core::{Event, MessageContent, MessageSegment};
+use walle_core::{Event, MessageContent, MessageSegment, NoticeContent};
 
 impl Parse<Option<MessageSegment>> for RQElem {
     fn parse(self) -> Option<MessageSegment> {
@@ -51,8 +51,8 @@ impl Parse<MessageChain> for Vec<MessageSegment> {
 
 #[async_trait]
 impl Parser<QEvent, Event> for walle_core::impls::OneBot {
-    async fn parse(&self, msg: QEvent) -> Option<Event> {
-        match msg {
+    async fn parse(&self, event: QEvent) -> Option<Event> {
+        match event {
             QEvent::TcpConnect | QEvent::TcpDisconnect => None,
             QEvent::Login(uin) => {
                 *self.self_id.write().await = uin.to_string();
@@ -60,6 +60,18 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                 info!("Walle-Q Login success with uin: {}", uin);
                 None
             }
+
+            QEvent::PrivateMessage(private) => Some(
+                self.new_event(
+                    MessageContent::new_private_message_content(
+                        private.message.elements.parse(),
+                        private.message.from_uin.to_string(),
+                        HashMap::new(),
+                    )
+                    .into(),
+                )
+                .await,
+            ),
             QEvent::GroupMessage(gme) => Some(
                 self.new_event(
                     MessageContent::new_group_message_content(
@@ -76,19 +88,62 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                 info!("SelfGroupMessage: {:?}", e);
                 None
             }
-            QEvent::PrivateMessage(private) => Some(
+
+            QEvent::FriendMessageRecall(e) => Some(
                 self.new_event(
-                    MessageContent::new_private_message_content(
-                        private.message.elements.parse(),
-                        private.message.from_uin.to_string(),
-                        HashMap::new(),
-                    )
+                    NoticeContent::PrivateMessageDelete {
+                        sub_type: "".to_string(),
+                        message_id: e.recall.msg_seq.to_string(),
+                        user_id: e.recall.friend_uin.to_string(),
+                    }
                     .into(),
                 )
                 .await,
             ),
-            msg => {
-                warn!("unsupported Msg: {:?}", msg);
+
+            QEvent::NewMember(e) => Some(
+                self.new_event(
+                    NoticeContent::GroupMemberIncrease {
+                        sub_type: "join".to_string(),
+                        group_id: e.new_member.group_code.to_string(),
+                        user_id: e.new_member.member_uin.to_string(),
+                        operator_id: "".to_string(),
+                    }
+                    .into(),
+                )
+                .await,
+            ),
+            QEvent::GroupMute(e) => Some(
+                self.new_event(
+                    NoticeContent::GroupMemberBan {
+                        sub_type: "".to_string(),
+                        group_id: e.group_mute.group_code.to_string(),
+                        user_id: e.group_mute.target_uin.to_string(),
+                        operator_id: e.group_mute.operator_uin.to_string(),
+                    }
+                    .into(),
+                )
+                .await,
+            ),
+            QEvent::GroupMessageRecall(e) => Some(
+                self.new_event(
+                    NoticeContent::GroupMessageDelete {
+                        sub_type: if e.recall.author_uin == e.recall.operator_uin {
+                            "recall".to_string()
+                        } else {
+                            "delete".to_string()
+                        },
+                        message_id: e.recall.msg_seq.to_string(),
+                        group_id: e.recall.group_code.to_string(),
+                        user_id: e.recall.author_uin.to_string(),
+                        operator_id: e.recall.operator_uin.to_string(),
+                    }
+                    .into(),
+                )
+                .await,
+            ),
+            event => {
+                warn!("unsupported event: {:?}", event);
                 None
             }
         }
