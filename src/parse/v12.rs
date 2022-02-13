@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use rs_qq::client::handler::QEvent;
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
+use rs_qq::structs::GroupMemberPermission;
 use std::collections::HashMap;
 use tracing::{info, warn};
 use walle_core::{Event, MessageContent, MessageSegment, NoticeContent};
@@ -53,6 +54,7 @@ impl Parse<MessageChain> for Vec<MessageSegment> {
 impl Parser<QEvent, Event> for walle_core::impls::OneBot {
     async fn parse(&self, event: QEvent) -> Option<Event> {
         match event {
+            // meta
             QEvent::TcpConnect | QEvent::TcpDisconnect => None,
             QEvent::Login(uin) => {
                 *self.self_id.write().await = uin.to_string();
@@ -61,6 +63,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                 None
             }
 
+            // message
             QEvent::PrivateMessage(private) => Some(
                 self.new_event(
                     MessageContent::new_private_message_content(
@@ -89,6 +92,8 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                 None
             }
 
+            // notice
+            // friend
             QEvent::FriendMessageRecall(e) => Some(
                 self.new_event(
                     NoticeContent::PrivateMessageDelete {
@@ -100,7 +105,18 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                 )
                 .await,
             ),
+            QEvent::NewFriend(e) => Some(
+                self.new_event(
+                    NoticeContent::FriendIncrease {
+                        sub_type: "".to_string(),
+                        user_id: e.friend.uin.to_string(),
+                    }
+                    .into(),
+                )
+                .await,
+            ),
 
+            // group
             QEvent::NewMember(e) => Some(
                 self.new_event(
                     NoticeContent::GroupMemberIncrease {
@@ -108,6 +124,26 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         group_id: e.new_member.group_code.to_string(),
                         user_id: e.new_member.member_uin.to_string(),
                         operator_id: "".to_string(),
+                    }
+                    .into(),
+                )
+                .await,
+            ),
+            QEvent::GroupLeave(e) => Some(
+                self.new_event(
+                    NoticeContent::GroupMemberDecrease {
+                        sub_type: if e.leave.operator_uin.is_some() {
+                            "leave".to_string()
+                        } else {
+                            "kick".to_string()
+                        },
+                        group_id: e.leave.group_code.to_string(),
+                        user_id: e.leave.member_uin.to_string(),
+                        operator_id: if let Some(op) = e.leave.operator_uin {
+                            op.to_string()
+                        } else {
+                            e.leave.member_uin.to_string()
+                        },
                     }
                     .into(),
                 )
@@ -142,6 +178,37 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                 )
                 .await,
             ),
+            QEvent::MemberPermissionChange(e) => {
+                let e = &e.change;
+                match e.new_permission {
+                    GroupMemberPermission::Administrator => Some(
+                        self.new_event(
+                            NoticeContent::GroupAdminSet {
+                                sub_type: "".to_string(),
+                                group_id: e.group_code.to_string(),
+                                user_id: e.member_uin.to_string(),
+                                operator_id: "".to_string(), //todo
+                            }
+                            .into(),
+                        )
+                        .await,
+                    ),
+                    GroupMemberPermission::Member => Some(
+                        self.new_event(
+                            NoticeContent::GroupAdminUnset {
+                                sub_type: "".to_string(),
+                                group_id: e.group_code.to_string(),
+                                user_id: e.member_uin.to_string(),
+                                operator_id: "".to_string(), //todo
+                            }
+                            .into(),
+                        )
+                        .await,
+                    ),
+                    _ => None,
+                }
+            }
+
             event => {
                 warn!("unsupported event: {:?}", event);
                 None

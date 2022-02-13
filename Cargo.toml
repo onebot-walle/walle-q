@@ -24,6 +24,7 @@ time = { version = "0.3", features = ["macros"] }
 sled = "0.34"
 rmp-serde = "0.15"
 lazy_static = "1.4"
+uuid = "0.8"
 
 [dev-dependencies]
 md5 = "*"

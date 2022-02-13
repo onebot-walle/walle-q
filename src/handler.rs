@@ -17,13 +17,16 @@ pub(crate) struct AHandler(pub(crate) Arc<rs_qq::Client>);
 impl ActionHandler<Action, Resps, OneBot> for AHandler {
     async fn handle(&self, action: Action, ob: &OneBot) -> Result<Resps, Resps> {
         match action {
-            Action::SendMessage(msg) => self.handle(msg, ob).await,
             Action::GetSupportedActions(_) => Ok(Self::get_supported_actions()),
             Action::GetStatus(_) => Ok(self.get_status()),
             Action::GetVersion(_) => Ok(Self::get_version()),
+
+            Action::SendMessage(msg) => self.handle(msg, ob).await,
+
             Action::GetSelfInfo(_) => Ok(self.get_self_info().await),
             Action::GetUserInfo(c) => self.handle(c, ob).await,
             Action::GetFriendList(_) => Ok(self.get_friend_list().await),
+
             Action::GetGroupInfo(c) => self.handle(c, ob).await,
             Action::GetGroupList(_) => Ok(self.get_group_list().await),
             Action::GetGroupMemberList(c) => self.get_group_member_list(c).await,
@@ -124,7 +127,7 @@ impl ActionHandler<GroupIdContent, Resps, OneBot> for AHandler {
             .0
             .find_group(group_id, true)
             .await
-            .ok_or(Resps::empty_fail(35001, "未找到该好友".to_owned()))?;
+            .ok_or(Resps::empty_fail(35001, "未找到该群".to_owned()))?;
         Ok(Resps::success(
             GroupInfoContent {
                 group_id: info.info.uin.to_string(),
