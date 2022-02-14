@@ -1,3 +1,5 @@
+use crate::database::Database;
+
 use super::{Parse, Parser};
 use async_trait::async_trait;
 use rs_qq::client::handler::QEvent;
@@ -5,18 +7,53 @@ use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use rs_qq::structs::GroupMemberPermission;
 use std::collections::HashMap;
-use tracing::{info, warn};
-use walle_core::{Event, MessageContent, MessageSegment, NoticeContent};
+use tracing::{debug, info, warn};
+use walle_core::{Event, ExtendedMap, MessageContent, MessageSegment, NoticeContent};
 
 impl Parse<Option<MessageSegment>> for RQElem {
     fn parse(self) -> Option<MessageSegment> {
         match self {
             Self::Text(text) => Some(MessageSegment::text(text.content)),
-            Self::Other(_) => None,
             Self::At(elem::At { target: 0, .. }) => Some(MessageSegment::mention_all()),
             Self::At(at) => Some(MessageSegment::mention(at.target.to_string())),
+            Self::Face(face) => Some(MessageSegment::Custom {
+                ty: "face".to_owned(),
+                data: [("file".to_string(), face.name.into())].into(),
+            }),
+            Self::MarketFace(face) => Some(MessageSegment::text(face.name)),
+            Self::Dice(d) => Some(MessageSegment::Custom {
+                ty: "dice".to_owned(),
+                data: [("value".to_string(), (d.value as i64).into())].into(),
+            }),
+            Self::FingerGuessing(f) => Some(MessageSegment::Custom {
+                ty: "rps".to_owned(),
+                data: [(
+                    "value".to_string(),
+                    {
+                        match f {
+                            elem::FingerGuessing::Rock => 0,
+                            elem::FingerGuessing::Scissors => 1,
+                            elem::FingerGuessing::Paper => 2,
+                        }
+                    }
+                    .into(),
+                )]
+                .into(),
+            }),
+            Self::LightApp(l) => Some(MessageSegment::Custom {
+                ty: "json".to_owned(),
+                data: [("data".to_string(), l.content.into())].into(),
+            }),
+            Self::FriendImage(i) => Some(MessageSegment::Image {
+                file_id: i.image_id,
+                extend: [("url".to_string(), i.url.into())].into(),
+            }),
+            Self::GroupImage(i) => Some(MessageSegment::Image {
+                file_id: i.image_id,
+                extend: [("url".to_string(), i.url.into())].into(),
+            }),
             elem => {
-                warn!("unsupported MsgElem: {:?}", elem);
+                debug!("unsupported MsgElem: {:?}", elem);
                 Some(MessageSegment::Text {
                     text: "unsupported MsgElem".to_string(),
                     extend: HashMap::new(),
@@ -38,6 +75,18 @@ impl Parse<MessageChain> for Vec<MessageSegment> {
         for msg_seg in self {
             match msg_seg {
                 MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
+                MessageSegment::Mention { user_id, .. } => {
+                    if let Ok(target) = user_id.parse() {
+                        chain.push(elem::At {
+                            display: user_id.to_string(),
+                            target,
+                        })
+                    }
+                }
+                MessageSegment::MentionAll { .. } => chain.push(elem::At {
+                    display: "all".to_string(),
+                    target: 0,
+                }),
                 seg => {
                     warn!("unsupported MessageSegment: {:?}", seg);
                     chain.push(elem::Text {
@@ -53,6 +102,10 @@ impl Parse<MessageChain> for Vec<MessageSegment> {
 #[async_trait]
 impl Parser<QEvent, Event> for walle_core::impls::OneBot {
     async fn parse(&self, event: QEvent) -> Option<Event> {
+        fn message_id_map(seqs: &Vec<i32>) -> ExtendedMap {
+            [("qq.message_id".to_owned(), (seqs[0] as i64).into())].into()
+        }
+
         match event {
             // meta
             QEvent::TcpConnect | QEvent::TcpDisconnect => None,
@@ -64,29 +117,35 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
             }
 
             // message
-            QEvent::PrivateMessage(private) => Some(
-                self.new_event(
-                    MessageContent::new_private_message_content(
-                        private.message.elements.parse(),
-                        private.message.from_uin.to_string(),
-                        HashMap::new(),
+            QEvent::PrivateMessage(pme) => {
+                let event = self
+                    .new_event(
+                        MessageContent::new_private_message_content(
+                            pme.message.elements.parse(),
+                            pme.message.from_uin.to_string(),
+                            message_id_map(&pme.message.seqs),
+                        )
+                        .into(),
                     )
-                    .into(),
-                )
-                .await,
-            ),
-            QEvent::GroupMessage(gme) => Some(
-                self.new_event(
-                    MessageContent::new_group_message_content(
-                        gme.message.elements.parse(),
-                        gme.message.from_uin.to_string(),
-                        gme.message.group_code.to_string(),
-                        HashMap::new(),
+                    .await;
+                crate::SLED_DB.insert_event(pme.message.seqs[0], &event);
+                Some(event)
+            }
+            QEvent::GroupMessage(gme) => {
+                let event = self
+                    .new_event(
+                        MessageContent::new_group_message_content(
+                            gme.message.elements.parse(),
+                            gme.message.from_uin.to_string(),
+                            gme.message.group_code.to_string(),
+                            message_id_map(&gme.message.seqs),
+                        )
+                        .into(),
                     )
-                    .into(),
-                )
-                .await,
-            ),
+                    .await;
+                crate::SLED_DB.insert_event(gme.message.seqs[0], &event);
+                Some(event)
+            }
             QEvent::SelfGroupMessage(e) => {
                 info!("SelfGroupMessage: {:?}", e);
                 None

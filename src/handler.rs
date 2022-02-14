@@ -1,14 +1,14 @@
 use crate::database::Database;
 use crate::parse::Parse;
 use async_trait::async_trait;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use walle_core::{
     action::{GroupIdContent, IdsContent, SendMessageContent, UserIdContent},
     impls::OneBot,
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, MessageContent, RespContent, Resps,
+    Action, ActionHandler, ExtendedMap, MessageContent, RespContent, Resps,
 };
 
 pub(crate) struct AHandler(pub(crate) Arc<rs_qq::Client>);
@@ -39,9 +39,14 @@ impl ActionHandler<Action, Resps, OneBot> for AHandler {
 #[async_trait]
 impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
     async fn handle(&self, content: SendMessageContent, ob: &OneBot) -> Result<Resps, Resps> {
+        fn message_id_map(seqs: &Vec<i32>) -> ExtendedMap {
+            [("qq.message_id".to_owned(), (seqs[0] as i64).into())].into()
+        }
+
         if &content.detail_type == "group" {
             let group_id = content.group_id.ok_or(Resps::bad_param())?;
-            self.0
+            let receipt = self
+                .0
                 .send_group_message(
                     group_id.parse().map_err(|_| Resps::bad_param())?,
                     content.message.clone().parse(),
@@ -54,12 +59,12 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
                         content.message,
                         ob.self_id.read().await.clone(),
                         group_id,
-                        HashMap::new(),
+                        message_id_map(&receipt.seqs),
                     )
                     .into(),
                 )
                 .await;
-            crate::SLED_DB.insert_event(&event);
+            crate::SLED_DB.insert_event(receipt.seqs[0], &event);
             Ok(Resps::success(
                 SendMessageRespContent {
                     message_id: event.id,
@@ -69,7 +74,8 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
             ))
         } else if &content.detail_type == "private" {
             let target_id = content.user_id.ok_or(Resps::bad_param())?;
-            self.0
+            let receipt = self
+                .0
                 .send_private_message(
                     target_id.parse().map_err(|_| Resps::bad_param())?,
                     content.message.clone().parse(),
@@ -81,12 +87,12 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
                     MessageContent::new_private_message_content(
                         content.message,
                         ob.self_id().await,
-                        HashMap::new(),
+                        message_id_map(&receipt.seqs),
                     )
                     .into(),
                 )
                 .await;
-            crate::SLED_DB.insert_event(&event);
+            crate::SLED_DB.insert_event(receipt.seqs[0], &event);
             Ok(Resps::success(
                 SendMessageRespContent {
                     message_id: event.id,

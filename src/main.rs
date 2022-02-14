@@ -12,7 +12,7 @@ mod parse;
 const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-use database::Database;
+use database::DatabaseInit;
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -52,7 +52,6 @@ async fn main() {
     ob.run().await.unwrap();
     while let Some(msg) = rx.recv().await {
         if let Some(event) = ob.parse(msg).await {
-            SLED_DB.insert_event(&event);
             tracing::info!("{:?}", event);
             ob.send_event(event).unwrap();
         }
