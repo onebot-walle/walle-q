@@ -1,14 +1,14 @@
 use crate::database::Database;
 use crate::parse::Parse;
 use async_trait::async_trait;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use walle_core::{
     action::{GroupIdContent, IdsContent, SendMessageContent, UserIdContent},
     impls::OneBot,
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, ExtendedMap, MessageContent, RespContent, Resps,
+    Action, ActionHandler, MessageContent, RespContent, Resps,
 };
 
 pub(crate) struct AHandler(pub(crate) Arc<rs_qq::Client>);
@@ -39,10 +39,6 @@ impl ActionHandler<Action, Resps, OneBot> for AHandler {
 #[async_trait]
 impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
     async fn handle(&self, content: SendMessageContent, ob: &OneBot) -> Result<Resps, Resps> {
-        fn message_id_map(seqs: &Vec<i32>) -> ExtendedMap {
-            [("qq.message_id".to_owned(), (seqs[0] as i64).into())].into()
-        }
-
         if &content.detail_type == "group" {
             let group_id = content.group_id.ok_or(Resps::bad_param())?;
             let receipt = self
@@ -57,11 +53,13 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
                 .new_event(
                     MessageContent::new_group_message_content(
                         content.message,
+                        receipt.seqs[0].to_string(),
                         ob.self_id.read().await.clone(),
                         group_id,
-                        message_id_map(&receipt.seqs),
+                        HashMap::default(),
                     )
                     .into(),
+                    receipt.time as u64,
                 )
                 .await;
             crate::SLED_DB.insert_event(receipt.seqs[0], &event);
@@ -86,10 +84,12 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for AHandler {
                 .new_event(
                     MessageContent::new_private_message_content(
                         content.message,
+                        receipt.seqs[0].to_string(),
                         ob.self_id().await,
-                        message_id_map(&receipt.seqs),
+                        HashMap::default(),
                     )
                     .into(),
+                    receipt.time as u64,
                 )
                 .await;
             crate::SLED_DB.insert_event(receipt.seqs[0], &event);

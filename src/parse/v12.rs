@@ -6,7 +6,6 @@ use rs_qq::client::handler::QEvent;
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use rs_qq::structs::GroupMemberPermission;
-use std::collections::HashMap;
 use tracing::{debug, info, warn};
 use walle_core::{Event, ExtendedMap, MessageContent, MessageSegment, NoticeContent};
 
@@ -54,10 +53,7 @@ impl Parse<Option<MessageSegment>> for RQElem {
             }),
             elem => {
                 debug!("unsupported MsgElem: {:?}", elem);
-                Some(MessageSegment::Text {
-                    text: "unsupported MsgElem".to_string(),
-                    extend: HashMap::new(),
-                })
+                None
             }
         }
     }
@@ -102,10 +98,6 @@ impl Parse<MessageChain> for Vec<MessageSegment> {
 #[async_trait]
 impl Parser<QEvent, Event> for walle_core::impls::OneBot {
     async fn parse(&self, event: QEvent) -> Option<Event> {
-        fn message_id_map(seqs: &Vec<i32>) -> ExtendedMap {
-            [("qq.message_id".to_owned(), (seqs[0] as i64).into())].into()
-        }
-
         match event {
             // meta
             QEvent::TcpConnect | QEvent::TcpDisconnect => None,
@@ -122,10 +114,12 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                     .new_event(
                         MessageContent::new_private_message_content(
                             pme.message.elements.parse(),
+                            pme.message.seqs[0].to_string(),
                             pme.message.from_uin.to_string(),
-                            message_id_map(&pme.message.seqs),
+                            ExtendedMap::default(),
                         )
                         .into(),
+                        pme.message.time as u64,
                     )
                     .await;
                 crate::SLED_DB.insert_event(pme.message.seqs[0], &event);
@@ -136,11 +130,13 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                     .new_event(
                         MessageContent::new_group_message_content(
                             gme.message.elements.parse(),
+                            gme.message.seqs[0].to_string(),
                             gme.message.from_uin.to_string(),
                             gme.message.group_code.to_string(),
-                            message_id_map(&gme.message.seqs),
+                            ExtendedMap::default(),
                         )
                         .into(),
+                        gme.message.time as u64,
                     )
                     .await;
                 crate::SLED_DB.insert_event(gme.message.seqs[0], &event);
@@ -161,6 +157,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         user_id: e.recall.friend_uin.to_string(),
                     }
                     .into(),
+                    e.recall.time as u64,
                 )
                 .await,
             ),
@@ -171,6 +168,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         user_id: e.friend.uin.to_string(),
                     }
                     .into(),
+                    walle_core::timestamp(),
                 )
                 .await,
             ),
@@ -185,6 +183,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         operator_id: "".to_string(),
                     }
                     .into(),
+                    walle_core::timestamp(),
                 )
                 .await,
             ),
@@ -205,6 +204,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         },
                     }
                     .into(),
+                    walle_core::timestamp(),
                 )
                 .await,
             ),
@@ -217,6 +217,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         operator_id: e.group_mute.operator_uin.to_string(),
                     }
                     .into(),
+                    e.group_mute.time as u64,
                 )
                 .await,
             ),
@@ -234,6 +235,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         operator_id: e.recall.operator_uin.to_string(),
                     }
                     .into(),
+                    e.recall.time as u64,
                 )
                 .await,
             ),
@@ -249,6 +251,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                                 operator_id: "".to_string(), //todo
                             }
                             .into(),
+                            walle_core::timestamp(),
                         )
                         .await,
                     ),
@@ -261,6 +264,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                                 operator_id: "".to_string(), //todo
                             }
                             .into(),
+                            walle_core::timestamp(),
                         )
                         .await,
                     ),

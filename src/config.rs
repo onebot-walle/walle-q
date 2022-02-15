@@ -13,6 +13,8 @@ const DEVICE_PATH: &str = "device.json";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub(crate) struct Config {
+    #[serde(flatten)]
+    pub command: crate::command::Comm,
     pub onebot: ImplConfig,
     #[serde(flatten)]
     pub qq: QQConfig,

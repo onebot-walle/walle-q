@@ -25,6 +25,7 @@ sled = "0.34"
 rmp-serde = "0.15"
 lazy_static = "1.4"
 uuid = "0.8"
+clap = { version = "3.0", features = ["derive"] }
 
 [dev-dependencies]
 md5 = "*"

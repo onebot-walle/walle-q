@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use parse::Parser;
+use parse::Parser as _Parser;
 use rs_qq::client::Client;
 
+mod command;
 mod config;
 mod database;
 mod handler;
@@ -12,6 +13,7 @@ mod parse;
 const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+use clap::Parser;
 use database::DatabaseInit;
 use lazy_static::lazy_static;
 
@@ -21,15 +23,11 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let timer = tracing_subscriber::fmt::time::LocalTime::new(time::macros::format_description!(
-        "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
-    ));
-    let env = tracing_subscriber::EnvFilter::from("rs_qq=debug,sled=warn,info");
-    tracing_subscriber::fmt()
-        .with_env_filter(env)
-        .with_timer(timer)
-        .init();
+    let mut comm = command::Comm::parse();
     let config = config::Config::load().unwrap();
+    comm.merge(config.command);
+    comm.subscribe();
+
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let self_id = config.qq.uin.unwrap_or(0);
     let qclient = Arc::new(Client::new_with_config(
