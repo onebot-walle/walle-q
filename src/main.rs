@@ -34,24 +34,45 @@ async fn main() {
         config::load_device(&config.qq).unwrap(),
         tx,
     ));
-    let ob = walle_core::impls::OneBot::new(
-        WALLE_Q,
-        "qq",
-        &self_id.to_string(),
-        config.onebot,
-        Arc::new(handler::AHandler(qclient.clone())),
-    )
-    .arc();
     let qcli2 = qclient.clone();
     tokio::spawn(async move { qcli2.start().await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     login::login(&qclient, &config.qq).await.unwrap();
 
-    ob.run().await.unwrap();
-    while let Some(msg) = rx.recv().await {
-        if let Some(event) = ob.parse(msg).await {
-            tracing::info!("{:?}", event);
-            ob.send_event(event).unwrap();
+    let ob = walle_core::impls::OneBot::new(
+        WALLE_Q,
+        "qq",
+        &self_id.to_string(),
+        config.onebot.clone(),
+        Arc::new(handler::Handler(qclient.clone())),
+    )
+    .arc();
+    if !comm.v11 {
+        ob.run().await.unwrap();
+        while let Some(msg) = rx.recv().await {
+            if let Some(event) = ob.parse(msg).await {
+                tracing::info!("{:?}", event);
+                ob.send_event(event).unwrap();
+            }
+        }
+    } else {
+        tracing::warn!(target: WALLE_Q, "Using Onebot v11 standard");
+        let ob11 = walle_v11::impls::OneBot11::new(
+            WALLE_Q,
+            "qq",
+            &self_id.to_string(),
+            config.onebot,
+            Arc::new(handler::v11::V11Handler(ob.clone())),
+        )
+        .arc();
+        ob11.run().await.unwrap();
+        while let Some(msg) = rx.recv().await {
+            parse::v11::meta_event_process(&ob11, &msg).await;
+            if let Some(event) = ob.parse(msg).await {
+                let e = event.try_into().unwrap();
+                tracing::info!("{:?}", e);
+                ob11.send_event(e).unwrap();
+            }
         }
     }
 }

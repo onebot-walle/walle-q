@@ -35,3 +35,10 @@ impl Parser<QEvent, Event> for walle_v11::impls::OneBot11 {
         todo!()
     }
 }
+
+pub async fn meta_event_process(ob: &walle_v11::impls::OneBot11, event: &QEvent) {
+    match event {
+        QEvent::Login(uin) => *ob.self_id.write().await = uin.to_string(),
+        _ => {}
+    }
+}

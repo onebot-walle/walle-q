@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 mod v12;
-mod v11;
+pub mod v11;
 
 pub(crate) trait Parse<T> {
     fn parse(self) -> T;

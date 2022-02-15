@@ -11,7 +11,8 @@ pub(crate) struct Comm {
     pub log: Option<LogLevel>,
 
     #[clap(long, help = "use Onebot v11 standard instead of v12 (todo)")]
-    pub v11: Option<bool>,
+    #[serde(default)]
+    pub v11: bool,
 }
 
 #[derive(ArgEnum, Clone, Serialize, Deserialize, Debug)]
@@ -54,8 +55,8 @@ impl Comm {
         if let Some(log) = other.log {
             self.log = Some(log);
         }
-        if let Some(v11) = other.v11 {
-            self.v11 = Some(v11);
+        if other.v11 && !self.v11 {
+            self.v11 = true;
         }
     }
 }
