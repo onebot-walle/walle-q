@@ -1,6 +1,6 @@
 use super::{Database, DatabaseInit};
-use serde::{de::DeserializeOwned, Serialize};
 use sled::Db;
+use walle_core::{Event, EventContent};
 
 pub(crate) type SledDb = Db;
 
@@ -10,22 +10,18 @@ impl DatabaseInit for Db {
     }
 }
 
-impl<T> Database<T> for Db
-where
-    T: Serialize + DeserializeOwned,
-{
-    fn get_event(&self, key: &str) -> Option<T> {
+impl Database for Db {
+    fn get_message_event(&self, key: &str) -> Option<Event> {
         self.get(key)
             .unwrap()
             .map(|v| rmp_serde::from_read(v.as_ref()).unwrap())
     }
 
-    fn insert_event<K>(&self, key: K, value: &T)
-    where
-        K: ToString,
-    {
-        self.insert(key.to_string(), rmp_serde::to_vec(value).unwrap())
-            .unwrap();
+    fn insert_message_event(&self, value: &Event) {
+        if let EventContent::Message(ref m) = value.content {
+            self.insert(&m.message_id, rmp_serde::to_vec(value).unwrap())
+                .unwrap();
+        }
     }
 }
 
@@ -33,8 +29,7 @@ where
 fn sled_test() {
     use walle_core::{resp::StatusContent, BaseEvent, Event, EventContent, MetaContent};
     let db = SledDb::init();
-    db.insert_event(
-        "b6e65187-5ac0-489c-b431-53078e9d2bbb",
+    db.insert_message_event(
         &BaseEvent {
             id: "b6e65187-5ac0-489c-b431-53078e9d2bbb".to_owned(),
             r#impl: "rs_onebot_qq".to_owned(),
@@ -51,7 +46,7 @@ fn sled_test() {
             }),
         },
     );
-    let e: Option<Event> = db.get_event("b6e65187-5ac0-489c-b431-53078e9d2bbb");
+    let e: Option<Event> = db.get_message_event("b6e65187-5ac0-489c-b431-53078e9d2bbb");
     println!("{:?}", e);
 }
 
@@ -59,6 +54,6 @@ fn sled_test() {
 fn sled_get_test() {
     use walle_core::Event;
     let db = SledDb::init();
-    let e: Option<Event> = db.get_event("b6e65187-5ac0-489c-b431-53078e9d2bbb");
+    let e: Option<Event> = db.get_message_event("b6e65187-5ac0-489c-b431-53078e9d2bbb");
     println!("{:?}", e);
 }

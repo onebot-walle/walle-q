@@ -64,7 +64,7 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                     receipt.time as f64,
                 )
                 .await;
-            crate::SLED_DB.insert_event(receipt.seqs[0], &event);
+            crate::SLED_DB.insert_message_event(&event);
             Ok(Resps::success(
                 SendMessageRespContent {
                     message_id: event.id,
@@ -94,7 +94,7 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                     receipt.time as f64,
                 )
                 .await;
-            crate::SLED_DB.insert_event(receipt.seqs[0], &event);
+            crate::SLED_DB.insert_message_event(&event);
             Ok(Resps::success(
                 SendMessageRespContent {
                     message_id: event.id,

@@ -122,7 +122,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         pme.message.time as f64,
                     )
                     .await;
-                crate::SLED_DB.insert_event(pme.message.seqs[0], &event);
+                crate::SLED_DB.insert_message_event(&event);
                 Some(event)
             }
             QEvent::GroupMessage(gme) => {
@@ -139,7 +139,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         gme.message.time as f64,
                     )
                     .await;
-                crate::SLED_DB.insert_event(gme.message.seqs[0], &event);
+                crate::SLED_DB.insert_message_event(&event);
                 Some(event)
             }
             QEvent::SelfGroupMessage(e) => {
