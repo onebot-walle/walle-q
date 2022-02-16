@@ -16,7 +16,11 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
         RQElem::At(at) => Some(MessageSegment::mention(at.target.to_string())),
         RQElem::Face(face) => Some(MessageSegment::Custom {
             ty: "face".to_owned(),
-            data: [("file".to_string(), face.name.into())].into(),
+            data: [
+                ("id".to_string(), (face.index as i64).into()),
+                ("file".to_string(), face.name.into()),
+            ]
+            .into(),
         }),
         RQElem::MarketFace(face) => Some(MessageSegment::text(face.name)),
         RQElem::Dice(d) => Some(MessageSegment::Custom {
