@@ -1,5 +1,8 @@
 use clap::{ArgEnum, Parser};
 use serde::{Deserialize, Serialize};
+use tracing_subscriber::{
+    filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
+};
 
 #[derive(Parser, Serialize, Deserialize, Debug, Default)]
 #[clap(name = "Walle-Q",
@@ -24,16 +27,21 @@ pub(crate) enum LogLevel {
     Error,
 }
 
-impl ToString for LogLevel {
-    fn to_string(&self) -> String {
+impl Default for LogLevel {
+    fn default() -> Self {
+        LogLevel::Info
+    }
+}
+
+impl Into<LevelFilter> for LogLevel {
+    fn into(self) -> LevelFilter {
         match self {
-            LogLevel::Trace => "trace",
-            LogLevel::Debug => "debug",
-            LogLevel::Info => "info",
-            LogLevel::Warn => "warn",
-            LogLevel::Error => "error",
+            LogLevel::Trace => LevelFilter::TRACE,
+            LogLevel::Debug => LevelFilter::DEBUG,
+            LogLevel::Info => LevelFilter::INFO,
+            LogLevel::Warn => LevelFilter::WARN,
+            LogLevel::Error => LevelFilter::ERROR,
         }
-        .to_string()
     }
 }
 
@@ -43,12 +51,17 @@ impl Comm {
             tracing_subscriber::fmt::time::LocalTime::new(time::macros::format_description!(
                 "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
             ));
-        let log = self.log.as_ref().unwrap_or(&LogLevel::Info);
-        let env = tracing_subscriber::EnvFilter::from(format!("sled=warn,{}", log.to_string()));
-        tracing_subscriber::fmt()
-            .with_env_filter(env)
-            .with_timer(timer)
+        let filter = tracing_subscriber::filter::Targets::new()
+            .with_default(self.log.clone().unwrap_or_default())
+            .with_target("sled", LevelFilter::WARN);
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer().with_timer(timer))
+            .with(filter)
             .init();
+        // tracing_subscriber::fmt()
+        //     .with_timer(timer)
+        //     .(filter)
+        //     .init();
     }
 
     pub(crate) fn merge(&mut self, other: Self) {

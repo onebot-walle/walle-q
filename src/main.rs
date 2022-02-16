@@ -39,6 +39,7 @@ async fn main() {
         .await
         .unwrap();
     tokio::spawn(async move { qcli2.start(stream).await });
+    tokio::task::yield_now().await;
     login::login(&qclient, &config.qq).await.unwrap();
 
     let ob = walle_core::impls::OneBot::new(
