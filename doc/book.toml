@@ -1,0 +1,6 @@
+[book]
+authors = ["abrahumlink"]
+language = "zh"
+multilingual = false
+src = "src"
+title = "Walle-Mk.Q 使用手册"
