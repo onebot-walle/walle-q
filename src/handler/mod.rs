@@ -1,13 +1,13 @@
 use crate::database::Database;
 use async_trait::async_trait;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use walle_core::{
-    action::{GroupIdContent, IdsContent, SendMessageContent, UserIdContent},
+    action::{DeleteMessageContent, GroupIdContent, IdsContent, SendMessageContent, UserIdContent},
     impls::OneBot,
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, MessageContent, RespContent, Resps,
+    Action, ActionHandler, ExtendedMap, MessageContent, MessageEventType, RespContent, Resps,
 };
 
 pub(crate) mod v11;
@@ -23,6 +23,7 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::GetVersion(_) => Ok(Self::get_version()),
 
             Action::SendMessage(msg) => self.handle(msg, ob).await,
+            Action::DeleteMessage(c) => self.handle(c, ob).await,
 
             Action::GetSelfInfo(_) => Ok(self.get_self_info().await),
             Action::GetUserInfo(c) => self.handle(c, ob).await,
@@ -57,7 +58,11 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                         receipt.seqs[0].to_string(),
                         ob.self_id.read().await.clone(),
                         group_id,
-                        HashMap::default(),
+                        [
+                            ("seqs".to_string(), receipt.seqs.into()),
+                            ("rands".to_string(), receipt.rands.into()),
+                        ]
+                        .into(),
                     )
                     .into(),
                     receipt.time as f64,
@@ -87,7 +92,11 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                         content.message,
                         receipt.seqs[0].to_string(),
                         ob.self_id().await,
-                        HashMap::default(),
+                        [
+                            ("seqs".to_string(), receipt.seqs.into()),
+                            ("rands".to_string(), receipt.rands.into()),
+                        ]
+                        .into(),
                     )
                     .into(),
                     receipt.time as f64,
@@ -145,6 +154,51 @@ impl ActionHandler<GroupIdContent, Resps, OneBot> for Handler {
     }
 }
 
+#[async_trait]
+impl ActionHandler<DeleteMessageContent, Resps, OneBot> for Handler {
+    async fn handle(&self, action: DeleteMessageContent, _ob: &OneBot) -> Result<Resps, Resps> {
+        fn get_vec_i32(map: &mut ExtendedMap, key: &str) -> Vec<i32> {
+            map.remove(key)
+                .unwrap()
+                .downcast_list()
+                .unwrap()
+                .into_iter()
+                .map(|v| v.downcast_int().unwrap() as i32)
+                .collect()
+        }
+
+        if let Some(mut m) = crate::SLED_DB.get_message_event(&action.message_id) {
+            if let Ok(_) = match m.content.ty {
+                MessageEventType::Private => {
+                    self.0
+                        .recall_private_message(
+                            m.content.user_id.parse().unwrap(),
+                            m.time as i64,
+                            get_vec_i32(&mut m.content.extra, "seqs"),
+                            get_vec_i32(&mut m.content.extra, "rands"),
+                        )
+                        .await
+                }
+                MessageEventType::Group { group_id } => {
+                    self.0
+                        .recall_group_message(
+                            group_id.parse().unwrap(),
+                            get_vec_i32(&mut m.content.extra, "seqs"),
+                            get_vec_i32(&mut m.content.extra, "rands"),
+                        )
+                        .await
+                }
+            } {
+                Ok(Resps::empty_success())
+            } else {
+                Err(Resps::platform_error())
+            }
+        } else {
+            Err(Resps::empty_fail(35001, "未找到该消息".to_owned()))
+        }
+    }
+}
+
 impl Handler {
     fn get_supported_actions() -> Resps {
         Resps::success(RespContent::SupportActions(vec![
@@ -152,6 +206,7 @@ impl Handler {
             "get_status".into(),
             "get_version".into(),
             "send_message".into(),
+            "delete_message".into(),
             "get_self_info".into(),
             "get_user_info".into(),
             "get_friend_list".into(),

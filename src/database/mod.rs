@@ -1,4 +1,4 @@
-use walle_core::Event;
+use walle_core::{BaseEvent, Event, MessageContent};
 
 pub(crate) mod sled;
 
@@ -7,6 +7,6 @@ pub(crate) trait DatabaseInit {
 }
 
 pub(crate) trait Database: DatabaseInit + Sized {
-    fn get_message_event(&self, key: &str) -> Option<Event>;
+    fn get_message_event(&self, key: &str) -> Option<BaseEvent<MessageContent>>;
     fn insert_message_event(&self, value: &Event);
 }

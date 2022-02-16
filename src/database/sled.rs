@@ -1,6 +1,6 @@
 use super::{Database, DatabaseInit};
 use sled::Db;
-use walle_core::{Event, EventContent};
+use walle_core::{BaseEvent, Event, EventContent, MessageContent};
 
 pub(crate) type SledDb = Db;
 
@@ -11,10 +11,13 @@ impl DatabaseInit for Db {
 }
 
 impl Database for Db {
-    fn get_message_event(&self, key: &str) -> Option<Event> {
-        self.get(key)
-            .unwrap()
-            .map(|v| rmp_serde::from_read(v.as_ref()).unwrap())
+    fn get_message_event(&self, key: &str) -> Option<BaseEvent<MessageContent>> {
+        self.get(key).unwrap().map(|v| {
+            rmp_serde::from_read::<_, Event>(v.as_ref())
+                .unwrap()
+                .try_into()
+                .unwrap()
+        })
     }
 
     fn insert_message_event(&self, value: &Event) {

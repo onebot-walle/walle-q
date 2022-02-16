@@ -121,7 +121,7 @@ table thead td {
 }
 table thead th {
     padding: 3px 20px;
-    min-width: 6em;
+    min-width: 6rem;
 }
 table thead tr {
     border: 1px var(--table-header-bg) solid;

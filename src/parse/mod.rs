@@ -7,7 +7,7 @@ use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use rs_qq::structs::GroupMemberPermission;
 use tracing::{debug, info, warn};
-use walle_core::{Event, ExtendedMap, MessageContent, MessageSegment, NoticeContent};
+use walle_core::{Event, MessageContent, MessageSegment, NoticeContent};
 
 pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
     match elem {
@@ -112,7 +112,11 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
                         msg_chain2msg_seg_vec(pme.message.elements),
                         pme.message.seqs[0].to_string(),
                         pme.message.from_uin.to_string(),
-                        ExtendedMap::default(),
+                        [
+                            ("seqs".to_string(), pme.message.seqs.into()),
+                            ("rands".to_string(), pme.message.rands.into()),
+                        ]
+                        .into(),
                     )
                     .into(),
                     pme.message.time as f64,
@@ -129,7 +133,11 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
                         gme.message.seqs[0].to_string(),
                         gme.message.from_uin.to_string(),
                         gme.message.group_code.to_string(),
-                        ExtendedMap::default(),
+                        [
+                            ("seqs".to_string(), gme.message.seqs.into()),
+                            ("rands".to_string(), gme.message.rands.into()),
+                        ]
+                        .into(),
                     )
                     .into(),
                     gme.message.time as f64,
