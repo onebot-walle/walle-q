@@ -35,8 +35,10 @@ async fn main() {
         tx,
     ));
     let qcli2 = qclient.clone();
-    tokio::spawn(async move { qcli2.start().await.unwrap() });
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let stream = tokio::net::TcpStream::connect(qclient.get_address())
+        .await
+        .unwrap();
+    tokio::spawn(async move { qcli2.start(stream).await });
     login::login(&qclient, &config.qq).await.unwrap();
 
     let ob = walle_core::impls::OneBot::new(
