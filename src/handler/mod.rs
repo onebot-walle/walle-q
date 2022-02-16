@@ -2,7 +2,10 @@ use crate::database::Database;
 use async_trait::async_trait;
 use std::sync::Arc;
 use walle_core::{
-    action::{DeleteMessageContent, GroupIdContent, IdsContent, SendMessageContent, UserIdContent},
+    action::{
+        DeleteMessageContent, GetLatestEventsContent, GroupIdContent, IdsContent,
+        SendMessageContent, UserIdContent,
+    },
     impls::OneBot,
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
@@ -18,6 +21,7 @@ pub(crate) struct Handler(pub(crate) Arc<rs_qq::Client>);
 impl ActionHandler<Action, Resps, OneBot> for Handler {
     async fn handle(&self, action: Action, ob: &OneBot) -> Result<Resps, Resps> {
         match action {
+            Action::GetLatestEvents(c) => self.handle(c, ob).await,
             Action::GetSupportedActions(_) => Ok(Self::get_supported_actions()),
             Action::GetStatus(_) => Ok(self.get_status()),
             Action::GetVersion(_) => Ok(Self::get_version()),
@@ -35,6 +39,17 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
             _ => Err(Resps::unsupported_action()),
         }
+    }
+}
+
+#[async_trait]
+impl ActionHandler<GetLatestEventsContent, Resps, OneBot> for Handler {
+    async fn handle(&self, c: GetLatestEventsContent, _ob: &OneBot) -> Result<Resps, Resps> {
+        Ok(Resps::success(
+            crate::SLED_DB
+                .get_latest_message_events(c.limit as usize)
+                .into(),
+        ))
     }
 }
 
@@ -202,6 +217,7 @@ impl ActionHandler<DeleteMessageContent, Resps, OneBot> for Handler {
 impl Handler {
     fn get_supported_actions() -> Resps {
         Resps::success(RespContent::SupportActions(vec![
+            "get_latest_events".into(),
             "get_supported_actions".into(),
             "get_status".into(),
             "get_version".into(),

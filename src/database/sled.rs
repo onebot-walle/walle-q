@@ -26,6 +26,21 @@ impl Database for Db {
                 .unwrap();
         }
     }
+
+    fn get_latest_message_events(&self, limit: usize) -> Vec<Event> {
+        let mut events = Vec::new();
+        let mut i = self.last();
+        while let Ok(Some((k, v))) = i {
+            let event = rmp_serde::from_read(v.as_ref()).unwrap();
+            events.push(event);
+            if events.len() >= limit {
+                break;
+            }
+            i = self.get_lt(&k);
+        }
+        events.reverse();
+        events
+    }
 }
 
 #[test]

@@ -17,6 +17,8 @@ A qq platform OneBot Implementation
 
 > 本项目采用 AGPLv3 开源协议，仅出于学习目的开发，不鼓励、不支持任何除此以外的任何其他用途。
 
+**目前所有功能均未完成测试，请谨慎使用**
+
 ## 登录方式
 
 - [x] 账户密码登录
@@ -38,16 +40,29 @@ A qq platform OneBot Implementation
 
 ## 已支持消息段
 
+### 接收与发送
+
 - [x] 文本消息
-- [x] AT消息
+- [x] at消息
+- [ ] ...
+
+### 仅接收
+
+- [x] face消息
+- [x] dice消息
+- [x] rps消息
+- [x] json消息
+- [x] image消息
 - [ ] ...
 
 ## 已支持 API
 
+- [x] get_latest_events
 - [x] get_supported_actions
 - [x] get_status
 - [x] get_version
 - [x] send_message
+- [x] delete_message
 - [x] get_self_info
 - [x] get_user_info
 - [x] get_friend_list
