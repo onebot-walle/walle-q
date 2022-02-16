@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use parse::Parser as _Parser;
 use rs_qq::client::Client;
 
 mod command;
@@ -8,7 +7,7 @@ mod config;
 mod database;
 mod handler;
 mod login;
-mod parse;
+pub(crate) mod parse;
 
 const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -53,7 +52,7 @@ async fn main() {
     if !comm.v11 {
         ob.run().await.unwrap();
         while let Some(msg) = rx.recv().await {
-            if let Some(event) = ob.parse(msg).await {
+            if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
                 tracing::info!("{:?}", event);
                 ob.send_event(event).unwrap();
             }
@@ -71,7 +70,7 @@ async fn main() {
         ob11.run().await.unwrap();
         while let Some(msg) = rx.recv().await {
             parse::v11::meta_event_process(&ob11, &msg).await;
-            if let Some(event) = ob.parse(msg).await {
+            if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
                 let e = event.try_into().unwrap();
                 tracing::info!("{:?}", e);
                 ob11.send_event(e).unwrap();

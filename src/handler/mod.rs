@@ -1,5 +1,4 @@
 use crate::database::Database;
-use crate::parse::Parse;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use walle_core::{
@@ -47,7 +46,7 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                 .0
                 .send_group_message(
                     group_id.parse().map_err(|_| Resps::bad_param())?,
-                    content.message.clone().parse(),
+                    crate::parse::msg_seg_vec2msg_chain(content.message.clone()),
                 )
                 .await
                 .map_err(|_| Resps::platform_error())?;
@@ -78,7 +77,7 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                 .0
                 .send_private_message(
                     target_id.parse().map_err(|_| Resps::bad_param())?,
-                    content.message.clone().parse(),
+                    crate::parse::msg_seg_vec2msg_chain(content.message.clone()),
                 )
                 .await
                 .map_err(|_| Resps::platform_error())?;
