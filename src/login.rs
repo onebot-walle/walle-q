@@ -75,7 +75,7 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
                     tgt_qr,
                     ..
                 } => {
-                    info!("二维码已确认");
+                    info!(target: crate::WALLE_Q, "二维码已确认");
                     let resp = cli.qrcode_login(&tmp_pwd, &tmp_no_pic_sig, &tgt_qr).await?;
                     break handle_login_resp(cli, resp).await;
                 }

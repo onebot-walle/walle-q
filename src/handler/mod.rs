@@ -61,14 +61,14 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                         HashMap::default(),
                     )
                     .into(),
-                    receipt.time as u64,
+                    receipt.time as f64,
                 )
                 .await;
             crate::SLED_DB.insert_event(receipt.seqs[0], &event);
             Ok(Resps::success(
                 SendMessageRespContent {
                     message_id: event.id,
-                    time: event.time,
+                    time: event.time as u64,
                 }
                 .into(),
             ))
@@ -91,14 +91,14 @@ impl ActionHandler<SendMessageContent, Resps, OneBot> for Handler {
                         HashMap::default(),
                     )
                     .into(),
-                    receipt.time as u64,
+                    receipt.time as f64,
                 )
                 .await;
             crate::SLED_DB.insert_event(receipt.seqs[0], &event);
             Ok(Resps::success(
                 SendMessageRespContent {
                     message_id: event.id,
-                    time: event.time,
+                    time: event.time as u64,
                 }
                 .into(),
             ))

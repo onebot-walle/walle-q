@@ -4,3 +4,6 @@ language = "zh"
 multilingual = false
 src = "src"
 title = "Walle-Mk.Q 使用手册"
+
+[output.html]
+cname = "walle-q.abrahum.link"

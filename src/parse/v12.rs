@@ -119,7 +119,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                             ExtendedMap::default(),
                         )
                         .into(),
-                        pme.message.time as u64,
+                        pme.message.time as f64,
                     )
                     .await;
                 crate::SLED_DB.insert_event(pme.message.seqs[0], &event);
@@ -136,7 +136,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                             ExtendedMap::default(),
                         )
                         .into(),
-                        gme.message.time as u64,
+                        gme.message.time as f64,
                     )
                     .await;
                 crate::SLED_DB.insert_event(gme.message.seqs[0], &event);
@@ -157,7 +157,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         user_id: e.recall.friend_uin.to_string(),
                     }
                     .into(),
-                    e.recall.time as u64,
+                    e.recall.time as f64,
                 )
                 .await,
             ),
@@ -168,7 +168,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         user_id: e.friend.uin.to_string(),
                     }
                     .into(),
-                    walle_core::timestamp(),
+                    walle_core::timestamp_nano_f64(),
                 )
                 .await,
             ),
@@ -183,7 +183,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         operator_id: "".to_string(),
                     }
                     .into(),
-                    walle_core::timestamp(),
+                    walle_core::timestamp_nano_f64(),
                 )
                 .await,
             ),
@@ -204,7 +204,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         },
                     }
                     .into(),
-                    walle_core::timestamp(),
+                    walle_core::timestamp_nano_f64(),
                 )
                 .await,
             ),
@@ -217,7 +217,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         operator_id: e.group_mute.operator_uin.to_string(),
                     }
                     .into(),
-                    e.group_mute.time as u64,
+                    e.group_mute.time as f64,
                 )
                 .await,
             ),
@@ -235,7 +235,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                         operator_id: e.recall.operator_uin.to_string(),
                     }
                     .into(),
-                    e.recall.time as u64,
+                    e.recall.time as f64,
                 )
                 .await,
             ),
@@ -251,7 +251,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                                 operator_id: "".to_string(), //todo
                             }
                             .into(),
-                            walle_core::timestamp(),
+                            walle_core::timestamp_nano_f64(),
                         )
                         .await,
                     ),
@@ -264,7 +264,7 @@ impl Parser<QEvent, Event> for walle_core::impls::OneBot {
                                 operator_id: "".to_string(), //todo
                             }
                             .into(),
-                            walle_core::timestamp(),
+                            walle_core::timestamp_nano_f64(),
                         )
                         .await,
                     ),

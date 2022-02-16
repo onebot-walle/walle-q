@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tracing::{info, warn};
 use walle_core::ImplConfig;
+use crate::WALLE_Q;
 
 type IOResult<T> = Result<T, std::io::Error>;
 
@@ -60,10 +61,10 @@ trait LoadConfig: for<'de> Deserialize<'de> + Serialize + NewConfig {
     }
 
     fn load_or_new(path: &str) -> IOResult<Self> {
-        info!("loading {}", path);
+        info!(target: WALLE_Q, "loading {}", path);
         match Self::load_from_file(path) {
             Ok(config) => {
-                info!("success load from {}", path);
+                info!(target: WALLE_Q, "success load from {}", path);
                 Ok(config)
             }
             Err(e) => match e.kind() {
@@ -73,7 +74,7 @@ trait LoadConfig: for<'de> Deserialize<'de> + Serialize + NewConfig {
                 }
                 _ => {
                     warn!("open {} failed: {}", path, e);
-                    info!("creating new {}", path);
+                    info!(target: WALLE_Q, "creating new {}", path);
                     let config = Self::new_config();
                     config.save_to_file(path)?;
                     Ok(config)

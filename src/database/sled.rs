@@ -40,7 +40,7 @@ fn sled_test() {
             r#impl: "rs_onebot_qq".to_owned(),
             platform: "qq".to_owned(),
             self_id: "123234".to_owned(),
-            time: 1632847927,
+            time: 1632847927.0,
             content: EventContent::Meta(MetaContent::Heartbeat {
                 interval: 5000,
                 status: StatusContent {
