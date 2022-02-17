@@ -70,6 +70,12 @@ A qq platform OneBot Implementation
 - [x] get_group_list
 - [x] get_group_member_list
 - [x] get_group_member_info
+- [x] set_group_name
+- [x] kick_group_member
+- [x] ban_group_member
+- [x] unban_group_member
+- [x] set_group_admin
+- [x] unset_group_admin
 - [ ] ...
 
 ## OneBot-v11 协议支持

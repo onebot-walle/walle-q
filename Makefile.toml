@@ -1,0 +1,28 @@
+[tasks.build_win_64]
+command = "cargo"
+args = ["build", "--release", "--target=x86_64-pc-windows-msvc"]
+
+[tasks.build_win_32]
+command = "cargo"
+args = ["build", "--release", "--target=i686-pc-windows-msvc"]
+
+[tasks.build_linux_64]
+command = "cargo"
+args = ["build", "--release", "--target=x86_64-unknown-linux-musl"]
+
+[tasks.build_linux_32]
+command = "cargo"
+args = ["build", "--release", "--target=i686-unknown-linux-musl"]
+
+[tasks.build_linux_arm]
+command = "cargo"
+args = ["build", "--release", "--target=aarch64-unknown-linux-musl"]
+
+[tasks.build_all]
+dependencies = [
+    "build_win_64",
+    "build_win_32",
+    "build_linux_64",
+    "build_linux_32",
+    "build_linux_arm",
+]
