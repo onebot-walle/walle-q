@@ -1,10 +1,12 @@
 use std::fs;
+use std::sync::Arc;
 use std::time::Duration;
 
-use rs_qq::client::Client;
 use rs_qq::{LoginResponse, QRCodeState};
 use rs_qq::{RQError, RQResult};
-use std::sync::Arc;
+use rs_qq::client::Client;
+use rs_qq::ext::common::after_login;
+use rs_qq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password, Token};
 use tracing::{debug, info, warn};
 
 #[allow(dead_code)]
@@ -45,12 +47,19 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
         fs::write(TOKEN_PATH, token).unwrap();
         cli.register_client().await?;
     }
-    let ncli = cli.clone();
-    tokio::spawn(async move {
-        ncli.do_heartbeat().await;
-    });
+    after_login(&cli).await;
     cli.reload_friends().await?;
     cli.reload_groups().await
+}
+
+pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
+    let token = cli.gen_token().await;
+    let credential = if let (Some(uin), Some(password)) = (config.uin, &config.password) {
+        Credential::Both(Token(token), Password { uin: uin as i64, password: password.to_owned() })
+    } else {
+        Credential::Token(Token(token))
+    };
+    auto_reconnect(cli.clone(), credential, Duration::from_secs(10), 10, DefaultConnector).await;
 }
 
 async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
