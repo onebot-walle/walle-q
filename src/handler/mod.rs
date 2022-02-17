@@ -27,6 +27,7 @@ pub(crate) struct Handler(
 #[async_trait]
 impl ActionHandler<Action, Resps, OneBot> for Handler {
     async fn handle(&self, action: Action, ob: &OneBot) -> Resps {
+        tracing::info!(target: crate::WALLE_Q, "get action: {:?}", action);
         match action {
             Action::GetLatestEvents(c) => self.get_latest_events(c, ob).await,
             Action::GetSupportedActions(_) => Self::get_supported_actions(),
@@ -144,11 +145,12 @@ impl Handler {
                     )
                     .await
                     .map_err(error_to_resps)?;
+                let message_id = receipt.seqs[0].to_string();
                 let event = ob
                     .new_event(
                         MessageContent::new_group_message_content(
                             c.message,
-                            receipt.seqs[0].to_string(),
+                            message_id.clone(),
                             ob.self_id.read().await.clone(),
                             group_id,
                             [
@@ -164,7 +166,7 @@ impl Handler {
                 crate::SLED_DB.insert_message_event(&event);
                 Ok(Resps::success(
                     SendMessageRespContent {
-                        message_id: event.id,
+                        message_id,
                         time: event.time as f64,
                     }
                     .into(),
@@ -179,11 +181,12 @@ impl Handler {
                     )
                     .await
                     .map_err(error_to_resps)?;
+                let message_id = receipt.seqs[0].to_string();
                 let event = ob
                     .new_event(
                         MessageContent::new_private_message_content(
                             c.message,
-                            receipt.seqs[0].to_string(),
+                            message_id.clone(),
                             ob.self_id().await,
                             [
                                 ("seqs".to_string(), receipt.seqs.into()),
@@ -198,7 +201,7 @@ impl Handler {
                 crate::SLED_DB.insert_message_event(&event);
                 Ok(Resps::success(
                     SendMessageRespContent {
-                        message_id: event.id,
+                        message_id,
                         time: event.time as f64,
                     }
                     .into(),
@@ -214,7 +217,7 @@ impl Handler {
         fn get_vec_i32(map: &mut ExtendedMap, key: &str) -> Vec<i32> {
             map.remove(key)
                 .unwrap()
-                .downcast_vec()
+                .downcast_list()
                 .unwrap()
                 .into_iter()
                 .map(|v| v.downcast_int().unwrap() as i32)
