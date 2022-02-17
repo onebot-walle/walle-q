@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 use walle_core::{
     action::{
         DeleteMessageContent, GetLatestEventsContent, GroupIdContent, IdsContent,
-        SendMessageContent, UserIdContent,
+        SendMessageContent, SetGroupNameContent, UserIdContent,
     },
     impls::OneBot,
     resp::{
@@ -43,6 +43,7 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::GetGroupList(_) => Ok(self.get_group_list().await),
             Action::GetGroupMemberList(c) => self.get_group_member_list(c).await,
             Action::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
+            Action::SetGroupName(c) => self.handle(c, ob).await,
             _ => Err(Resps::unsupported_action()),
         }
     }
@@ -220,6 +221,23 @@ impl ActionHandler<DeleteMessageContent, Resps, OneBot> for Handler {
             }
         } else {
             Err(Resps::empty_fail(35001, "未找到该消息".to_owned()))
+        }
+    }
+}
+
+#[async_trait]
+impl ActionHandler<SetGroupNameContent, Resps, OneBot> for Handler {
+    async fn handle(&self, c: SetGroupNameContent, _ob: &OneBot) -> Result<Resps, Resps> {
+        match self
+            .0
+            .update_group_name(
+                c.group_id.parse().map_err(|_| Resps::bad_param())?,
+                c.group_name,
+            )
+            .await
+        {
+            Ok(_) => Ok(Resps::empty_success()),
+            Err(_) => Err(Resps::platform_error()),
         }
     }
 }
