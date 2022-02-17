@@ -32,7 +32,7 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::GetStatus(_) => self.get_status(),
             Action::GetVersion(_) => Self::get_version(),
 
-            Action::SendMessage(msg) => self.send_message(msg, ob).await,
+            Action::SendMessage(c) => self.send_message(c, ob).await,
             Action::DeleteMessage(c) => self.delete_message(c, ob).await,
 
             Action::GetSelfInfo(_) => self.get_self_info().await,
@@ -41,9 +41,14 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
 
             Action::GetGroupInfo(c) => self.get_group_info(c, ob).await,
             Action::GetGroupList(_) => self.get_group_list().await,
-            Action::GetGroupMemberList(c) => self.get_group_member_list(c).await,
             Action::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
+            Action::GetGroupMemberList(c) => self.get_group_member_list(c).await,
             Action::SetGroupName(c) => self.set_group_name(c, ob).await,
+            Action::KickGroupMember(c) => self.kick_group_member(c, ob).await,
+            Action::BanGroupMember(c) => self.ban_group_member(c, ob, false).await,
+            Action::UnbanGroupMember(c) => self.ban_group_member(c, ob, true).await,
+            Action::SetGroupAdmin(c) => self.set_group_admin(c, ob, false).await,
+            Action::UnsetGroupAdmin(c) => self.set_group_admin(c, ob, true).await,
             _ => Resps::unsupported_action(),
         }
     }
@@ -66,14 +71,20 @@ impl<T> ResultFlatten for Result<T, T> {
 
 impl Handler {
     async fn get_latest_events(&self, c: GetLatestEventsContent, _ob: &OneBot) -> Resps {
-        let events = self
-            .1
-            .lock()
-            .await
-            .value_order()
-            .take(c.limit as usize)
-            .cloned()
-            .collect::<Vec<_>>();
+        let get = || async {
+            self.1
+                .lock()
+                .await
+                .value_order()
+                .take(if c.limit <= 0 { 10 } else { c.limit as usize })
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        let mut events = get().await;
+        if events.is_empty() && c.timeout != 0 {
+            tokio::time::sleep(std::time::Duration::from_secs(c.timeout as u64)).await;
+            events = get().await;
+        }
         Resps::success(events.into())
     }
     fn get_supported_actions() -> Resps {
@@ -92,6 +103,11 @@ impl Handler {
             "get_group_member_list".into(),
             "get_group_member_info".into(),
             "set_group_name".into(),
+            "kick_group_member".into(),
+            "ban_group_member".into(),
+            "unban_group_member".into(),
+            "set_group_admin".into(),
+            "unset_group_admin".into(),
         ]))
     }
     fn get_version() -> Resps {
@@ -115,22 +131,22 @@ impl Handler {
         )
     }
 
-    async fn send_message(&self, content: SendMessageContent, ob: &OneBot) -> Resps {
+    async fn send_message(&self, c: SendMessageContent, ob: &OneBot) -> Resps {
         let fut = async {
-            if &content.detail_type == "group" {
-                let group_id = content.group_id.ok_or(Resps::bad_param())?;
+            if &c.detail_type == "group" {
+                let group_id = c.group_id.ok_or(Resps::bad_param())?;
                 let receipt = self
                     .0
                     .send_group_message(
                         group_id.parse().map_err(|_| Resps::bad_param())?,
-                        crate::parse::msg_seg_vec2msg_chain(content.message.clone()),
+                        crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
                     )
                     .await
                     .map_err(|_| Resps::platform_error())?;
                 let event = ob
                     .new_event(
                         MessageContent::new_group_message_content(
-                            content.message,
+                            c.message,
                             receipt.seqs[0].to_string(),
                             ob.self_id.read().await.clone(),
                             group_id,
@@ -148,24 +164,24 @@ impl Handler {
                 Ok(Resps::success(
                     SendMessageRespContent {
                         message_id: event.id,
-                        time: event.time as u64,
+                        time: event.time as f64,
                     }
                     .into(),
                 ))
-            } else if &content.detail_type == "private" {
-                let target_id = content.user_id.ok_or(Resps::bad_param())?;
+            } else if &c.detail_type == "private" {
+                let target_id = c.user_id.ok_or(Resps::bad_param())?;
                 let receipt = self
                     .0
                     .send_private_message(
                         target_id.parse().map_err(|_| Resps::bad_param())?,
-                        crate::parse::msg_seg_vec2msg_chain(content.message.clone()),
+                        crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
                     )
                     .await
                     .map_err(|_| Resps::platform_error())?;
                 let event = ob
                     .new_event(
                         MessageContent::new_private_message_content(
-                            content.message,
+                            c.message,
                             receipt.seqs[0].to_string(),
                             ob.self_id().await,
                             [
@@ -182,7 +198,7 @@ impl Handler {
                 Ok(Resps::success(
                     SendMessageRespContent {
                         message_id: event.id,
-                        time: event.time as u64,
+                        time: event.time as f64,
                     }
                     .into(),
                 ))
@@ -193,7 +209,7 @@ impl Handler {
         fut.await.flatten()
     }
 
-    async fn delete_message(&self, action: DeleteMessageContent, _ob: &OneBot) -> Resps {
+    async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> Resps {
         fn get_vec_i32(map: &mut ExtendedMap, key: &str) -> Vec<i32> {
             map.remove(key)
                 .unwrap()
@@ -205,7 +221,7 @@ impl Handler {
         }
 
         let fut = async {
-            if let Some(mut m) = crate::SLED_DB.get_message_event(&action.message_id) {
+            if let Some(mut m) = crate::SLED_DB.get_message_event(&c.message_id) {
                 if let Ok(_) = match m.content.ty {
                     MessageEventType::Private => {
                         self.0
@@ -247,9 +263,9 @@ impl Handler {
             .into(),
         )
     }
-    async fn get_user_info(&self, action: UserIdContent, _ob: &OneBot) -> Resps {
+    async fn get_user_info(&self, c: UserIdContent, _ob: &OneBot) -> Resps {
         let fut = async {
-            let user_id: i64 = action.user_id.parse().map_err(|_| Resps::bad_param())?;
+            let user_id: i64 = c.user_id.parse().map_err(|_| Resps::bad_param())?;
             let info = self
                 .0
                 .find_friend(user_id)
@@ -280,9 +296,9 @@ impl Handler {
                 .into(),
         )
     }
-    async fn get_group_info(&self, action: GroupIdContent, _ob: &OneBot) -> Resps {
+    async fn get_group_info(&self, c: GroupIdContent, _ob: &OneBot) -> Resps {
         let fut = async {
-            let group_id: i64 = action.group_id.parse().map_err(|_| Resps::bad_param())?;
+            let group_id: i64 = c.group_id.parse().map_err(|_| Resps::bad_param())?;
             let info = self
                 .0
                 .find_group(group_id, true)
@@ -313,9 +329,9 @@ impl Handler {
                 .into(),
         )
     }
-    async fn get_group_member_list(&self, group_id: GroupIdContent) -> Resps {
+    async fn get_group_member_list(&self, c: GroupIdContent) -> Resps {
         let fut = async {
-            let group_id: i64 = group_id.group_id.parse().map_err(|_| Resps::bad_param())?;
+            let group_id: i64 = c.group_id.parse().map_err(|_| Resps::bad_param())?;
             let group = self
                 .0
                 .find_group(group_id, true)
@@ -335,10 +351,10 @@ impl Handler {
         };
         fut.await.flatten()
     }
-    async fn get_group_member_info(&self, ids: IdsContent) -> Resps {
+    async fn get_group_member_info(&self, c: IdsContent) -> Resps {
         let fut = async {
-            let group_id: i64 = ids.group_id.parse().map_err(|_| Resps::bad_param())?;
-            let uin: i64 = ids.user_id.parse().map_err(|_| Resps::bad_param())?;
+            let group_id: i64 = c.group_id.parse().map_err(|_| Resps::bad_param())?;
+            let uin: i64 = c.user_id.parse().map_err(|_| Resps::bad_param())?;
             let group = self
                 .0
                 .find_group(group_id, true)
@@ -367,6 +383,70 @@ impl Handler {
                 .update_group_name(
                     c.group_id.parse().map_err(|_| Resps::bad_param())?,
                     c.group_name,
+                )
+                .await
+            {
+                Ok(_) => Ok(Resps::empty_success()),
+                Err(_) => Err(Resps::platform_error()),
+            }
+        };
+        fut.await.flatten()
+    }
+    async fn kick_group_member(&self, c: IdsContent, _ob: &OneBot) -> Resps {
+        let fut = async {
+            match self
+                .0
+                .group_kick(
+                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
+                    vec![c.user_id.parse().map_err(|_| Resps::bad_param())?],
+                    "",
+                    false,
+                )
+                .await
+            {
+                Ok(_) => Ok(Resps::empty_success()),
+                Err(_) => Err(Resps::platform_error()),
+            }
+        };
+        fut.await.flatten()
+    }
+    async fn ban_group_member(&self, c: IdsContent, _ob: &OneBot, unban: bool) -> Resps {
+        use std::time::Duration;
+
+        let fut = async {
+            let duration: Duration = if unban {
+                Duration::from_secs(0)
+            } else {
+                Duration::from_secs(c.extended.get("duration").map_or(Ok(60), |v| {
+                    match v.clone().downcast_int() {
+                        Ok(v) => Ok(v as u64),
+                        Err(_) => Err(Resps::bad_param()),
+                    }
+                })?)
+            };
+            match self
+                .0
+                .group_mute(
+                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
+                    c.user_id.parse().map_err(|_| Resps::bad_param())?,
+                    duration,
+                )
+                .await
+            {
+                Ok(_) => Ok(Resps::empty_success()),
+                Err(_) => Err(Resps::platform_error()),
+            }
+        };
+        fut.await.flatten()
+    }
+    async fn set_group_admin(&self, c: IdsContent, _ob: &OneBot, unset: bool) -> Resps {
+        let fut = async {
+            match self
+                .0
+                .group_set_admin(
+                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
+                    c.user_id.parse().map_err(|_| Resps::bad_param())?,
+                    !unset,
                 )
                 .await
             {
