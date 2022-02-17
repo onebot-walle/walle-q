@@ -1,10 +1,11 @@
 use std::fs;
+use std::sync::Arc;
 use std::time::Duration;
 
-use rs_qq::client::Client;
 use rs_qq::{LoginResponse, QRCodeState};
 use rs_qq::{RQError, RQResult};
-use std::sync::Arc;
+use rs_qq::client::Client;
+use rs_qq::ext::common::after_login;
 use tracing::{debug, info, warn};
 
 #[allow(dead_code)]
@@ -45,10 +46,7 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
         fs::write(TOKEN_PATH, token).unwrap();
         cli.register_client().await?;
     }
-    let ncli = cli.clone();
-    tokio::spawn(async move {
-        ncli.do_heartbeat().await;
-    });
+    after_login(&cli).await;
     cli.reload_friends().await?;
     cli.reload_groups().await
 }
