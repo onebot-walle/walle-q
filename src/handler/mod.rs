@@ -1,4 +1,5 @@
 use crate::database::Database;
+use crate::parse::err::error_to_resps;
 use async_trait::async_trait;
 use cached::SizedCache;
 use std::sync::Arc;
@@ -142,7 +143,7 @@ impl Handler {
                         crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
                     )
                     .await
-                    .map_err(|_| Resps::platform_error())?;
+                    .map_err(error_to_resps)?;
                 let event = ob
                     .new_event(
                         MessageContent::new_group_message_content(
@@ -177,7 +178,7 @@ impl Handler {
                         crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
                     )
                     .await
-                    .map_err(|_| Resps::platform_error())?;
+                    .map_err(error_to_resps)?;
                 let event = ob
                     .new_event(
                         MessageContent::new_private_message_content(
@@ -213,7 +214,7 @@ impl Handler {
         fn get_vec_i32(map: &mut ExtendedMap, key: &str) -> Vec<i32> {
             map.remove(key)
                 .unwrap()
-                .downcast_list()
+                .downcast_vec()
                 .unwrap()
                 .into_iter()
                 .map(|v| v.downcast_int().unwrap() as i32)
@@ -222,7 +223,7 @@ impl Handler {
 
         let fut = async {
             if let Some(mut m) = crate::SLED_DB.get_message_event(&c.message_id) {
-                if let Ok(_) = match m.content.ty {
+                match m.content.ty {
                     MessageEventType::Private => {
                         self.0
                             .recall_private_message(
@@ -232,6 +233,7 @@ impl Handler {
                                 get_vec_i32(&mut m.content.extra, "rands"),
                             )
                             .await
+                            .map_err(error_to_resps)?;
                     }
                     MessageEventType::Group { group_id } => {
                         self.0
@@ -241,12 +243,10 @@ impl Handler {
                                 get_vec_i32(&mut m.content.extra, "rands"),
                             )
                             .await
+                            .map_err(error_to_resps)?;
                     }
-                } {
-                    Ok(Resps::empty_success())
-                } else {
-                    Err(Resps::platform_error())
                 }
+                Ok(Resps::empty_success())
             } else {
                 Err(Resps::empty_fail(35001, "未找到该消息".to_owned()))
             }
@@ -378,24 +378,20 @@ impl Handler {
     }
     async fn set_group_name(&self, c: SetGroupNameContent, _ob: &OneBot) -> Resps {
         let fut = async {
-            match self
-                .0
+            self.0
                 .update_group_name(
                     c.group_id.parse().map_err(|_| Resps::bad_param())?,
                     c.group_name,
                 )
                 .await
-            {
-                Ok(_) => Ok(Resps::empty_success()),
-                Err(_) => Err(Resps::platform_error()),
-            }
+                .map_err(error_to_resps)?;
+            Ok(Resps::empty_success())
         };
         fut.await.flatten()
     }
     async fn kick_group_member(&self, c: IdsContent, _ob: &OneBot) -> Resps {
         let fut = async {
-            match self
-                .0
+            self.0
                 .group_kick(
                     c.group_id.parse().map_err(|_| Resps::bad_param())?,
                     vec![c.user_id.parse().map_err(|_| Resps::bad_param())?],
@@ -403,10 +399,8 @@ impl Handler {
                     false,
                 )
                 .await
-            {
-                Ok(_) => Ok(Resps::empty_success()),
-                Err(_) => Err(Resps::platform_error()),
-            }
+                .map_err(error_to_resps)?;
+            Ok(Resps::empty_success())
         };
         fut.await.flatten()
     }
@@ -424,35 +418,29 @@ impl Handler {
                     }
                 })?)
             };
-            match self
-                .0
+            self.0
                 .group_mute(
                     c.group_id.parse().map_err(|_| Resps::bad_param())?,
                     c.user_id.parse().map_err(|_| Resps::bad_param())?,
                     duration,
                 )
                 .await
-            {
-                Ok(_) => Ok(Resps::empty_success()),
-                Err(_) => Err(Resps::platform_error()),
-            }
+                .map_err(error_to_resps)?;
+            Ok(Resps::empty_success())
         };
         fut.await.flatten()
     }
     async fn set_group_admin(&self, c: IdsContent, _ob: &OneBot, unset: bool) -> Resps {
         let fut = async {
-            match self
-                .0
+            self.0
                 .group_set_admin(
                     c.group_id.parse().map_err(|_| Resps::bad_param())?,
                     c.user_id.parse().map_err(|_| Resps::bad_param())?,
                     !unset,
                 )
                 .await
-            {
-                Ok(_) => Ok(Resps::empty_success()),
-                Err(_) => Err(Resps::platform_error()),
-            }
+                .map_err(error_to_resps)?;
+            Ok(Resps::empty_success())
         };
         fut.await.flatten()
     }

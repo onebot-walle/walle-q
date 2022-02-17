@@ -1,4 +1,5 @@
 pub mod v11;
+pub mod err;
 
 use crate::database::Database;
 
