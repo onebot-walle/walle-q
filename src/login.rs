@@ -6,6 +6,7 @@ use rs_qq::{LoginResponse, QRCodeState};
 use rs_qq::{RQError, RQResult};
 use rs_qq::client::Client;
 use rs_qq::ext::common::after_login;
+use rs_qq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password, Token};
 use tracing::{debug, info, warn};
 
 #[allow(dead_code)]
@@ -49,6 +50,16 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
     after_login(&cli).await;
     cli.reload_friends().await?;
     cli.reload_groups().await
+}
+
+async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
+    let token = cli.gen_token().await;
+    let credential = if let (Some(uin), Some(password)) = (config.uin, &config.password) {
+        Credential::Both(Token(token), Password { uin: uin as i64, password: password.to_owned() })
+    } else {
+        Credential::Token(Token(token))
+    };
+    auto_reconnect(cli.clone(), credential, Duration::from_secs(10), 10, DefaultConnector).await;
 }
 
 async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
