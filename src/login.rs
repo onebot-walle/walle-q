@@ -52,7 +52,7 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
     cli.reload_groups().await
 }
 
-async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
+pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
     let token = cli.gen_token().await;
     let credential = if let (Some(uin), Some(password)) = (config.uin, &config.password) {
         Credential::Both(Token(token), Password { uin: uin as i64, password: password.to_owned() })
