@@ -1,6 +1,8 @@
 use crate::database::Database;
 use async_trait::async_trait;
+use cached::SizedCache;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use walle_core::{
     action::{
         DeleteMessageContent, GetLatestEventsContent, GroupIdContent, IdsContent,
@@ -10,12 +12,16 @@ use walle_core::{
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, ExtendedMap, MessageContent, MessageEventType, RespContent, Resps,
+    Action, ActionHandler, Event, ExtendedMap, MessageContent, MessageEventType, RespContent,
+    Resps,
 };
 
 pub(crate) mod v11;
 
-pub(crate) struct Handler(pub(crate) Arc<rs_qq::Client>);
+pub(crate) struct Handler(
+    pub(crate) Arc<rs_qq::Client>,
+    pub(crate) Arc<Mutex<SizedCache<String, Event>>>,
+);
 
 #[async_trait]
 impl ActionHandler<Action, Resps, OneBot> for Handler {
@@ -45,11 +51,15 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
 #[async_trait]
 impl ActionHandler<GetLatestEventsContent, Resps, OneBot> for Handler {
     async fn handle(&self, c: GetLatestEventsContent, _ob: &OneBot) -> Result<Resps, Resps> {
-        Ok(Resps::success(
-            crate::SLED_DB
-                .get_latest_message_events(c.limit as usize)
-                .into(),
-        ))
+        let events = self
+            .1
+            .lock()
+            .await
+            .value_order()
+            .take(c.limit as usize)
+            .cloned()
+            .collect::<Vec<_>>();
+        Ok(Resps::success(events.into()))
     }
 }
 

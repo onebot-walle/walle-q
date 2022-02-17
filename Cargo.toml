@@ -22,6 +22,7 @@ rmp-serde = "0.15"
 lazy_static = "1.4"
 uuid = "0.8"
 clap = { version = "3.0", features = ["derive"] }
+cached = "0.30"
 
 [dev-dependencies]
 md5 = "*"
@@ -32,3 +33,4 @@ opt-level = 3
 debug = false
 debug-assertions = false
 overflow-checks = false
+strip = true

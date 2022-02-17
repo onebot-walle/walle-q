@@ -1808,6 +1808,7 @@ name = "walle-q"
 version = "0.0.1"
 dependencies = [
  "async-trait",
+ "cached",
  "clap",
  "lazy_static",
  "md5",

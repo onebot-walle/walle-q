@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use cached::Cached;
 use rs_qq::client::Client;
 
 mod command;
@@ -41,12 +42,13 @@ async fn main() {
     tokio::task::yield_now().await;
     login::login(&qclient, &config.qq).await.unwrap();
 
+    let cache = Arc::new(tokio::sync::Mutex::new(cached::SizedCache::with_size(100)));
     let ob = walle_core::impls::OneBot::new(
         WALLE_Q,
         "qq",
         &self_id.to_string(),
         config.onebot.clone(),
-        Arc::new(handler::Handler(qclient.clone())),
+        Arc::new(handler::Handler(qclient.clone(), cache.clone())),
     )
     .arc();
     if !comm.v11 {
@@ -54,6 +56,10 @@ async fn main() {
         while let Some(msg) = rx.recv().await {
             if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
                 tracing::info!("{:?}", event);
+                cache
+                    .lock()
+                    .await
+                    .cache_set(event.id.clone(), event.clone());
                 ob.send_event(event).unwrap();
             }
         }
@@ -71,6 +77,10 @@ async fn main() {
         while let Some(msg) = rx.recv().await {
             parse::v11::meta_event_process(&ob11, &msg).await;
             if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
+                cache
+                    .lock()
+                    .await
+                    .cache_set(event.id.clone(), event.clone());
                 let e = event.try_into().unwrap();
                 tracing::info!("{:?}", e);
                 ob11.send_event(e).unwrap();

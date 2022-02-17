@@ -9,5 +9,4 @@ pub(crate) trait DatabaseInit {
 pub(crate) trait Database: DatabaseInit + Sized {
     fn get_message_event(&self, key: &str) -> Option<BaseEvent<MessageContent>>;
     fn insert_message_event(&self, value: &Event);
-    fn get_latest_message_events(&self, limit: usize) -> Vec<Event>;
 }
