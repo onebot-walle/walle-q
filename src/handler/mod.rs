@@ -136,7 +136,7 @@ impl Handler {
     async fn send_message(&self, c: SendMessageContent, ob: &OneBot) -> Resps {
         let fut = async {
             if &c.detail_type == "group" {
-                let group_id = c.group_id.ok_or(Resps::bad_param())?;
+                let group_id = c.group_id.ok_or_else(Resps::bad_param)?;
                 let receipt = self
                     .0
                     .send_group_message(
@@ -172,7 +172,7 @@ impl Handler {
                     .into(),
                 ))
             } else if &c.detail_type == "private" {
-                let target_id = c.user_id.ok_or(Resps::bad_param())?;
+                let target_id = c.user_id.ok_or_else(Resps::bad_param)?;
                 let receipt = self
                     .0
                     .send_private_message(
@@ -273,7 +273,7 @@ impl Handler {
                 .0
                 .find_friend(user_id)
                 .await
-                .ok_or(Resps::empty_fail(35001, "未找到该好友".to_owned()))?;
+                .ok_or_else(|| Resps::empty_fail(35001, "未找到该好友".to_owned()))?;
             Ok(Resps::success(
                 UserInfoContent {
                     user_id: info.uin.to_string(),
@@ -306,7 +306,7 @@ impl Handler {
                 .0
                 .find_group(group_id, true)
                 .await
-                .ok_or(Resps::empty_fail(35001, "未找到该群".to_owned()))?;
+                .ok_or_else(|| Resps::empty_fail(35001, "未找到该群".to_owned()))?;
             Ok(Resps::success(
                 GroupInfoContent {
                     group_id: info.info.uin.to_string(),
@@ -339,7 +339,7 @@ impl Handler {
                 .0
                 .find_group(group_id, true)
                 .await
-                .ok_or(Resps::empty_fail(35001, "未找到该群".to_owned()))?;
+                .ok_or_else(|| Resps::empty_fail(35001, "未找到该群".to_owned()))?;
             let v = group
                 .members
                 .read()
@@ -362,11 +362,11 @@ impl Handler {
                 .0
                 .find_group(group_id, true)
                 .await
-                .ok_or(Resps::empty_fail(35001, "未找到该群".to_owned()))?;
+                .ok_or_else(|| Resps::empty_fail(35001, "未找到该群".to_owned()))?;
             let list = group.members.read().await;
             let v: Vec<_> = list.iter().filter(|i| i.uin == uin).collect();
             if v.is_empty() {
-                return Err(Resps::empty_fail(35001, "未找到该群成员".to_owned()));
+                Err(Resps::empty_fail(35001, "未找到该群成员".to_owned()))
             } else {
                 Ok(Resps::success(
                     UserInfoContent {

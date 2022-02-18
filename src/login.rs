@@ -2,11 +2,11 @@ use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rs_qq::{LoginResponse, QRCodeState};
-use rs_qq::{RQError, RQResult};
 use rs_qq::client::Client;
 use rs_qq::ext::common::after_login;
 use rs_qq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password, Token};
+use rs_qq::{LoginResponse, QRCodeState};
+use rs_qq::{RQError, RQResult};
 use tracing::{debug, info, warn};
 
 #[allow(dead_code)]
@@ -47,7 +47,7 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
         fs::write(TOKEN_PATH, token).unwrap();
         cli.register_client().await?;
     }
-    after_login(&cli).await;
+    after_login(cli).await;
     cli.reload_friends().await?;
     cli.reload_groups().await
 }
@@ -55,37 +55,47 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
 pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
     let token = cli.gen_token().await;
     let credential = if let (Some(uin), Some(password)) = (config.uin, &config.password) {
-        Credential::Both(Token(token), Password { uin: uin as i64, password: password.to_owned() })
+        Credential::Both(
+            Token(token),
+            Password {
+                uin: uin as i64,
+                password: password.to_owned(),
+            },
+        )
     } else {
         Credential::Token(Token(token))
     };
-    auto_reconnect(cli.clone(), credential, Duration::from_secs(10), 10, DefaultConnector).await;
+    auto_reconnect(
+        cli.clone(),
+        credential,
+        Duration::from_secs(10),
+        10,
+        DefaultConnector,
+    )
+    .await;
 }
 
 async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
     let resp = cli.fetch_qrcode().await?;
-    if let QRCodeState::QRCodeImageFetch { image_data, sig } = resp {
-        tokio::fs::write("qrcode.png", &image_data)
+    if let QRCodeState::ImageFetch(f) = resp {
+        tokio::fs::write("qrcode.png", &f.image_data)
             .await
             .map_err(|_| RQError::Other("fail to write qrcode.png file".to_owned()))?;
         info!("请打开 qrcode.png 文件扫描二维码登录");
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            match cli.query_qrcode_result(&sig).await? {
-                QRCodeState::QRCodeWaitingForScan => debug!("二维码待扫描"),
-                QRCodeState::QRCodeWaitingForConfirm => debug!("二维码待确认"),
-                QRCodeState::QRCodeTimeout => {
+            match cli.query_qrcode_result(&f.sig).await? {
+                QRCodeState::WaitingForScan => debug!("二维码待扫描"),
+                QRCodeState::WaitingForConfirm => debug!("二维码待确认"),
+                QRCodeState::Timeout => {
                     warn!("二维码超时");
                     break Err(RQError::Other("二维码超时".to_owned()));
                 }
-                QRCodeState::QRCodeConfirmed {
-                    tmp_pwd,
-                    tmp_no_pic_sig,
-                    tgt_qr,
-                    ..
-                } => {
+                QRCodeState::Confirmed(c) => {
                     info!(target: crate::WALLE_Q, "二维码已确认");
-                    let resp = cli.qrcode_login(&tmp_pwd, &tmp_no_pic_sig, &tgt_qr).await?;
+                    let resp = cli
+                        .qrcode_login(&c.tmp_pwd, &c.tmp_no_pic_sig, &c.tgt_qr)
+                        .await?;
                     break handle_login_resp(cli, resp).await;
                 }
                 _ => todo!(),
@@ -100,16 +110,11 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
 async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResult<()> {
     loop {
         match resp {
-            LoginResponse::Success { .. } => break Ok(()),
-            LoginResponse::DeviceLocked {
-                verify_url,
-                sms_phone,
-                message,
-                ..
-            } => {
-                warn!("password login error: {}", message.unwrap());
-                warn!("{}", sms_phone.unwrap());
-                warn!("手机打开url，处理完成后重启程序: {}", verify_url.unwrap());
+            LoginResponse::Success(_) => break Ok(()),
+            LoginResponse::DeviceLocked(l) => {
+                warn!("password login error: {}", l.message.unwrap());
+                warn!("{}", l.sms_phone.unwrap());
+                warn!("手机打开url，处理完成后重启程序: {}", l.verify_url.unwrap());
                 return Err(RQError::Other("password login failure".to_string()));
             }
             LoginResponse::DeviceLockLogin { .. } => {

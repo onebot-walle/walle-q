@@ -1,3 +1,4 @@
+use crate::WALLE_Q;
 use rs_qq::device::Device;
 use rs_qq::version::{get_version, Protocol};
 use rs_qq::Config as RsQQConfig;
@@ -5,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tracing::{info, warn};
 use walle_core::ImplConfig;
-use crate::WALLE_Q;
 
 type IOResult<T> = Result<T, std::io::Error>;
 
@@ -70,7 +70,7 @@ trait LoadConfig: for<'de> Deserialize<'de> + Serialize + NewConfig {
             Err(e) => match e.kind() {
                 std::io::ErrorKind::Other => {
                     warn!("Serialize error: {}", e);
-                    return Err(e);
+                    Err(e)
                 }
                 _ => {
                     warn!("open {} failed: {}", path, e);

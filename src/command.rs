@@ -33,9 +33,9 @@ impl Default for LogLevel {
     }
 }
 
-impl Into<LevelFilter> for LogLevel {
-    fn into(self) -> LevelFilter {
-        match self {
+impl From<LogLevel> for LevelFilter {
+    fn from(log: LogLevel) -> Self {
+        match log {
             LogLevel::Trace => LevelFilter::TRACE,
             LogLevel::Debug => LevelFilter::DEBUG,
             LogLevel::Info => LevelFilter::INFO,
