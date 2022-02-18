@@ -1,7 +1,10 @@
-use rs_qq::msg::MessageChain;
-use rs_qq::structs::GroupMessage;
+use crate::parse::SendAble;
+use rq_engine::{
+    msg::MessageChain,
+    structs::{GroupMessage, PrivateMessage},
+};
 use serde::{Deserialize, Serialize};
-use walle_core::{BaseEvent, Event, MessageContent};
+use walle_core::{BaseEvent, Event, Message, MessageContent};
 
 pub(crate) mod sled;
 
@@ -15,47 +18,57 @@ pub(crate) trait Database: DatabaseInit + Sized {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(remote = "GroupMessage")]
-pub struct GroupMessageDef {
+pub struct SGroupMessage {
     pub seqs: Vec<i32>,
     pub rands: Vec<i32>,
     pub group_code: i64,
     pub from_uin: i64,
     pub time: i32,
-    #[serde(with = "MessageChainDef")]
-    pub elements: MessageChain,
+    pub elements: Message,
 }
 
-pub struct MessageChainDef(pub Vec<rq_engine::pb::msg::elem::Elem>);
-
-impl MessageChainDef {
-    pub fn serialize<S>(chain: &MessageChain, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use prost::Message;
-        let elems = chain
-            .0
-            .iter()
-            .map(|e| {
-                rq_engine::pb::msg::Elem {
-                    elem: Some(e.clone()),
-                }
-                .encode_to_vec()
-            })
-            .collect();
-        serializer.serialize_bytes()
+impl From<GroupMessage> for SGroupMessage {
+    fn from(m: GroupMessage) -> Self {
+        Self {
+            seqs: m.seqs,
+            rands: m.rands,
+            group_code: m.group_code,
+            from_uin: m.from_uin,
+            time: m.time,
+            elements: parse_only_sendable_seq(m.elements),
+        }
     }
+}
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<MessageChain, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let bytes = deserializer.deserialize_bytes()?;
-        let elems = bytes
-            .into_iter()
-            .map(|e| rq_engine::pb::msg::elem::Elem::decode_from_vec(&e).unwrap())
-            .collect();
-        Ok(MessageChain(elems))
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SPrivateMessage {
+    pub seqs: Vec<i32>,
+    pub rands: Vec<i32>,
+    pub target: i64,
+    pub time: i32,
+    pub from_uin: i64,
+    pub from_nick: String,
+    pub elements: Message,
+}
+
+impl From<PrivateMessage> for SPrivateMessage {
+    fn from(m: PrivateMessage) -> Self {
+        Self {
+            seqs: m.seqs,
+            rands: m.rands,
+            target: m.target,
+            from_uin: m.from_uin,
+            from_nick: m.from_nick,
+            time: m.time,
+            elements: parse_only_sendable_seq(m.elements),
+        }
     }
+}
+
+fn parse_only_sendable_seq(chain: MessageChain) -> Message {
+    chain
+        .into_iter()
+        .filter_map(|e| crate::parse::rq_elem2msg_seg(e))
+        .filter(SendAble::check)
+        .collect()
 }
