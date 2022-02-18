@@ -9,6 +9,8 @@ edition = "2021"
 walle-core = { path = "Walle-core", features = ["impl", "websocket", "http"] }
 walle-v11 = { path = "Walle-core/walle-v11" }
 rs-qq = { path = "rs-qq/rs-qq" }
+rq-engine = { path = "rs-qq/rq-engine" }
+prost = { version = "0.9", git = "https://github.com/lz1998/prost" }
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"
 serde = { version = "1", features = ["derive"] }

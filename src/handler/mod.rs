@@ -414,7 +414,7 @@ impl Handler {
             let duration: Duration = if unban {
                 Duration::from_secs(0)
             } else {
-                Duration::from_secs(c.extended.get("duration").map_or(Ok(60), |v| {
+                Duration::from_secs(c.extra.get("duration").map_or(Ok(60), |v| {
                     match v.clone().downcast_int() {
                         Ok(v) => Ok(v as u64),
                         Err(_) => Err(Resps::bad_param()),

@@ -16,6 +16,10 @@ pub(crate) struct Comm {
     #[clap(long, help = "use Onebot v11 standard instead of v12 (todo)")]
     #[serde(default)]
     pub v11: bool,
+
+    #[clap(long, help = "this size of event cache will be used. (Default: 100)")]
+    #[serde(default)]
+    pub event_cache_size: Option<usize>,
 }
 
 #[derive(ArgEnum, Clone, Serialize, Deserialize, Debug)]
@@ -58,16 +62,17 @@ impl Comm {
             .with(tracing_subscriber::fmt::layer().with_timer(timer))
             .with(filter)
             .init();
-        // tracing_subscriber::fmt()
-        //     .with_timer(timer)
-        //     .(filter)
-        //     .init();
     }
 
     pub(crate) fn merge(&mut self, other: Self) {
-        if let Some(log) = other.log {
-            self.log = Some(log);
+        fn merge_option<T>(a: &mut Option<T>, b: Option<T>) {
+            if let Some(b) = b {
+                *a = Some(b);
+            }
         }
+
+        merge_option(&mut self.log, other.log);
+        merge_option(&mut self.event_cache_size, other.event_cache_size);
         if other.v11 && !self.v11 {
             self.v11 = true;
         }

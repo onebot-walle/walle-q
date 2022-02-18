@@ -42,7 +42,9 @@ async fn main() {
     tokio::task::yield_now().await;
     login::login(&qclient, &config.qq).await.unwrap();
 
-    let cache = Arc::new(tokio::sync::Mutex::new(cached::SizedCache::with_size(100)));
+    let cache = Arc::new(tokio::sync::Mutex::new(cached::SizedCache::with_size(
+        comm.event_cache_size.unwrap_or(100),
+    )));
     let ob = walle_core::impls::OneBot::new(
         WALLE_Q,
         "qq",
@@ -50,10 +52,10 @@ async fn main() {
         config.onebot.clone(),
         Arc::new(handler::Handler(qclient.clone(), cache.clone())),
     )
-        .arc();
+    .arc();
 
     // start onebot task
-    tokio::spawn(async move{
+    tokio::spawn(async move {
         if !comm.v11 {
             ob.run().await.unwrap();
             while let Some(msg) = rx.recv().await {
@@ -75,7 +77,7 @@ async fn main() {
                 config.onebot,
                 Arc::new(handler::v11::V11Handler(ob.clone())),
             )
-                .arc();
+            .arc();
             ob11.run().await.unwrap();
             while let Some(msg) = rx.recv().await {
                 parse::v11::meta_event_process(&ob11, &msg).await;
@@ -94,5 +96,5 @@ async fn main() {
 
     // 网络断开后自动重连
     net.await.ok();
-    login::start_reconnect(&qclient,&config.qq).await;
+    login::start_reconnect(&qclient, &config.qq).await;
 }
