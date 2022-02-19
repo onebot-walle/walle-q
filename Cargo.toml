@@ -24,6 +24,9 @@ lazy_static = "1.4"
 uuid = "0.8"
 clap = { version = "3.0", features = ["derive"] }
 cached = "0.30"
+hyper = { version = "0.14", features = ["client", "http1"] }
+hyper-tls = "0.5"
+bytes = "1.1"
 
 [dev-dependencies]
 md5 = "*"

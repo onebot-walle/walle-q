@@ -1,31 +1,90 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
-use tokio::fs;
+use super::ResultFlatten;
+use hyper::{Client, Request, Uri};
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncWriteExt},
+};
 use walle_core::{action::UploadFileContent, impls::OneBot, resp::FileIdContent, Resps};
 
 const FILE_PATH: &str = "./data/file/";
 
+async fn save_to_new_file(data: &[u8]) -> Result<Resps, Resps> {
+    let file_id = walle_core::new_uuid();
+    let mut f = File::create(PathBuf::from(format!("{}{}", FILE_PATH, file_id)))
+        .await
+        .unwrap();
+    f.write(data).await.unwrap();
+    Ok(Resps::success(FileIdContent { file_id }.into()))
+}
+
 impl super::Handler {
     pub async fn upload_file(&self, c: UploadFileContent, _ob: &OneBot) -> Resps {
-        match c.r#type.as_str() {
-            "url" if let Some(url) = c.url => {
-                todo!()
+        let fut = || async {
+            match c.r#type.as_str() {
+                "url" if let Some(url) = c.url => {
+                    let data = get_date_by_url(&url, c.headers.unwrap_or_default()).await?;
+                    save_to_new_file(&data).await
+                }
+                "path" if let Some(path) = c.path => {
+                    let input_path = PathBuf::from(path);
+                    let mut file =  File::open(&input_path).await.map_err(|_| {
+                        Resps::empty_fail(10003,  "文件打开失败".to_string())
+                    })?;
+                    let mut data = Vec::new();
+                    file.read_to_end(&mut data).await.map_err(|_| {
+                        Resps::empty_fail(10003,  "文件读取失败".to_string())
+                    })?;
+                    save_to_new_file(&data).await
+                }
+                "data" if let Some(data) = c.data => save_to_new_file(&data).await,
+                _ => Err(Resps::bad_param()),
             }
-            "path" if let Some(path) = c.path => {
-                todo!()
-            }
-            "data" if let Some(data) = c.data => {
-                let file_id = walle_core::new_uuid();
-                let file_path = PathBuf::from(format!("{}{}", FILE_PATH, file_id));
-                fs::write(&file_path, data).await.unwrap(); //todo
-                Resps::success(
-                    FileIdContent {
-                        file_id: file_id.to_string(),
-                    }
-                    .into(),
-                )
-            }
-            _ => Resps::bad_param(),
+        };
+        fut().await.flatten()
+    }
+}
+
+async fn get_date_by_url(
+    url: &str,
+    headers: HashMap<String, String>,
+) -> Result<bytes::Bytes, Resps> {
+    async fn _get<C>(
+        c: &Client<C>,
+        uri: Uri,
+        headers: HashMap<String, String>,
+    ) -> Result<bytes::Bytes, Resps>
+    where
+        C: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
+    {
+        let mut builder = Request::builder().uri(uri);
+        for (k, v) in headers {
+            builder = builder.header(k, v);
         }
+        let req = builder.body(hyper::Body::empty()).unwrap();
+        let resp = c
+            .request(req)
+            .await
+            .map_err(|_| Resps::empty_fail(10003, "url请求失败".to_string()))?;
+        hyper::body::to_bytes(resp.into_body())
+            .await
+            .map_err(|_| Resps::empty_fail(10003, "数据读取失败".to_string()))
+    }
+
+    let uri =
+        Uri::from_str(url).map_err(|_| Resps::empty_fail(10003, "url格式错误".to_string()))?;
+    match uri.scheme().map(|s| s.as_str()) {
+        Some("http") => {
+            let client = hyper::Client::new();
+            _get(&client, uri, headers).await
+        }
+        Some("https") => {
+            let https = hyper_tls::HttpsConnector::new();
+            let client = hyper::Client::builder().build::<_, hyper::Body>(https);
+            _get(&client, uri, headers).await
+        }
+        Some(x) => Err(Resps::empty_fail(10003, format!("不支持的协议{}", x))),
+        None => Err(Resps::empty_fail(10003, "url格式错误".to_string())),
     }
 }

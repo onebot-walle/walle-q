@@ -54,7 +54,9 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::UnsetGroupAdmin(c) => self.set_group_admin(c, ob, true).await,
 
             Action::UploadFile(c) => self.upload_file(c, ob).await,
-            _ => Resps::unsupported_action(),
+            Action::UploadFileFragmented(_c) => todo!(),
+            Action::GetFile(_c) => todo!(),
+            Action::GetFileFragmented(_c) => todo!(),
         }
     }
 }
