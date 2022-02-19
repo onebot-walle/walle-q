@@ -59,30 +59,47 @@ pub fn msg_chain2msg_seg_vec(chain: MessageChain) -> Vec<MessageSegment> {
     chain.into_iter().filter_map(rq_elem2msg_seg).collect()
 }
 
-pub fn msg_seg_vec2msg_chain(v: Vec<MessageSegment>) -> MessageChain {
-    let mut chain = MessageChain::default();
-    for msg_seg in v {
-        match msg_seg {
-            MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
+trait PushMsgSeg {
+    fn push_msg_seg(&mut self, seg: MessageSegment);
+}
+
+impl PushMsgSeg for MessageChain {
+    fn push_msg_seg(&mut self, seq: MessageSegment) {
+        match seq {
+            MessageSegment::Text { text, .. } => self.push(elem::Text { content: text }),
             MessageSegment::Mention { user_id, .. } => {
                 if let Ok(target) = user_id.parse() {
-                    chain.push(elem::At {
+                    self.push(elem::At {
                         display: user_id.to_string(),
                         target,
                     })
                 }
             }
-            MessageSegment::MentionAll { .. } => chain.push(elem::At {
+            MessageSegment::MentionAll { .. } => self.push(elem::At {
                 display: "all".to_string(),
                 target: 0,
             }),
+            MessageSegment::Custom { ty, mut data } => match ty.as_str() {
+                "face" => {
+                    if let Some(id) = data.remove("id").and_then(|v| v.downcast_int().ok()) {
+                        self.push(elem::Face::new(id as i32));
+                    } else {
+                        warn!("invalid face id");
+                    }
+                }
+                _ => warn!("unsupported custom type: {}", ty),
+            },
             seg => {
                 warn!("unsupported MessageSegment: {:?}", seg);
-                chain.push(elem::Text {
-                    content: "unsupported MessageSegment".to_string(),
-                })
             }
         }
+    }
+}
+
+pub fn msg_seg_vec2msg_chain(v: Vec<MessageSegment>) -> MessageChain {
+    let mut chain = MessageChain::default();
+    for msg_seg in v {
+        chain.push_msg_seg(msg_seg);
     }
     chain
 }
@@ -95,6 +112,7 @@ impl SendAble for MessageSegment {
     fn check(&self) -> bool {
         match self {
             Self::Text { .. } | Self::Mention { .. } | Self::MentionAll { .. } => true,
+            Self::Custom { ty, .. } if ty == "face" => true,
             _ => false,
         }
     }
