@@ -18,7 +18,8 @@ const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 lazy_static! {
-    pub static ref SLED_DB: database::sled::SledDb = database::sled::SledDb::init();
+    pub(crate) static ref SLED_DB: crate::database::sleddb::SledDb =
+        crate::database::sleddb::SledDb::init();
 }
 
 #[tokio::main]

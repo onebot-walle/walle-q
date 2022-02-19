@@ -1,4 +1,4 @@
-use crate::database::Database;
+use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage};
 use crate::parse::err::error_to_resps;
 use async_trait::async_trait;
 use cached::SizedCache;
@@ -13,8 +13,7 @@ use walle_core::{
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, Event, ExtendedMap, MessageContent, MessageEventType, RespContent,
-    Resps,
+    Action, ActionHandler, Event, RespContent, Resps,
 };
 
 pub(crate) mod v11;
@@ -133,79 +132,53 @@ impl Handler {
         )
     }
 
-    async fn send_message(&self, c: SendMessageContent, ob: &OneBot) -> Resps {
+    async fn send_message(&self, c: SendMessageContent, _ob: &OneBot) -> Resps {
         let fut = async {
             if &c.detail_type == "group" {
                 let group_id = c.group_id.ok_or_else(Resps::bad_param)?;
+                let group_code = group_id.parse().map_err(|_| Resps::bad_param())?;
                 let receipt = self
                     .0
                     .send_group_message(
-                        group_id.parse().map_err(|_| Resps::bad_param())?,
+                        group_code,
                         crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
                     )
                     .await
                     .map_err(error_to_resps)?;
                 let message_id = receipt.seqs[0].to_string();
-                let event = ob
-                    .new_event(
-                        MessageContent::new_group_message_content(
-                            c.message,
-                            message_id.clone(),
-                            ob.self_id.read().await.clone(),
-                            group_id,
-                            [
-                                ("seqs".to_string(), receipt.seqs.into()),
-                                ("rands".to_string(), receipt.rands.into()),
-                            ]
-                            .into(),
-                        )
-                        .into(),
-                        receipt.time as f64,
-                    )
-                    .await;
-                crate::SLED_DB.insert_message_event(&event);
-                Ok(Resps::success(
-                    SendMessageRespContent {
-                        message_id,
-                        time: event.time as f64,
-                    }
-                    .into(),
-                ))
+                let respc = SendMessageRespContent {
+                    message_id,
+                    time: receipt.time as f64,
+                };
+                let s_group =
+                    SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
+                crate::SLED_DB.insert_group_message(&s_group);
+                Ok(Resps::success(respc.into()))
             } else if &c.detail_type == "private" {
                 let target_id = c.user_id.ok_or_else(Resps::bad_param)?;
+                let target = target_id.parse().map_err(|_| Resps::bad_param())?;
                 let receipt = self
                     .0
                     .send_private_message(
-                        target_id.parse().map_err(|_| Resps::bad_param())?,
+                        target,
                         crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
                     )
                     .await
                     .map_err(error_to_resps)?;
                 let message_id = receipt.seqs[0].to_string();
-                let event = ob
-                    .new_event(
-                        MessageContent::new_private_message_content(
-                            c.message,
-                            message_id.clone(),
-                            ob.self_id().await,
-                            [
-                                ("seqs".to_string(), receipt.seqs.into()),
-                                ("rands".to_string(), receipt.rands.into()),
-                            ]
-                            .into(),
-                        )
-                        .into(),
-                        receipt.time as f64,
-                    )
-                    .await;
-                crate::SLED_DB.insert_message_event(&event);
-                Ok(Resps::success(
-                    SendMessageRespContent {
-                        message_id,
-                        time: event.time as f64,
-                    }
-                    .into(),
-                ))
+                let respc = SendMessageRespContent {
+                    message_id,
+                    time: receipt.time as f64,
+                };
+                let s_private = SPrivateMessage::receipt(
+                    receipt,
+                    target,
+                    self.0.uin().await,
+                    self.0.account_info.read().await.nickname.clone(),
+                    c.message,
+                );
+                crate::SLED_DB.insert_private_message(&s_private);
+                Ok(Resps::success(respc.into()))
             } else {
                 Err(Resps::unsupported_action())
             }
@@ -214,37 +187,20 @@ impl Handler {
     }
 
     async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> Resps {
-        fn get_vec_i32(map: &mut ExtendedMap, key: &str) -> Vec<i32> {
-            map.remove(key)
-                .unwrap()
-                .downcast_list()
-                .unwrap()
-                .into_iter()
-                .map(|v| v.downcast_int().unwrap() as i32)
-                .collect()
-        }
-
         let fut = async {
-            if let Some(mut m) = crate::SLED_DB.get_message_event(&c.message_id) {
-                match m.content.ty {
-                    MessageEventType::Private => {
+            if let Some(m) =
+                crate::SLED_DB.get_message(c.message_id.parse().map_err(|_| Resps::bad_param())?)
+            {
+                match m {
+                    SMessage::Private(p) => {
                         self.0
-                            .recall_private_message(
-                                m.content.user_id.parse().unwrap(),
-                                m.time as i64,
-                                get_vec_i32(&mut m.content.extra, "seqs"),
-                                get_vec_i32(&mut m.content.extra, "rands"),
-                            )
+                            .recall_private_message(p.from_uin, p.time as i64, p.seqs, p.rands)
                             .await
                             .map_err(error_to_resps)?;
                     }
-                    MessageEventType::Group { group_id } => {
+                    SMessage::Group(g) => {
                         self.0
-                            .recall_group_message(
-                                group_id.parse().unwrap(),
-                                get_vec_i32(&mut m.content.extra, "seqs"),
-                                get_vec_i32(&mut m.content.extra, "rands"),
-                            )
+                            .recall_group_message(g.group_code, g.seqs, g.rands)
                             .await
                             .map_err(error_to_resps)?;
                     }
