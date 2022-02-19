@@ -16,6 +16,7 @@ use walle_core::{
     Action, ActionHandler, Event, RespContent, Resps,
 };
 
+mod file;
 pub(crate) mod v11;
 
 pub(crate) struct Handler(
@@ -45,11 +46,14 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
             Action::GetGroupMemberList(c) => self.get_group_member_list(c).await,
             Action::SetGroupName(c) => self.set_group_name(c, ob).await,
+            Action::LeaveGroup(c) => self.leave_group(c, ob).await,
             Action::KickGroupMember(c) => self.kick_group_member(c, ob).await,
             Action::BanGroupMember(c) => self.ban_group_member(c, ob, false).await,
             Action::UnbanGroupMember(c) => self.ban_group_member(c, ob, true).await,
             Action::SetGroupAdmin(c) => self.set_group_admin(c, ob, false).await,
             Action::UnsetGroupAdmin(c) => self.set_group_admin(c, ob, true).await,
+
+            Action::UploadFile(c) => self.upload_file(c, ob).await,
             _ => Resps::unsupported_action(),
         }
     }
@@ -342,6 +346,16 @@ impl Handler {
                     c.group_id.parse().map_err(|_| Resps::bad_param())?,
                     c.group_name,
                 )
+                .await
+                .map_err(error_to_resps)?;
+            Ok(Resps::empty_success())
+        };
+        fut.await.flatten()
+    }
+    async fn leave_group(&self, c: GroupIdContent, _ob: &OneBot) -> Resps {
+        let fut = async {
+            self.0
+                .group_quit(c.group_id.parse().map_err(|_| Resps::bad_param())?)
                 .await
                 .map_err(error_to_resps)?;
             Ok(Resps::empty_success())

@@ -1,3 +1,5 @@
+#![feature(if_let_guard)]
+
 use std::sync::Arc;
 
 use cached::Cached;
