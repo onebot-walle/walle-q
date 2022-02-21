@@ -2,47 +2,51 @@ use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
 use super::ResultFlatten;
 use hyper::{Client, Request, Uri};
-use tokio::{
-    fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
-};
-use walle_core::{action::UploadFileContent, impls::OneBot, resp::FileIdContent, Resps};
-
-const FILE_PATH: &str = "./data/file/";
-
-async fn save_to_new_file(data: &[u8]) -> Result<Resps, Resps> {
-    let file_id = walle_core::new_uuid();
-    let mut f = File::create(PathBuf::from(format!("{}{}", FILE_PATH, file_id)))
-        .await
-        .unwrap();
-    f.write(data).await.unwrap();
-    Ok(Resps::success(FileIdContent { file_id }.into()))
-}
+use tokio::{fs::File, io::AsyncReadExt};
+use walle_core::{action::UploadFileContent, impls::OneBot, Resps};
 
 impl super::Handler {
-    pub async fn upload_file(&self, c: UploadFileContent, _ob: &OneBot) -> Resps {
+    async fn get_file_data(c: UploadFileContent) -> Result<bytes::Bytes, Resps> {
+        match c.r#type.as_str() {
+            "url" if let Some(url) = c.url => {
+                get_date_by_url(&url, c.headers.unwrap_or_default()).await
+            }
+            "path" if let Some(path) = c.path => {
+                let input_path = PathBuf::from(path);
+                let mut file =  File::open(&input_path).await.map_err(|_| {
+                    Resps::empty_fail(10003,  "文件打开失败".to_string())
+                })?;
+                let mut data = Vec::new();
+                file.read_to_end(&mut data).await.map_err(|_| {
+                    Resps::empty_fail(10003,  "文件读取失败".to_string())
+                })?;
+                Ok(data.into())
+            }
+            "data" if let Some(data) = c.data => Ok(bytes::Bytes::copy_from_slice(&data)),
+            _ => Err(Resps::bad_param()),
+        }
+    }
+
+    pub async fn upload_file(&self, c: UploadFileContent, ob: &OneBot) -> Resps {
         let fut = || async {
-            match c.r#type.as_str() {
-                "url" if let Some(url) = c.url => {
-                    let data = get_date_by_url(&url, c.headers.unwrap_or_default()).await?;
-                    save_to_new_file(&data).await
-                }
-                "path" if let Some(path) = c.path => {
-                    let input_path = PathBuf::from(path);
-                    let mut file =  File::open(&input_path).await.map_err(|_| {
-                        Resps::empty_fail(10003,  "文件打开失败".to_string())
-                    })?;
-                    let mut data = Vec::new();
-                    file.read_to_end(&mut data).await.map_err(|_| {
-                        Resps::empty_fail(10003,  "文件读取失败".to_string())
-                    })?;
-                    save_to_new_file(&data).await
-                }
-                "data" if let Some(data) = c.data => save_to_new_file(&data).await,
+            let file_type = c
+                .extra
+                .get("file_type")
+                .ok_or(Resps::bad_param())?
+                .clone()
+                .downcast_str()
+                .map_err(|_| Resps::bad_param())?;
+            let data = Self::get_file_data(c).await?;
+            match file_type.as_str() {
+                "image" => self.upload_image(data, ob).await,
                 _ => Err(Resps::bad_param()),
             }
         };
         fut().await.flatten()
+    }
+
+    pub async fn upload_image(&self, _data: bytes::Bytes, _ob: &OneBot) -> Result<Resps, Resps> {
+        todo!()
     }
 }
 

@@ -3,6 +3,7 @@ use sled::Tree;
 
 pub(crate) struct SledDb {
     pub message_tree: Tree,
+    pub image_tree: Tree,
 }
 
 impl DatabaseInit for SledDb {
@@ -10,6 +11,7 @@ impl DatabaseInit for SledDb {
         let s = sled::open("./data/sled").unwrap();
         Self {
             message_tree: s.open_tree("message").unwrap(),
+            image_tree: s.open_tree("image").unwrap(),
         }
     }
 }
@@ -30,10 +32,26 @@ impl Database for SledDb {
         T: serde::Serialize + MessageId,
     {
         self.message_tree
-            .insert(
-                value.seq().to_be_bytes(),
-                rmp_serde::to_vec(value).unwrap(),
-            )
+            .insert(value.seq().to_be_bytes(), rmp_serde::to_vec(value).unwrap())
+            .unwrap();
+    }
+
+    fn _get_image<T>(&self, key: &str) -> Option<T>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        self.image_tree
+            .get(key)
+            .unwrap()
+            .map(|v| rmp_serde::from_read_ref(&v).unwrap())
+    }
+
+    fn _insert_image<T>(&self, value: &T)
+    where
+        T: serde::Serialize + ImageId,
+    {
+        self.image_tree
+            .insert(value.image_id(), rmp_serde::to_vec(value).unwrap())
             .unwrap();
     }
 }

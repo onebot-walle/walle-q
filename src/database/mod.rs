@@ -1,4 +1,7 @@
-use rq_engine::structs::{GroupMessage, MessageReceipt, PrivateMessage};
+use rq_engine::{
+    msg::elem::{FriendImage, GroupImage},
+    structs::{GroupMessage, MessageReceipt, PrivateMessage},
+};
 use serde::{Deserialize, Serialize};
 use walle_core::Message;
 
@@ -11,6 +14,8 @@ pub(crate) trait DatabaseInit {
 pub(crate) trait Database: DatabaseInit + Sized {
     fn _get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: i32) -> Option<T>;
     fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
+    fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &str) -> Option<T>;
+    fn _insert_image<T: serde::Serialize + ImageId>(&self, value: &T);
     fn get_message(&self, key: i32) -> Option<SMessage> {
         self._get_message(key)
     }
@@ -25,6 +30,21 @@ pub(crate) trait Database: DatabaseInit + Sized {
     }
     fn insert_private_message(&self, value: &SPrivateMessage) {
         self._insert_message(value)
+    }
+    fn get_image(&self, key: &str) -> Option<SImage> {
+        self._get_image(key)
+    }
+    fn get_group_image(&self, key: &str) -> Option<SGroupImage> {
+        self._get_image(key)
+    }
+    fn insert_group_image(&self, value: &SGroupImage) {
+        self._insert_image(value)
+    }
+    fn get_private_image(&self, key: &str) -> Option<SPrivateImage> {
+        self._get_image(key)
+    }
+    fn insert_private_image(&self, value: &SPrivateImage) {
+        self._insert_image(value)
     }
 }
 
@@ -101,6 +121,17 @@ impl MessageId for SPrivateMessage {
     }
 }
 
+pub trait ImageId {
+    fn image_id(&self) -> &str;
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SImage {
+    Private(SPrivateImage),
+    Group(SGroupImage),
+}
+
 impl SPrivateMessage {
     pub fn new(m: PrivateMessage, message: Message) -> Self {
         Self {
@@ -130,5 +161,89 @@ impl SPrivateMessage {
             time: receipt.time as i32,
             message,
         }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SPrivateImage {
+    pub image_id: String,
+    pub md5: Vec<u8>,
+    pub size: i32,
+    pub url: String,
+}
+
+impl From<FriendImage> for SPrivateImage {
+    fn from(image: FriendImage) -> Self {
+        Self {
+            image_id: image.image_id,
+            md5: image.md5,
+            size: image.size,
+            url: image.url,
+        }
+    }
+}
+
+impl From<SPrivateImage> for FriendImage {
+    fn from(image: SPrivateImage) -> Self {
+        Self {
+            image_id: image.image_id,
+            md5: image.md5,
+            size: image.size,
+            url: image.url,
+            flash: false,
+        }
+    }
+}
+
+impl ImageId for SPrivateImage {
+    fn image_id(&self) -> &str {
+        &self.image_id
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SGroupImage {
+    pub image_id: String,
+    pub file_id: i64,
+    pub size: i32,
+    pub width: i32,
+    pub height: i32,
+    pub md5: Vec<u8>,
+    pub url: String,
+}
+
+impl From<GroupImage> for SGroupImage {
+    fn from(image: GroupImage) -> Self {
+        Self {
+            image_id: image.image_id,
+            file_id: image.file_id,
+            size: image.size,
+            width: image.width,
+            height: image.height,
+            md5: image.md5,
+            url: image.url,
+        }
+    }
+}
+
+impl From<SGroupImage> for GroupImage {
+    fn from(image: SGroupImage) -> Self {
+        Self {
+            image_id: image.image_id,
+            file_id: image.file_id,
+            size: image.size,
+            width: image.width,
+            height: image.height,
+            md5: image.md5,
+            url: image.url,
+
+            flash: false,
+        }
+    }
+}
+
+impl ImageId for SGroupImage {
+    fn image_id(&self) -> &str {
+        &self.image_id
     }
 }
