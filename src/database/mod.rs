@@ -175,10 +175,10 @@ pub struct SPrivateImage {
 impl From<FriendImage> for SPrivateImage {
     fn from(image: FriendImage) -> Self {
         Self {
+            url: image.url(),
             image_id: image.image_id,
             md5: image.md5,
             size: image.size,
-            url: image.url,
         }
     }
 }
@@ -186,11 +186,12 @@ impl From<FriendImage> for SPrivateImage {
 impl From<SPrivateImage> for FriendImage {
     fn from(image: SPrivateImage) -> Self {
         Self {
-            image_id: image.image_id,
+            image_id: image.image_id.clone(),
             md5: image.md5,
             size: image.size,
-            url: image.url,
-            flash: false,
+            res_id: Some(image.image_id.clone()),
+            download_path: Some(image.image_id),
+            orig_url: None, // orig_url 没有也能发送
         }
     }
 }
@@ -215,13 +216,13 @@ pub struct SGroupImage {
 impl From<GroupImage> for SGroupImage {
     fn from(image: GroupImage) -> Self {
         Self {
+            url: image.url(),
             image_id: image.image_id,
             file_id: image.file_id,
             size: image.size,
             width: image.width,
             height: image.height,
             md5: image.md5,
-            url: image.url,
         }
     }
 }
@@ -235,9 +236,8 @@ impl From<SGroupImage> for GroupImage {
             width: image.width,
             height: image.height,
             md5: image.md5,
-            url: image.url,
-
-            flash: false,
+            image_type: 1000,
+            orig_url: None, // orig_url 没有也能发送
         }
     }
 }

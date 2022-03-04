@@ -41,12 +41,12 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
             data: [("data".to_string(), l.content.into())].into(),
         }),
         RQElem::FriendImage(i) => Some(MessageSegment::Image {
+            extend: [("url".to_string(), i.url().into())].into(),
             file_id: i.image_id,
-            extend: [("url".to_string(), i.url.into())].into(),
         }),
         RQElem::GroupImage(i) => Some(MessageSegment::Image {
+            extend: [("url".to_string(), i.url().into())].into(),
             file_id: i.image_id,
-            extend: [("url".to_string(), i.url.into())].into(),
         }),
         elem => {
             debug!("unsupported MsgElem: {:?}", elem);
