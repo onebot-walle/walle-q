@@ -20,6 +20,10 @@ pub(crate) struct Comm {
     #[clap(long, help = "this size of event cache will be used. (Default: 100)")]
     #[serde(default)]
     pub event_cache_size: Option<usize>,
+
+    #[clap(long, help = "time zone for log. (Default: +8)")]
+    #[serde(default)]
+    pub time_zone: Option<i8>,
 }
 
 #[derive(ArgEnum, Clone, Serialize, Deserialize, Debug)]
@@ -51,10 +55,12 @@ impl From<LogLevel> for LevelFilter {
 
 impl Comm {
     pub(crate) fn subscribe(&self) {
-        let timer =
-            tracing_subscriber::fmt::time::LocalTime::new(time::macros::format_description!(
+        let timer = tracing_subscriber::fmt::time::OffsetTime::new(
+            time::UtcOffset::from_hms(*self.time_zone.as_ref().unwrap_or(&8), 0, 0).unwrap(),
+            time::macros::format_description!(
                 "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
-            ));
+            ),
+        );
         let filter = tracing_subscriber::filter::Targets::new()
             .with_default(self.log.clone().unwrap_or_default())
             .with_target("sled", LevelFilter::WARN);
