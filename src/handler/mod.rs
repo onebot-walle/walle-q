@@ -143,12 +143,11 @@ impl Handler {
             if &c.detail_type == "group" {
                 let group_id = c.group_id.ok_or_else(Resps::bad_param)?;
                 let group_code = group_id.parse().map_err(|_| Resps::bad_param())?;
+                let chain = crate::parse::msg_seg_vec2msg_chain(c.message.clone())
+                    .map_err(crate::parse::error_to_resps)?;
                 let receipt = self
                     .0
-                    .send_group_message(
-                        group_code,
-                        crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
-                    )
+                    .send_group_message(group_code, chain)
                     .await
                     .map_err(error_to_resps)?;
                 let message_id = receipt.seqs[0].to_string();
@@ -163,12 +162,11 @@ impl Handler {
             } else if &c.detail_type == "private" {
                 let target_id = c.user_id.ok_or_else(Resps::bad_param)?;
                 let target = target_id.parse().map_err(|_| Resps::bad_param())?;
+                let chain = crate::parse::msg_seg_vec2msg_chain(c.message.clone())
+                    .map_err(crate::parse::error_to_resps)?;
                 let receipt = self
                     .0
-                    .send_private_message(
-                        target,
-                        crate::parse::msg_seg_vec2msg_chain(c.message.clone()),
-                    )
+                    .send_private_message(target, chain)
                     .await
                     .map_err(error_to_resps)?;
                 let message_id = receipt.seqs[0].to_string();

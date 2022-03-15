@@ -19,10 +19,10 @@ const TOKEN_PATH: &str = "session.token";
 ///
 /// if login success, start client heartbeat
 pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -> RQResult<()> {
-    let token_login: bool = match fs::read(TOKEN_PATH) {
-        Ok(token) => {
+    let token_login: bool = match fs::read(TOKEN_PATH).map(|s| rmp_serde::from_read_ref(&s)) {
+        Ok(Ok(token)) => {
             info!("成功读取 Token, 尝试使用 Token 登录");
-            match cli.token_login(token.as_slice()).await {
+            match cli.token_login(token).await {
                 Ok(_) => {
                     info!("Token 登录成功");
                     true
@@ -33,7 +33,7 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
                 }
             }
         }
-        Err(_) => false,
+        _ => false,
     };
     if !token_login {
         if let (Some(uin), Some(password)) = (config.uin, &config.password) {
@@ -44,7 +44,7 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
             qrcode_login(cli).await?;
         }
         let token = cli.gen_token().await;
-        fs::write(TOKEN_PATH, token).unwrap();
+        fs::write(TOKEN_PATH, rmp_serde::to_vec(&token).unwrap()).unwrap();
         cli.register_client().await?;
     }
     after_login(cli).await;

@@ -1,5 +1,7 @@
 use std::{collections::HashMap, path::PathBuf, str::FromStr};
 
+use crate::database::{Database, SImage};
+
 use super::ResultFlatten;
 use hyper::{Client, Request, Uri};
 use tokio::{fs::File, io::AsyncReadExt};
@@ -45,8 +47,13 @@ impl super::Handler {
         fut().await.flatten()
     }
 
-    pub async fn upload_image(&self, _data: bytes::Bytes, _ob: &OneBot) -> Result<Resps, Resps> {
-        todo!()
+    pub async fn upload_image(&self, data: bytes::Bytes, _ob: &OneBot) -> Result<Resps, Resps> {
+        let info = SImage::try_save(&data).map_err(|_| {
+            Resps::empty_fail(32000, "文件保存失败".to_string())
+            //todo
+        })?;
+        crate::SLED_DB.insert_image(&info);
+        Ok(Resps::success(info.as_file_id_content().into()))
     }
 }
 

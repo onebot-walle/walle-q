@@ -8,7 +8,6 @@ use walle_core::{Event, ExtendedMap, MessageContent, NoticeContent};
 pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Option<Event> {
     match event {
         // meta
-        QEvent::TcpConnect | QEvent::TcpDisconnect => None,
         QEvent::Login(uin) => {
             *ob.self_id.write().await = uin.to_string();
             ob.set_online(true);

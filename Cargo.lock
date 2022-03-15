@@ -2315,6 +2315,7 @@ dependencies = [
  "clap",
  "hyper",
  "hyper-tls",
+ "image",
  "lazy_static",
  "md5",
  "rmp-serde",

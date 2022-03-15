@@ -1,3 +1,4 @@
+use rq_engine::RQResult;
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use tracing::{debug, warn};
@@ -60,11 +61,11 @@ pub fn msg_chain2msg_seg_vec(chain: MessageChain) -> Vec<MessageSegment> {
 }
 
 trait PushMsgSeg {
-    fn push_msg_seg(&mut self, seg: MessageSegment);
+    fn push_msg_seg(&mut self, seg: MessageSegment) -> RQResult<()>;
 }
 
 impl PushMsgSeg for MessageChain {
-    fn push_msg_seg(&mut self, seq: MessageSegment) {
+    fn push_msg_seg(&mut self, seq: MessageSegment) -> RQResult<()> {
         match seq {
             MessageSegment::Text { text, .. } => self.push(elem::Text { content: text }),
             MessageSegment::Mention { user_id, .. } => {
@@ -93,15 +94,16 @@ impl PushMsgSeg for MessageChain {
                 warn!("unsupported MessageSegment: {:?}", seg);
             }
         }
+        Ok(())
     }
 }
 
-pub fn msg_seg_vec2msg_chain(v: Vec<MessageSegment>) -> MessageChain {
+pub fn msg_seg_vec2msg_chain(v: Vec<MessageSegment>) -> RQResult<MessageChain> {
     let mut chain = MessageChain::default();
     for msg_seg in v {
-        chain.push_msg_seg(msg_seg);
+        chain.push_msg_seg(msg_seg)?;
     }
-    chain
+    Ok(chain)
 }
 
 pub trait SendAble {

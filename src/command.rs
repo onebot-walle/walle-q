@@ -18,11 +18,9 @@ pub(crate) struct Comm {
     pub v11: bool,
 
     #[clap(long, help = "this size of event cache will be used. (Default: 100)")]
-    #[serde(default)]
     pub event_cache_size: Option<usize>,
 
     #[clap(long, help = "time zone for log. (Default: +8)")]
-    #[serde(default)]
     pub time_zone: Option<i8>,
 }
 

@@ -1,11 +1,18 @@
+use std::path::PathBuf;
+
 use rq_engine::{
+    command::{img_store::GroupImageStoreResp, long_conn::OffPicUpResp},
     msg::elem::{FriendImage, GroupImage},
     structs::{GroupMessage, MessageReceipt, PrivateMessage},
+    RQError, RQResult,
 };
+use rs_qq::{structs::ImageInfo, Client};
 use serde::{Deserialize, Serialize};
-use walle_core::Message;
+use walle_core::{resp::FileIdContent, Message};
 
 pub(crate) mod sleddb;
+
+const IMAGE_CACHE_DIR: &str = "./data/image";
 
 pub(crate) trait DatabaseInit {
     fn init() -> Self;
@@ -34,16 +41,7 @@ pub(crate) trait Database: DatabaseInit + Sized {
     fn get_image(&self, key: &str) -> Option<SImage> {
         self._get_image(key)
     }
-    fn get_group_image(&self, key: &str) -> Option<SGroupImage> {
-        self._get_image(key)
-    }
-    fn insert_group_image(&self, value: &SGroupImage) {
-        self._insert_image(value)
-    }
-    fn get_private_image(&self, key: &str) -> Option<SPrivateImage> {
-        self._get_image(key)
-    }
-    fn insert_private_image(&self, value: &SPrivateImage) {
+    fn insert_image(&self, value: &SImage) {
         self._insert_image(value)
     }
 }
@@ -121,17 +119,6 @@ impl MessageId for SPrivateMessage {
     }
 }
 
-pub trait ImageId {
-    fn image_id(&self) -> &str;
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SImage {
-    Private(SPrivateImage),
-    Group(SGroupImage),
-}
-
 impl SPrivateMessage {
     pub fn new(m: PrivateMessage, message: Message) -> Self {
         Self {
@@ -164,86 +151,148 @@ impl SPrivateMessage {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SPrivateImage {
-    pub image_id: String,
-    pub md5: Vec<u8>,
-    pub size: i32,
-    pub url: String,
+pub trait ImageId {
+    fn image_id(&self) -> &str;
 }
 
-impl From<FriendImage> for SPrivateImage {
-    fn from(image: FriendImage) -> Self {
-        Self {
-            url: image.url(),
-            image_id: image.image_id,
-            md5: image.md5,
-            size: image.size,
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SImage {
+    pub md5: Vec<u8>, // also use as id
+    pub width: u32,
+    pub height: u32,
+    pub image_type: i32,
+    pub size: u32,
+    pub filename: String,
+    pub format: u8,
 }
 
-impl From<SPrivateImage> for FriendImage {
-    fn from(image: SPrivateImage) -> Self {
-        Self {
-            image_id: image.image_id.clone(),
-            md5: image.md5,
-            size: image.size,
-            res_id: Some(image.image_id.clone()),
-            download_path: Some(image.image_id),
-            orig_url: None, // orig_url 没有也能发送
-        }
-    }
-}
-
-impl ImageId for SPrivateImage {
+impl ImageId for SImage {
     fn image_id(&self) -> &str {
-        &self.image_id
+        self.filename.as_str()
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SGroupImage {
-    pub image_id: String,
-    pub file_id: i64,
-    pub size: i32,
-    pub width: i32,
-    pub height: i32,
-    pub md5: Vec<u8>,
-    pub url: String,
+impl From<ImageInfo> for SImage {
+    fn from(info: ImageInfo) -> Self {
+        Self {
+            md5: info.md5,
+            width: info.width,
+            height: info.height,
+            image_type: info.image_type,
+            size: info.size,
+            filename: info.filename,
+            format: info.format.to_u8(),
+        }
+    }
 }
 
-impl From<GroupImage> for SGroupImage {
-    fn from(image: GroupImage) -> Self {
+impl From<SImage> for ImageInfo {
+    fn from(image: SImage) -> Self {
         Self {
-            url: image.url(),
-            image_id: image.image_id,
-            file_id: image.file_id,
-            size: image.size,
+            md5: image.md5,
             width: image.width,
             height: image.height,
-            md5: image.md5,
-        }
-    }
-}
-
-impl From<SGroupImage> for GroupImage {
-    fn from(image: SGroupImage) -> Self {
-        Self {
-            image_id: image.image_id,
-            file_id: image.file_id,
+            image_type: image.image_type,
             size: image.size,
-            width: image.width,
-            height: image.height,
-            md5: image.md5,
-            image_type: 1000,
-            orig_url: None, // orig_url 没有也能发送
+            filename: image.filename,
+            format: image::ImageFormat::from_u8(image.format),
         }
     }
 }
 
-impl ImageId for SGroupImage {
-    fn image_id(&self) -> &str {
-        &self.image_id
+impl SImage {
+    pub fn try_save(data: &[u8]) -> RQResult<Self> {
+        use std::io::Write;
+        let image: Self = ImageInfo::try_new(data)?.into();
+        let mut file = std::fs::File::create(image.path())?;
+        file.write_all(data)?;
+        Ok(image)
+    }
+
+    pub fn data(&self) -> RQResult<Vec<u8>> {
+        use std::io::Read;
+        let mut file = std::fs::File::open(self.path())?;
+        let mut data = Vec::with_capacity(self.size as usize);
+        file.read_to_end(&mut data)?;
+        Ok(data)
+    }
+
+    pub fn path(&self) -> PathBuf {
+        let mut path = PathBuf::from(IMAGE_CACHE_DIR);
+        path.push(self.filename.clone());
+        path
+    }
+
+    pub fn as_file_id_content(&self) -> FileIdContent {
+        FileIdContent {
+            file_id: self.image_id().to_string(),
+        }
+    }
+
+    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> RQResult<FriendImage> {
+        let info: ImageInfo = self.into();
+        match cli.get_private_image_store(target, &info).await? {
+            OffPicUpResp::Exist(image_id) => Ok(info.into_friend_image(image_id)),
+            _ => Err(RQError::Other(
+                crate::parse::err::IMAGE_NOT_EXIST.to_string(),
+            )),
+        }
+    }
+
+    pub async fn try_into_group_elem(self, cli: &Client, group_code: i64) -> RQResult<GroupImage> {
+        let info: ImageInfo = self.into();
+        match cli.get_group_image_store(group_code, &info).await? {
+            GroupImageStoreResp::Exist { file_id } => Ok(info.into_group_image(file_id)),
+            _ => Err(RQError::Other(
+                crate::parse::err::IMAGE_NOT_EXIST.to_string(),
+            )),
+        }
+    }
+}
+
+pub trait U8Enum {
+    fn to_u8(&self) -> u8;
+    fn from_u8(v: u8) -> Self;
+}
+
+impl U8Enum for image::ImageFormat {
+    fn to_u8(&self) -> u8 {
+        match self {
+            Self::Png => 0,
+            Self::Jpeg => 1,
+            Self::Gif => 2,
+            Self::WebP => 3,
+            Self::Pnm => 4,
+            Self::Tiff => 5,
+            Self::Tga => 6,
+            Self::Dds => 7,
+            Self::Bmp => 8,
+            Self::Ico => 9,
+            Self::Hdr => 10,
+            Self::OpenExr => 11,
+            Self::Farbfeld => 12,
+            Self::Avif => 13,
+            _ => 0,
+        }
+    }
+
+    fn from_u8(v: u8) -> Self {
+        match v {
+            0 => Self::Png,
+            1 => Self::Jpeg,
+            2 => Self::Gif,
+            3 => Self::WebP,
+            4 => Self::Pnm,
+            5 => Self::Tiff,
+            6 => Self::Tga,
+            7 => Self::Dds,
+            8 => Self::Bmp,
+            9 => Self::Ico,
+            10 => Self::Hdr,
+            11 => Self::OpenExr,
+            12 => Self::Farbfeld,
+            13 => Self::Avif,
+            _ => Self::Png,
+        }
     }
 }
