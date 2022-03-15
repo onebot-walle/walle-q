@@ -19,15 +19,16 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "time"] }
 time = { version = "0.3", features = ["macros"] }
 sled = "0.34"
-rmp-serde = "0.15"
+rmp-serde = "1.0.0"
 lazy_static = "1.4"
 uuid = "0.8"
 clap = { version = "3.0", features = ["derive"] }
-cached = "0.30"
+cached = "0.34"
 hyper = { version = "0.14", features = ["client", "http1"] }
 hyper-tls = "0.5"
 bytes = { version = "1.1" }
 image = "0"
+thiserror = "1"
 
 [dev-dependencies]
 md5 = "*"

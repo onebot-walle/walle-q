@@ -69,6 +69,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "async_once"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ce4f10ea3abcd6617873bae9f91d1c5332b4a778bd9ce34d0cd517474c1de82"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -157,11 +163,29 @@ dependencies = [
  "async-mutex",
  "async-rwlock",
  "async-trait",
- "cached_proc_macro",
+ "cached_proc_macro 0.9.0",
  "cached_proc_macro_types",
  "futures",
- "hashbrown",
+ "hashbrown 0.11.2",
  "once_cell",
+]
+
+[[package]]
+name = "cached"
+version = "0.34.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aadf76ddea74bab35ebeb8f1eb115b9bc04eaee42d8acc0d5f477dee6b176c9a"
+dependencies = [
+ "async-trait",
+ "async_once",
+ "cached_proc_macro 0.12.0",
+ "cached_proc_macro_types",
+ "futures",
+ "hashbrown 0.12.0",
+ "lazy_static",
+ "once_cell",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -169,6 +193,18 @@ name = "cached_proc_macro"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "725f434d6da2814b989bd905c62ca28a9383feff7440210dc279665fbbbc9511"
+dependencies = [
+ "cached_proc_macro_types",
+ "darling",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "cached_proc_macro"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bce0f37f9b77c6b93cdf3f060c89adca303d2ab052cacb3c3d1ab543e8cecd2f"
 dependencies = [
  "cached_proc_macro_types",
  "darling",
@@ -756,6 +792,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 
 [[package]]
+name = "hashbrown"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c21d40587b92fa6a6c6e3c1bdbf87d75511db5672f9c93175574b3a00df1758"
+
+[[package]]
 name = "heck"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -904,7 +946,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282a6247722caba404c065016bbfa522806e51714c34f5dfc3e4a3a46fcb4223"
 dependencies = [
  "autocfg",
- "hashbrown",
+ "hashbrown 0.11.2",
 ]
 
 [[package]]
@@ -1633,6 +1675,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rmp-serde"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3eedffbfcc6a428f230c04baf8f59bd73c1781361e4286111fe900849aaddaf"
+dependencies = [
+ "byteorder",
+ "rmp",
+ "serde",
+]
+
+[[package]]
 name = "rq-engine"
 version = "0.1.0"
 dependencies = [
@@ -1660,7 +1713,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bytes",
- "cached",
+ "cached 0.30.0",
  "chrono",
  "derivative",
  "flate2",
@@ -2295,7 +2348,7 @@ dependencies = [
  "colored",
  "futures-util",
  "hyper",
- "rmp-serde",
+ "rmp-serde 0.15.5",
  "serde",
  "serde_json",
  "thiserror",
@@ -2311,20 +2364,21 @@ version = "0.0.2"
 dependencies = [
  "async-trait",
  "bytes",
- "cached",
+ "cached 0.34.0",
  "clap",
  "hyper",
  "hyper-tls",
  "image",
  "lazy_static",
  "md5",
- "rmp-serde",
+ "rmp-serde 1.0.0",
  "rq-engine",
  "rs-qq",
  "serde",
  "serde_json",
  "serde_yaml",
  "sled",
+ "thiserror",
  "time 0.3.7",
  "tokio",
  "tracing",

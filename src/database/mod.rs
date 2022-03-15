@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
+use crate::parse::err::*;
 use rq_engine::{
     command::{img_store::GroupImageStoreResp, long_conn::OffPicUpResp},
     msg::elem::{FriendImage, GroupImage},
     structs::{GroupMessage, MessageReceipt, PrivateMessage},
-    RQError, RQResult,
+    RQResult,
 };
 use rs_qq::{structs::ImageInfo, Client};
 use serde::{Deserialize, Serialize};
@@ -209,7 +210,7 @@ impl SImage {
         Ok(image)
     }
 
-    pub fn data(&self) -> RQResult<Vec<u8>> {
+    pub fn data(&self) -> Result<Vec<u8>, std::io::Error> {
         use std::io::Read;
         let mut file = std::fs::File::open(self.path())?;
         let mut data = Vec::with_capacity(self.size as usize);
@@ -229,23 +230,19 @@ impl SImage {
         }
     }
 
-    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> RQResult<FriendImage> {
+    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> WQResult<FriendImage> {
         let info: ImageInfo = self.into();
         match cli.get_private_image_store(target, &info).await? {
             OffPicUpResp::Exist(image_id) => Ok(info.into_friend_image(image_id)),
-            _ => Err(RQError::Other(
-                crate::parse::err::IMAGE_NOT_EXIST.to_string(),
-            )),
+            _ => Err(WQError::image_not_exist()),
         }
     }
 
-    pub async fn try_into_group_elem(self, cli: &Client, group_code: i64) -> RQResult<GroupImage> {
+    pub async fn try_into_group_elem(self, cli: &Client, group_code: i64) -> WQResult<GroupImage> {
         let info: ImageInfo = self.into();
         match cli.get_group_image_store(group_code, &info).await? {
             GroupImageStoreResp::Exist { file_id } => Ok(info.into_group_image(file_id)),
-            _ => Err(RQError::Other(
-                crate::parse::err::IMAGE_NOT_EXIST.to_string(),
-            )),
+            _ => Err(WQError::image_not_exist()),
         }
     }
 }
