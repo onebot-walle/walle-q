@@ -36,7 +36,7 @@ impl Database for SledDb {
             .unwrap();
     }
 
-    fn _get_image<T>(&self, key: &str) -> Option<T>
+    fn _get_image<T>(&self, key: &[u8]) -> Option<T>
     where
         T: for<'de> serde::Deserialize<'de>,
     {

@@ -822,6 +822,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hmac"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2363,12 +2369,13 @@ name = "walle-q"
 version = "0.0.2"
 dependencies = [
  "async-trait",
+ "base64",
  "bytes",
  "cached 0.34.0",
  "clap",
+ "hex",
  "hyper",
  "hyper-tls",
- "image",
  "lazy_static",
  "md5",
  "rmp-serde 1.0.0",

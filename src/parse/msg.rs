@@ -1,8 +1,7 @@
-use crate::database::{Database, SImage};
+use crate::database::{Database, ImageId, SImage};
 use crate::parse::WQResult;
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
-use rs_qq::structs::ImageInfo;
 use rs_qq::Client;
 use tracing::{debug, warn};
 use walle_core::{Message, MessageSegment};
@@ -64,7 +63,7 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
                 "value".to_string(),
                 {
                     match f {
-                        elem::FingerGuessing::Rock => 0,
+                        elem::FingerGuessing::Rock => 0i8,
                         elem::FingerGuessing::Scissors => 1,
                         elem::FingerGuessing::Paper => 2,
                     }
@@ -82,11 +81,11 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
             file_id: i.image_id,
         }),
         RQElem::GroupImage(i) => {
-            let info = SImage::from(ImageInfo::from(i.clone()));
+            let info = SImage::from(i.clone());
             crate::SLED_DB.insert_image(&info);
             Some(MessageSegment::Image {
                 extend: [("url".to_string(), i.url().into())].into(),
-                file_id: i.image_id,
+                file_id: info.hex_image_id(),
             })
         }
         elem => {
@@ -125,6 +124,12 @@ async fn push_msg_seg(
             "face" => {
                 if let Some(id) = data.remove("id").and_then(|v| v.downcast_int().ok()) {
                     chain.push(elem::Face::new(id as i32));
+                } else if let Some(face) = data
+                    .remove("file")
+                    .and_then(|v| v.downcast_str().ok())
+                    .and_then(|name| elem::Face::new_from_name(&name))
+                {
+                    chain.push(face);
                 } else {
                     warn!("invalid face id");
                 }
@@ -132,7 +137,10 @@ async fn push_msg_seg(
             _ => warn!("unsupported custom type: {}", ty),
         },
         MessageSegment::Image { file_id, extend: _ } => {
-            if let Some(info) = crate::SLED_DB.get_image(&file_id) {
+            if let Some(info) = hex::decode(&file_id)
+                .ok()
+                .and_then(|id| crate::SLED_DB.get_image(&id))
+            {
                 if group {
                     chain.push(info.try_into_group_elem(cli, target).await?);
                 } else {

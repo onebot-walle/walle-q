@@ -26,9 +26,10 @@ clap = { version = "3.0", features = ["derive"] }
 cached = "0.34"
 hyper = { version = "0.14", features = ["client", "http1"] }
 hyper-tls = "0.5"
-bytes = { version = "1.1" }
-image = "0"
+bytes = "1.1"
 thiserror = "1"
+hex = "0.4"
+base64 = "0.13"
 
 [dev-dependencies]
 md5 = "*"

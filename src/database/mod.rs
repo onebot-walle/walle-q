@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::parse::err::*;
 use rq_engine::{
     command::{img_store::GroupImageStoreResp, long_conn::OffPicUpResp},
-    msg::elem::{FriendImage, GroupImage},
+    msg::elem::{PrivateImage, GroupImage},
     structs::{GroupMessage, MessageReceipt, PrivateMessage},
     RQResult,
 };
@@ -11,6 +11,7 @@ use rs_qq::{structs::ImageInfo, Client};
 use serde::{Deserialize, Serialize};
 use walle_core::{resp::FileIdContent, Message};
 
+pub(crate) mod image;
 pub(crate) mod sleddb;
 
 const IMAGE_CACHE_DIR: &str = "./data/image";
@@ -22,7 +23,7 @@ pub(crate) trait DatabaseInit {
 pub(crate) trait Database: DatabaseInit + Sized {
     fn _get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: i32) -> Option<T>;
     fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
-    fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &str) -> Option<T>;
+    fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &[u8]) -> Option<T>;
     fn _insert_image<T: serde::Serialize + ImageId>(&self, value: &T);
     fn get_message(&self, key: i32) -> Option<SMessage> {
         self._get_message(key)
@@ -39,7 +40,7 @@ pub(crate) trait Database: DatabaseInit + Sized {
     fn insert_private_message(&self, value: &SPrivateMessage) {
         self._insert_message(value)
     }
-    fn get_image(&self, key: &str) -> Option<SImage> {
+    fn get_image(&self, key: &[u8]) -> Option<SImage> {
         self._get_image(key)
     }
     fn insert_image(&self, value: &SImage) {
@@ -153,23 +154,25 @@ impl SPrivateMessage {
 }
 
 pub trait ImageId {
-    fn image_id(&self) -> &str;
+    fn image_id(&self) -> Vec<u8>;
+    fn hex_image_id(&self) -> String {
+        hex::encode(self.image_id())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SImage {
-    pub md5: Vec<u8>, // also use as id
+    pub md5: Vec<u8>,
     pub width: u32,
     pub height: u32,
     pub image_type: i32,
     pub size: u32,
     pub filename: String,
-    pub format: u8,
 }
 
 impl ImageId for SImage {
-    fn image_id(&self) -> &str {
-        self.filename.as_str()
+    fn image_id(&self) -> Vec<u8> {
+        [self.md5.as_slice(), self.size.to_be_bytes().as_slice()].concat()
     }
 }
 
@@ -182,7 +185,19 @@ impl From<ImageInfo> for SImage {
             image_type: info.image_type,
             size: info.size,
             filename: info.filename,
-            format: info.format.to_u8(),
+        }
+    }
+}
+
+impl From<GroupImage> for SImage {
+    fn from(img: GroupImage) -> Self {
+        Self {
+            md5: img.md5,
+            width: img.width as u32,
+            height: img.height as u32,
+            image_type: img.image_type,
+            size: img.size as u32,
+            filename: img.image_id,
         }
     }
 }
@@ -196,7 +211,6 @@ impl From<SImage> for ImageInfo {
             image_type: image.image_type,
             size: image.size,
             filename: image.filename,
-            format: image::ImageFormat::from_u8(image.format),
         }
     }
 }
@@ -226,14 +240,14 @@ impl SImage {
 
     pub fn as_file_id_content(&self) -> FileIdContent {
         FileIdContent {
-            file_id: self.image_id().to_string(),
+            file_id: self.hex_image_id(),
         }
     }
 
-    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> WQResult<FriendImage> {
+    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> WQResult<PrivateImage> {
         let info: ImageInfo = self.into();
         match cli.get_private_image_store(target, &info).await? {
-            OffPicUpResp::Exist(image_id) => Ok(info.into_friend_image(image_id)),
+            OffPicUpResp::Exist(image_id) => Ok(info.into_private_image(image_id)),
             _ => Err(WQError::image_not_exist()),
         }
     }
@@ -243,53 +257,6 @@ impl SImage {
         match cli.get_group_image_store(group_code, &info).await? {
             GroupImageStoreResp::Exist { file_id } => Ok(info.into_group_image(file_id)),
             _ => Err(WQError::image_not_exist()),
-        }
-    }
-}
-
-pub trait U8Enum {
-    fn to_u8(&self) -> u8;
-    fn from_u8(v: u8) -> Self;
-}
-
-impl U8Enum for image::ImageFormat {
-    fn to_u8(&self) -> u8 {
-        match self {
-            Self::Png => 0,
-            Self::Jpeg => 1,
-            Self::Gif => 2,
-            Self::WebP => 3,
-            Self::Pnm => 4,
-            Self::Tiff => 5,
-            Self::Tga => 6,
-            Self::Dds => 7,
-            Self::Bmp => 8,
-            Self::Ico => 9,
-            Self::Hdr => 10,
-            Self::OpenExr => 11,
-            Self::Farbfeld => 12,
-            Self::Avif => 13,
-            _ => 0,
-        }
-    }
-
-    fn from_u8(v: u8) -> Self {
-        match v {
-            0 => Self::Png,
-            1 => Self::Jpeg,
-            2 => Self::Gif,
-            3 => Self::WebP,
-            4 => Self::Pnm,
-            5 => Self::Tiff,
-            6 => Self::Tga,
-            7 => Self::Dds,
-            8 => Self::Bmp,
-            9 => Self::Ico,
-            10 => Self::Hdr,
-            11 => Self::OpenExr,
-            12 => Self::Farbfeld,
-            13 => Self::Avif,
-            _ => Self::Png,
         }
     }
 }

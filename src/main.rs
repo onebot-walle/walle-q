@@ -15,6 +15,7 @@ mod database;
 mod handler;
 mod login;
 pub(crate) mod parse;
+pub mod utils;
 
 const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
