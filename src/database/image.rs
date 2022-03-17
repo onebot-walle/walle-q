@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use rq_engine::command::img_store::GroupImageStoreResp;
 use rq_engine::command::long_conn::OffPicUpResp;
-use rs_qq::msg::elem::{GroupImage, PrivateImage};
+use rs_qq::msg::elem::{GroupImage, FriendImage};
 use rs_qq::structs::ImageInfo;
 use rs_qq::Client;
 use std::{io::Read, path::PathBuf};
@@ -15,7 +15,7 @@ pub trait SImage: Sized {
     fn image_id(&self) -> Vec<u8>;
     async fn data(&self) -> Option<Bytes>;
     async fn try_into_group_elem(&self, cli: &Client, target: i64) -> Option<GroupImage>;
-    async fn try_into_private_elem(&self, cli: &Client, group_code: i64) -> Option<PrivateImage>;
+    async fn try_into_private_elem(&self, cli: &Client, group_code: i64) -> Option<FriendImage>;
     fn hex_image_id(&self) -> String {
         hex::encode(self.image_id())
     }
@@ -37,7 +37,7 @@ fn local_image_data<T: SImage>(image: &T) -> Option<Bytes> {
 }
 
 #[async_trait]
-impl SImage for PrivateImage {
+impl SImage for FriendImage {
     fn image_id(&self) -> Vec<u8> {
         [
             self.md5.as_slice(),
@@ -54,7 +54,7 @@ impl SImage for PrivateImage {
             },
         }
     }
-    async fn try_into_private_elem(&self, _cli: &Client, _target: i64) -> Option<PrivateImage> {
+    async fn try_into_private_elem(&self, _cli: &Client, _target: i64) -> Option<FriendImage> {
         Some(self.clone())
     }
     async fn try_into_group_elem(&self, cli: &Client, target: i64) -> Option<GroupImage> {
@@ -84,9 +84,9 @@ impl SImage for GroupImage {
             },
         }
     }
-    async fn try_into_private_elem(&self, cli: &Client, target: i64) -> Option<PrivateImage> {
+    async fn try_into_private_elem(&self, cli: &Client, target: i64) -> Option<FriendImage> {
         if let Some(data) = self.data().await {
-            cli.upload_private_image(target, data.to_vec()).await.ok() // todo
+            cli.upload_friend_image(target, data.to_vec()).await.ok() // todo
         } else {
             None
         }
@@ -104,19 +104,19 @@ impl SImage for ImageInfo {
     async fn data(&self) -> Option<Bytes> {
         local_image_data(self)
     }
-    async fn try_into_private_elem(&self, cli: &Client, target: i64) -> Option<PrivateImage> {
-        match cli.get_private_image_store(target, self).await {
+    async fn try_into_private_elem(&self, cli: &Client, target: i64) -> Option<FriendImage> {
+        match cli.get_off_pic_store(target, self).await {
             Ok(r) => match r {
-                OffPicUpResp::Exist(res_id) => Some(self.clone().into_private_image(res_id)),
+                OffPicUpResp::Exist(res_id) => Some(self.clone().into_friend_image(res_id)),
                 OffPicUpResp::UploadRequired {
                     res_id,
                     upload_key,
                     upload_addrs,
                 } => {
                     if let Some(data) = self.data().await {
-                        cli._upload_private_image(upload_key, upload_addrs, data.to_vec())
+                        cli._upload_friend_image(upload_key, upload_addrs, data.to_vec())
                             .await
-                            .and_then(|_| Ok(self.clone().into_private_image(res_id)))
+                            .and_then(|_| Ok(self.clone().into_friend_image(res_id)))
                             .ok() // todo
                     } else {
                         tracing::warn!("image data is none");

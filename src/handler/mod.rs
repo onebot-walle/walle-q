@@ -170,7 +170,7 @@ impl Handler {
                         .await?;
                 let receipt = self
                     .0
-                    .send_private_message(target, chain)
+                    .send_friend_message(target, chain)
                     .await
                     .map_err(rqerror_to_resps)?;
                 let message_id = receipt.seqs[0].to_string();
@@ -202,7 +202,7 @@ impl Handler {
                 match m {
                     SMessage::Private(p) => {
                         self.0
-                            .recall_private_message(p.from_uin, p.time as i64, p.seqs, p.rands)
+                            .recall_friend_message(p.from_uin, p.time as i64, p.seqs, p.rands)
                             .await
                             .map_err(rqerror_to_resps)?;
                     }
