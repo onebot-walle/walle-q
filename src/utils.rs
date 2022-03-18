@@ -32,6 +32,7 @@ async fn get<C>(
 where
     C: hyper::client::connect::Connect + Clone + Send + Sync + 'static,
 {
+    tracing::debug!(target: crate::WALLE_Q, "getting url: {:?}", uri);
     let mut builder = Request::builder().uri(uri);
     for (k, v) in headers {
         builder = builder.header(k, v);

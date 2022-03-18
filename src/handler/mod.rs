@@ -143,50 +143,58 @@ impl Handler {
             if &c.detail_type == "group" {
                 let group_id = c.group_id.ok_or_else(Resps::bad_param)?;
                 let group_code = group_id.parse().map_err(|_| Resps::bad_param())?;
-                let chain =
+                if let Some(chain) =
                     MsgChainBuilder::group_chain_builder(&self.0, group_code, c.message.clone())
                         .build()
-                        .await?;
-                let receipt = self
-                    .0
-                    .send_group_message(group_code, chain)
-                    .await
-                    .map_err(rqerror_to_resps)?;
-                let message_id = receipt.seqs[0].to_string();
-                let respc = SendMessageRespContent {
-                    message_id,
-                    time: receipt.time as f64,
-                };
-                let s_group =
-                    SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
-                crate::WQDB.insert_group_message(&s_group);
-                Ok(Resps::success(respc.into()))
+                        .await
+                {
+                    let receipt = self
+                        .0
+                        .send_group_message(group_code, chain)
+                        .await
+                        .map_err(rqerror_to_resps)?;
+                    let message_id = receipt.seqs[0].to_string();
+                    let respc = SendMessageRespContent {
+                        message_id,
+                        time: receipt.time as f64,
+                    };
+                    let s_group =
+                        SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
+                    crate::WQDB.insert_group_message(&s_group);
+                    Ok(Resps::success(respc.into()))
+                } else {
+                    Err(Resps::empty_fail(10006, "消息为空".to_string()))
+                }
             } else if &c.detail_type == "private" {
                 let target_id = c.user_id.ok_or_else(Resps::bad_param)?;
                 let target = target_id.parse().map_err(|_| Resps::bad_param())?;
-                let chain =
+                if let Some(chain) =
                     MsgChainBuilder::private_chain_builder(&self.0, target, c.message.clone())
                         .build()
-                        .await?;
-                let receipt = self
-                    .0
-                    .send_friend_message(target, chain)
-                    .await
-                    .map_err(rqerror_to_resps)?;
-                let message_id = receipt.seqs[0].to_string();
-                let respc = SendMessageRespContent {
-                    message_id,
-                    time: receipt.time as f64,
-                };
-                let s_private = SPrivateMessage::receipt(
-                    receipt,
-                    target,
-                    self.0.uin().await,
-                    self.0.account_info.read().await.nickname.clone(),
-                    c.message,
-                );
-                crate::WQDB.insert_private_message(&s_private);
-                Ok(Resps::success(respc.into()))
+                        .await
+                {
+                    let receipt = self
+                        .0
+                        .send_friend_message(target, chain)
+                        .await
+                        .map_err(rqerror_to_resps)?;
+                    let message_id = receipt.seqs[0].to_string();
+                    let respc = SendMessageRespContent {
+                        message_id,
+                        time: receipt.time as f64,
+                    };
+                    let s_private = SPrivateMessage::receipt(
+                        receipt,
+                        target,
+                        self.0.uin().await,
+                        self.0.account_info.read().await.nickname.clone(),
+                        c.message,
+                    );
+                    crate::WQDB.insert_private_message(&s_private);
+                    Ok(Resps::success(respc.into()))
+                } else {
+                    Err(Resps::empty_fail(10006, "消息为空".to_string()))
+                }
             } else {
                 Err(Resps::unsupported_action())
             }

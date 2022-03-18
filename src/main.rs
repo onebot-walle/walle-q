@@ -31,6 +31,7 @@ async fn main() {
     let config = config::Config::load().unwrap();
     comm.merge(config.command);
     comm.subscribe();
+    init().await;
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let self_id = config.qq.uin.unwrap_or(0);
@@ -101,4 +102,10 @@ async fn main() {
     // 网络断开后自动重连
     net.await.ok();
     login::start_reconnect(&qclient, &config.qq).await;
+}
+
+async fn init() {
+    tokio::fs::create_dir_all(database::image::IMAGE_CACHE_DIR)
+        .await
+        .ok();
 }

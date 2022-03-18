@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::database::{Database, SImage};
+use crate::database::{save_image, Database, SImage};
 
 use super::ResultFlatten;
 use tokio::{fs::File, io::AsyncReadExt};
@@ -47,11 +47,11 @@ impl super::Handler {
     }
 
     pub async fn upload_image(&self, data: bytes::Bytes, _ob: &OneBot) -> Result<Resps, Resps> {
-        let info = SImage::try_save(&data).map_err(|_| {
-            Resps::empty_fail(32000, "文件保存失败".to_string())
+        let info = save_image(&data).await.map_err(|m| {
+            Resps::empty_fail(32000, m.to_string())
             //todo
         })?;
-        crate::WQDB.insert_image(&info);
+        crate::WQDB._insert_image(&info);
         Ok(Resps::success(info.as_file_id_content().into()))
     }
 }

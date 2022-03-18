@@ -1,5 +1,4 @@
-use crate::database::{Database, ImageId, SImage};
-use crate::parse::WQResult;
+use crate::database::{Database, SImage};
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use rs_qq::Client;
@@ -30,12 +29,16 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub async fn build(self) -> WQResult<MessageChain> {
+    pub async fn build(self) -> Option<MessageChain> {
         let mut chain = MessageChain::default();
         for msg_seg in self.message {
-            push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli).await?;
+            push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli).await;
         }
-        Ok(chain)
+        if chain.0.is_empty() {
+            None
+        } else {
+            Some(chain)
+        }
     }
 }
 
@@ -76,16 +79,18 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
             ty: "json".to_owned(),
             data: [("data".to_string(), l.content.into())].into(),
         }),
-        RQElem::FriendImage(i) => Some(MessageSegment::Image {
-            extend: [("url".to_string(), i.url().into())].into(),
-            file_id: i.image_id,
-        }),
-        RQElem::GroupImage(i) => {
-            let info = SImage::from(i.clone());
-            crate::WQDB.insert_image(&info);
+        RQElem::FriendImage(i) => {
+            crate::WQDB._insert_image(&i);
             Some(MessageSegment::Image {
                 extend: [("url".to_string(), i.url().into())].into(),
-                file_id: info.hex_image_id(),
+                file_id: i.hex_image_id(),
+            })
+        }
+        RQElem::GroupImage(i) => {
+            crate::WQDB._insert_image(&i);
+            Some(MessageSegment::Image {
+                extend: [("url".to_string(), i.url().into())].into(),
+                file_id: i.hex_image_id(),
             })
         }
         elem => {
@@ -101,12 +106,12 @@ pub fn msg_chain2msg_seg_vec(chain: MessageChain) -> Vec<MessageSegment> {
 
 async fn push_msg_seg(
     chain: &mut MessageChain,
-    seq: MessageSegment,
+    seg: MessageSegment,
     target: i64,
     group: bool,
     cli: &Client,
-) -> WQResult<()> {
-    match seq {
+) {
+    match seg {
         MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
         MessageSegment::Mention { user_id, .. } => {
             if let Ok(target) = user_id.parse() {
@@ -136,15 +141,39 @@ async fn push_msg_seg(
             }
             _ => warn!("unsupported custom type: {}", ty),
         },
-        MessageSegment::Image { file_id, extend: _ } => {
+        MessageSegment::Image {
+            file_id,
+            mut extend,
+        } => {
             if let Some(info) = hex::decode(&file_id)
                 .ok()
                 .and_then(|id| crate::WQDB.get_image(&id))
             {
                 if group {
-                    chain.push(info.try_into_group_elem(cli, target).await?);
+                    if let Some(image) = info.try_into_group_elem(cli, target).await {
+                        chain.push(image);
+                    }
+                } else if let Some(image) = info.try_into_private_elem(cli, target).await {
+                    chain.push(image);
+                }
+            } else if let Some(b64) = extend
+                .remove("base64")
+                .and_then(|b64| b64.downcast_str().ok())
+            {
+                if let Ok(data) = base64::decode(&b64) {
+                    if group {
+                        match cli.upload_group_image(target, data).await {
+                            Ok(image) => chain.push(image),
+                            Err(e) => warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e),
+                        }
+                    } else {
+                        match cli.upload_friend_image(target, data).await {
+                            Ok(image) => chain.push(image),
+                            Err(e) => warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e),
+                        }
+                    }
                 } else {
-                    chain.push(info.try_into_private_elem(cli, target).await?);
+                    warn!("invalid base64");
                 }
             } else {
                 warn!("image not found: {}", file_id);
@@ -154,7 +183,6 @@ async fn push_msg_seg(
             warn!("unsupported MessageSegment: {:?}", seg);
         }
     }
-    Ok(())
 }
 
 pub trait SendAble {

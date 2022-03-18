@@ -48,7 +48,7 @@ impl Database for SledDb {
 
     fn _insert_image<T>(&self, value: &T)
     where
-        T: serde::Serialize + ImageId,
+        T: serde::Serialize + SImage,
     {
         self.image_tree
             .insert(value.image_id(), rmp_serde::to_vec(value).unwrap())

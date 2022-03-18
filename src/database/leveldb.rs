@@ -1,15 +1,32 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use rusty_leveldb::{Options, DB};
 
-use super::{Database, DatabaseInit, ImageId, MessageId};
+use super::{Database, DatabaseInit, MessageId, SImage};
 
-pub(crate) struct LevelDb(std::sync::Mutex<DB>);
+const MEM_CACHE_LIMIT: usize = 1;
+
+pub(crate) struct LevelDb(std::sync::Mutex<DB>, AtomicUsize);
 
 impl DatabaseInit for LevelDb {
     fn init() -> Self {
         let opt = Options::default();
-        Self(std::sync::Mutex::new(
-            DB::open("./data/leveldb", opt).unwrap(),
-        ))
+        Self(
+            std::sync::Mutex::new(DB::open("./data/leveldb", opt).unwrap()),
+            AtomicUsize::new(0),
+        )
+    }
+}
+
+impl LevelDb {
+    fn flush(&self, mut db: std::sync::MutexGuard<DB>) {
+        if self.1.load(Ordering::Relaxed) > MEM_CACHE_LIMIT {
+            tracing::debug!(target: crate::WALLE_Q, "Flushing leveldb cache");
+            db.flush().unwrap();
+            self.1.store(0, Ordering::Relaxed);
+        } else {
+            self.1.fetch_add(1, Ordering::Relaxed);
+        }
     }
 }
 
@@ -28,14 +45,13 @@ impl Database for LevelDb {
     where
         T: serde::Serialize + MessageId,
     {
-        self.0
-            .lock()
-            .unwrap()
-            .put(
-                &value.seq().to_be_bytes(),
-                &rmp_serde::to_vec(value).unwrap(),
-            )
-            .unwrap();
+        let mut db = self.0.lock().unwrap();
+        db.put(
+            &value.seq().to_be_bytes(),
+            &rmp_serde::to_vec(value).unwrap(),
+        )
+        .unwrap();
+        self.flush(db);
     }
     fn _get_image<T>(&self, key: &[u8]) -> Option<T>
     where
@@ -49,12 +65,11 @@ impl Database for LevelDb {
     }
     fn _insert_image<T>(&self, value: &T)
     where
-        T: serde::Serialize + ImageId,
+        T: serde::Serialize + SImage,
     {
-        self.0
-            .lock()
-            .unwrap()
-            .put(&value.image_id(), &rmp_serde::to_vec(value).unwrap())
+        let mut db = self.0.lock().unwrap();
+        db.put(&value.image_id(), &rmp_serde::to_vec(value).unwrap())
             .unwrap();
+        self.flush(db);
     }
 }

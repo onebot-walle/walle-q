@@ -3,8 +3,6 @@ use walle_core::Resps;
 
 use thiserror::Error;
 
-pub type WQResult<T> = Result<T, WQError>;
-
 #[derive(Error, Debug)]
 pub enum WQError {
     #[error("{0}")]
