@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use crate::parse::err::*;
 use rq_engine::{
     command::{img_store::GroupImageStoreResp, long_conn::OffPicUpResp},
-    msg::elem::{PrivateImage, GroupImage},
-    structs::{GroupMessage, MessageReceipt, PrivateMessage},
+    msg::elem::{FriendImage, GroupImage},
+    structs::{GroupMessage, MessageReceipt, FriendMessage},
     RQResult,
 };
 use rs_qq::{structs::ImageInfo, Client};
@@ -122,7 +122,7 @@ impl MessageId for SPrivateMessage {
 }
 
 impl SPrivateMessage {
-    pub fn new(m: PrivateMessage, message: Message) -> Self {
+    pub fn new(m: FriendMessage, message: Message) -> Self {
         Self {
             seqs: m.seqs,
             rands: m.rands,
@@ -244,10 +244,10 @@ impl SImage {
         }
     }
 
-    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> WQResult<PrivateImage> {
+    pub async fn try_into_private_elem(self, cli: &Client, target: i64) -> WQResult<FriendImage> {
         let info: ImageInfo = self.into();
-        match cli.get_private_image_store(target, &info).await? {
-            OffPicUpResp::Exist(image_id) => Ok(info.into_private_image(image_id)),
+        match cli.get_off_pic_store(target, &info).await? {
+            OffPicUpResp::Exist(image_id) => Ok(info.into_friend_image(image_id)),
             _ => Err(WQError::image_not_exist()),
         }
     }

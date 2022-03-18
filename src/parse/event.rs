@@ -16,7 +16,7 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
         }
 
         // message
-        QEvent::PrivateMessage(pme) => {
+        QEvent::FriendMessage(pme) => {
             let message = super::msg_chain2msg_seg_vec(pme.message.elements.clone());
             let event = ob
                 .new_event(
