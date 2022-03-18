@@ -13,7 +13,7 @@ use walle_core::{
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, Event, RespContent, Resps,
+    Action, ActionHandler, ColoredAlt, Event, RespContent, Resps,
 };
 
 mod file;
@@ -27,7 +27,9 @@ pub(crate) struct Handler(
 #[async_trait]
 impl ActionHandler<Action, Resps, OneBot> for Handler {
     async fn handle(&self, action: Action, ob: &OneBot) -> Resps {
-        tracing::info!(target: crate::WALLE_Q, "get action: {:?}", action);
+        if let Some(alt) = action.alt() {
+            tracing::info!(target: crate::WALLE_Q, "{}", alt);
+        }
         match action {
             Action::GetLatestEvents(c) => self.get_latest_events(c, ob).await,
             Action::GetSupportedActions(_) => Self::get_supported_actions(),

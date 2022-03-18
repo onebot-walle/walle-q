@@ -6,6 +6,7 @@ use cached::Cached;
 use clap::Parser;
 use lazy_static::lazy_static;
 use rs_qq::client::Client;
+use walle_core::ColoredAlt;
 
 use database::DatabaseInit;
 
@@ -65,7 +66,9 @@ async fn main() {
             ob.run().await.unwrap();
             while let Some(msg) = rx.recv().await {
                 if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
-                    tracing::info!("{:?}", event);
+                    if let Some(alt) = event.alt() {
+                        tracing::info!("{}", alt);
+                    }
                     cache
                         .lock()
                         .await
@@ -91,8 +94,10 @@ async fn main() {
                         .lock()
                         .await
                         .cache_set(event.id.clone(), event.clone());
-                    let e = event.try_into().unwrap();
-                    tracing::info!("{:?}", e);
+                    let e: walle_v11::Event = event.try_into().unwrap();
+                    if let Some(alt) = e.alt() {
+                        tracing::info!("{}", alt);
+                    }
                     ob11.send_event(e).unwrap();
                 }
             }
