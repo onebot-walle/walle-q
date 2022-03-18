@@ -31,7 +31,7 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
                 )
                 .await;
             let s_private = SPrivateMessage::new(pme.message, message);
-            crate::SLED_DB.insert_private_message(&s_private);
+            crate::WQDB.insert_private_message(&s_private);
             Some(event)
         }
         QEvent::GroupMessage(gme) => {
@@ -50,7 +50,7 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
                 )
                 .await;
             let s_group = SGroupMessage::new(gme.message, message);
-            crate::SLED_DB.insert_group_message(&s_group);
+            crate::WQDB.insert_group_message(&s_group);
             Some(event)
         }
         QEvent::SelfGroupMessage(e) => {

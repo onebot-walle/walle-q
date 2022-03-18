@@ -51,7 +51,7 @@ impl super::Handler {
             Resps::empty_fail(32000, "文件保存失败".to_string())
             //todo
         })?;
-        crate::SLED_DB.insert_image(&info);
+        crate::WQDB.insert_image(&info);
         Ok(Resps::success(info.as_file_id_content().into()))
     }
 }

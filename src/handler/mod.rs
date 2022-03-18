@@ -159,7 +159,7 @@ impl Handler {
                 };
                 let s_group =
                     SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
-                crate::SLED_DB.insert_group_message(&s_group);
+                crate::WQDB.insert_group_message(&s_group);
                 Ok(Resps::success(respc.into()))
             } else if &c.detail_type == "private" {
                 let target_id = c.user_id.ok_or_else(Resps::bad_param)?;
@@ -185,7 +185,7 @@ impl Handler {
                     self.0.account_info.read().await.nickname.clone(),
                     c.message,
                 );
-                crate::SLED_DB.insert_private_message(&s_private);
+                crate::WQDB.insert_private_message(&s_private);
                 Ok(Resps::success(respc.into()))
             } else {
                 Err(Resps::unsupported_action())
@@ -197,7 +197,7 @@ impl Handler {
     async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> Resps {
         let fut = async {
             if let Some(m) =
-                crate::SLED_DB.get_message(c.message_id.parse().map_err(|_| Resps::bad_param())?)
+                crate::WQDB.get_message(c.message_id.parse().map_err(|_| Resps::bad_param())?)
             {
                 match m {
                     SMessage::Private(p) => {

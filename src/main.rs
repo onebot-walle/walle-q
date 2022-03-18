@@ -21,8 +21,8 @@ const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 lazy_static! {
-    pub(crate) static ref SLED_DB: crate::database::sleddb::SledDb =
-        crate::database::sleddb::SledDb::init();
+    pub(crate) static ref WQDB: crate::database::leveldb::LevelDb =
+        crate::database::leveldb::LevelDb::init();
 }
 
 #[tokio::main]

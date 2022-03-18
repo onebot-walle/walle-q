@@ -13,6 +13,7 @@ use walle_core::{resp::FileIdContent, Message};
 
 pub(crate) mod image;
 pub(crate) mod sleddb;
+pub(crate) mod leveldb;
 
 const IMAGE_CACHE_DIR: &str = "./data/image";
 

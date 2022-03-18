@@ -82,7 +82,7 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
         }),
         RQElem::GroupImage(i) => {
             let info = SImage::from(i.clone());
-            crate::SLED_DB.insert_image(&info);
+            crate::WQDB.insert_image(&info);
             Some(MessageSegment::Image {
                 extend: [("url".to_string(), i.url().into())].into(),
                 file_id: info.hex_image_id(),
@@ -139,7 +139,7 @@ async fn push_msg_seg(
         MessageSegment::Image { file_id, extend: _ } => {
             if let Some(info) = hex::decode(&file_id)
                 .ok()
-                .and_then(|id| crate::SLED_DB.get_image(&id))
+                .and_then(|id| crate::WQDB.get_image(&id))
             {
                 if group {
                     chain.push(info.try_into_group_elem(cli, target).await?);
