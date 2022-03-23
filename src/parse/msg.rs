@@ -153,27 +153,27 @@ async fn push_msg_seg(
                     if let Some(image) = info.try_into_group_elem(cli, target).await {
                         chain.push(image);
                     }
-                } else if let Some(image) = info.try_into_private_elem(cli, target).await {
+                } else if let Some(image) = info.try_into_friend_elem(cli, target).await {
                     chain.push(image);
                 }
-            } else if let Some(b64) = extend
-                .remove("base64")
-                .and_then(|b64| b64.downcast_str().ok())
-            {
-                if let Ok(data) = base64::decode(&b64) {
-                    if group {
-                        match cli.upload_group_image(target, data).await {
-                            Ok(image) => chain.push(image),
-                            Err(e) => warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e),
-                        }
-                    } else {
-                        match cli.upload_friend_image(target, data).await {
-                            Ok(image) => chain.push(image),
-                            Err(e) => warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e),
+            } else if let Some(b64) = extend.remove("url").and_then(|b64| b64.downcast_str().ok()) {
+                match uri_reader::uget(&b64).await {
+                    Ok(data) => {
+                        if group {
+                            match cli.upload_group_image(target, data).await {
+                                Ok(image) => chain.push(image),
+                                Err(e) => warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e),
+                            }
+                        } else {
+                            match cli.upload_friend_image(target, data).await {
+                                Ok(image) => chain.push(image),
+                                Err(e) => warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e),
+                            }
                         }
                     }
-                } else {
-                    warn!("invalid base64");
+                    Err(e) => {
+                        warn!("uri get failed: {}", e);
+                    }
                 }
             } else {
                 warn!("image not found: {}", file_id);

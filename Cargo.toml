@@ -33,6 +33,8 @@ base64 = "0.13"
 sled = "0.34"
 rusty-leveldb = "0.3"
 
+uri-reader = {git = "https://github.com/abrahum/uri-reader"}
+
 [dev-dependencies]
 md5 = "*"
 

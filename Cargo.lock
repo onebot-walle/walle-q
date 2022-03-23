@@ -2419,6 +2419,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 
 [[package]]
+name = "uri-reader"
+version = "0.1.0"
+source = "git+https://github.com/abrahum/uri-reader#8ec3dae5ae1e98d5362b380eff3a210319ff38db"
+dependencies = [
+ "base64",
+ "hyper",
+ "hyper-tls",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "url"
 version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2505,6 +2517,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uri-reader",
  "uuid",
  "walle-core",
  "walle-v11",

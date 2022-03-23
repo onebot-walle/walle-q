@@ -7,7 +7,7 @@ use tokio::{fs::File, io::AsyncReadExt};
 use walle_core::{action::UploadFileContent, impls::OneBot, Resps};
 
 impl super::Handler {
-    async fn get_file_data(c: UploadFileContent) -> Result<bytes::Bytes, Resps> {
+    async fn get_file_data(c: UploadFileContent) -> Result<Vec<u8>, Resps> {
         match c.r#type.as_str() {
             "url" if let Some(url) = c.url => {
                 get_date_by_url(&url, c.headers.unwrap_or_default()).await
@@ -23,7 +23,7 @@ impl super::Handler {
                 })?;
                 Ok(data.into())
             }
-            "data" if let Some(data) = c.data => Ok(bytes::Bytes::copy_from_slice(&data)),
+            "data" if let Some(data) = c.data => Ok(data),
             _ => Err(Resps::bad_param()),
         }
     }
@@ -46,7 +46,7 @@ impl super::Handler {
         fut().await.flatten()
     }
 
-    pub async fn upload_image(&self, data: bytes::Bytes, _ob: &OneBot) -> Result<Resps, Resps> {
+    pub async fn upload_image(&self, data: Vec<u8>, _ob: &OneBot) -> Result<Resps, Resps> {
         let info = save_image(&data).await.map_err(|m| {
             Resps::empty_fail(32000, m.to_string())
             //todo
@@ -56,11 +56,8 @@ impl super::Handler {
     }
 }
 
-async fn get_date_by_url(
-    url: &str,
-    headers: HashMap<String, String>,
-) -> Result<bytes::Bytes, Resps> {
-    crate::utils::get_data_by_http(url, headers)
+async fn get_date_by_url(url: &str, headers: HashMap<String, String>) -> Result<Vec<u8>, Resps> {
+    uri_reader::uget_with_headers(url, headers)
         .await
         .map_err(|m| Resps::empty_fail(10003, m.to_string()))
 }
