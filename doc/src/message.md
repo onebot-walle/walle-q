@@ -47,10 +47,17 @@
 
 ## 图片消息 image
 
-| 字段    | 类型   | 说明        |
-| ------- | ------ | ----------- |
-| file_id | String | 图片文件 ID |
-| url     | String | 图片 url    |
+| 字段    | 类型   | 说明           |
+| ------- | ------ | -------------- |
+| file_id | String | 图片文件 ID    |
+| url     | String | 可选，图片 url |
+
+> url支持协议：
+> 
+> - http: `http://example.com/image.png`
+> - https: `https://example.com/image.png`
+> - file: `file:///path/to/image.png`
+> - base64: `base64://image_base64_str`
 
 ## 富文本消息 json
 
