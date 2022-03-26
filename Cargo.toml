@@ -23,8 +23,6 @@ lazy_static = "1.4"
 uuid = "0.8"
 clap = { version = "3.0", features = ["derive"] }
 cached = "0.34"
-hyper = { version = "0.14", features = ["client", "http1"] }
-hyper-tls = "0.5"
 bytes = "1.1"
 thiserror = "1"
 hex = "0.4"
@@ -33,10 +31,13 @@ base64 = "0.13"
 sled = "0.34"
 rusty-leveldb = "0.3"
 
-uri-reader = {git = "https://github.com/abrahum/uri-reader"}
+uri-reader = { git = "https://github.com/abrahum/uri-reader" }
 
 [dev-dependencies]
 md5 = "*"
+
+[features]
+vendored = ["uri-reader/vendored"]
 
 [profile.release]
 lto = true

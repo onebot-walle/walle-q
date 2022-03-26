@@ -4,7 +4,11 @@ use crate::database::{save_image, Database, SImage};
 
 use super::ResultFlatten;
 use tokio::{fs::File, io::AsyncReadExt};
-use walle_core::{action::UploadFileContent, impls::OneBot, Resps};
+use walle_core::{
+    action::{GetFileContent, UploadFileContent},
+    impls::OneBot,
+    Resps,
+};
 
 impl super::Handler {
     async fn get_file_data(c: UploadFileContent) -> Result<Vec<u8>, Resps> {
@@ -53,6 +57,81 @@ impl super::Handler {
         })?;
         crate::WQDB._insert_image(&info);
         Ok(Resps::success(info.as_file_id_content().into()))
+    }
+
+    pub async fn get_file(&self, c: GetFileContent, ob: &OneBot) -> Resps {
+        let fut = || async {
+            let file_type = c
+                .extra
+                .get("file_type")
+                .ok_or(Resps::bad_param())?
+                .clone()
+                .downcast_str()
+                .map_err(|_| Resps::bad_param())?;
+            match file_type.as_str() {
+                "image" => self.get_image(&c, ob).await,
+                _ => Err(Resps::bad_param()),
+            }
+        };
+        fut().await.flatten()
+    }
+
+    pub async fn get_image(&self, c: &GetFileContent, _ob: &OneBot) -> Result<Resps, Resps> {
+        if let Some(image) = hex::decode(&c.file_id)
+            .ok()
+            .and_then(|id| crate::WQDB.get_image(&id))
+        {
+            match c.r#type.as_str() {
+                "url" => {
+                    if let Some(url) = image.get_url() {
+                        Ok(Resps::success(
+                            UploadFileContent {
+                                r#type: "url".to_string(),
+                                name: image.get_file_name().to_string(),
+                                url: Some(url),
+                                ..Default::default()
+                            }
+                            .into(),
+                        ))
+                    } else {
+                        Err(Resps::empty_fail(32000, "图片url获取失败".to_string()))
+                    }
+                }
+                "path" => {
+                    if image.path().exists() {
+                        Ok(Resps::success(
+                            UploadFileContent {
+                                r#type: "path".to_string(),
+                                name: image.get_file_name().to_string(),
+                                path: Some(image.path().to_str().unwrap().to_string()),
+                                ..Default::default()
+                            }
+                            .into(),
+                        ))
+                    } else {
+                        Err(Resps::empty_fail(32000, "图片路径获取失败".to_string()))
+                    }
+                }
+                "data" => {
+                    if let Ok(data) = image.data().await {
+                        Ok(Resps::success(
+                            UploadFileContent {
+                                r#type: "data".to_string(),
+                                name: image.get_file_name().to_string(),
+                                data: Some(data),
+                                ..Default::default()
+                            }
+                            .into(),
+                        ))
+                    } else {
+                        Err(Resps::empty_fail(32000, "图片数据获取失败".to_string()))
+                    }
+                }
+                _ => Err(Resps::bad_param()),
+            }
+        } else {
+            Err(Resps::empty_fail(32000, "图片不存在".to_string()))
+        }
     }
 }
 

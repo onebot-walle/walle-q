@@ -57,7 +57,7 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
 
             Action::UploadFile(c) => self.upload_file(c, ob).await,
             Action::UploadFileFragmented(_c) => todo!(),
-            Action::GetFile(_c) => todo!(),
+            Action::GetFile(c) => self.get_file(c, ob).await,
             Action::GetFileFragmented(_c) => todo!(),
         }
     }

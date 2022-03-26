@@ -27,6 +27,8 @@ pub async fn save_image(data: &[u8]) -> Result<ImageInfo, &'static str> {
 pub trait SImage: Sized {
     fn get_md5(&self) -> &[u8];
     fn get_size(&self) -> u32;
+    fn get_url(&self) -> Option<String>;
+    fn get_file_name(&self) -> &str;
     async fn data(&self) -> RQResult<Vec<u8>>;
     async fn try_into_group_elem(&self, cli: &Client, target: i64) -> Option<GroupImage>;
     async fn try_into_friend_elem(&self, cli: &Client, group_code: i64) -> Option<FriendImage>;
@@ -75,6 +77,12 @@ impl SImage for FriendImage {
     fn get_size(&self) -> u32 {
         self.size as u32
     }
+    fn get_url(&self) -> Option<String> {
+        Some(self.url())
+    }
+    fn get_file_name(&self) -> &str {
+        &self.file_path
+    }
     async fn data(&self) -> RQResult<Vec<u8>> {
         match local_image_data(self).await {
             Ok(data) => Ok(data),
@@ -108,6 +116,12 @@ impl SImage for GroupImage {
     }
     fn get_size(&self) -> u32 {
         self.size as u32
+    }
+    fn get_url(&self) -> Option<String> {
+        Some(self.url())
+    }
+    fn get_file_name(&self) -> &str {
+        &self.file_path
     }
     async fn data(&self) -> RQResult<Vec<u8>> {
         match local_image_data(self).await {
@@ -145,6 +159,12 @@ impl SImage for ImageInfo {
     }
     fn get_size(&self) -> u32 {
         self.size
+    }
+    fn get_url(&self) -> Option<String> {
+        None
+    }
+    fn get_file_name(&self) -> &str {
+        &self.filename
     }
     async fn data(&self) -> RQResult<Vec<u8>> {
         local_image_data(self).await.map_err(RQError::IO)
@@ -189,6 +209,20 @@ impl SImage for Images {
             Images::Friend(image) => image.get_size(),
             Images::Group(image) => image.get_size(),
             Images::Info(image) => image.get_size(),
+        }
+    }
+    fn get_url(&self) -> Option<String> {
+        match self {
+            Images::Friend(image) => image.get_url(),
+            Images::Group(image) => image.get_url(),
+            Images::Info(image) => image.get_url(),
+        }
+    }
+    fn get_file_name(&self) -> &str {
+        match self {
+            Images::Friend(image) => image.get_file_name(),
+            Images::Group(image) => image.get_file_name(),
+            Images::Info(image) => image.get_file_name(),
         }
     }
     async fn data(&self) -> RQResult<Vec<u8>> {

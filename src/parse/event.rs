@@ -11,7 +11,10 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
         QEvent::Login(uin) => {
             *ob.self_id.write().await = uin.to_string();
             ob.set_online(true);
-            info!("Walle-Q Login success with uin: {}", uin);
+            info!(
+                target: crate::WALLE_Q,
+                "Walle-Q Login success with uin: {}", uin
+            );
             None
         }
 

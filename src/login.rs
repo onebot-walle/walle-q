@@ -21,14 +21,17 @@ const TOKEN_PATH: &str = "session.token";
 pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -> RQResult<()> {
     let token_login: bool = match fs::read(TOKEN_PATH).map(|s| rmp_serde::from_read_ref(&s)) {
         Ok(Ok(token)) => {
-            info!("成功读取 Token, 尝试使用 Token 登录");
+            info!(
+                target: crate::WALLE_Q,
+                "成功读取 Token, 尝试使用 Token 登录"
+            );
             match cli.token_login(token).await {
                 Ok(_) => {
-                    info!("Token 登录成功");
+                    info!(target: crate::WALLE_Q, "Token 登录成功");
                     true
                 }
                 Err(_) => {
-                    warn!("Token 登录失败");
+                    warn!(target: crate::WALLE_Q, "Token 登录失败");
                     false
                 }
             }
@@ -37,10 +40,10 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
     };
     if !token_login {
         if let (Some(uin), Some(password)) = (config.uin, &config.password) {
-            info!("login with password");
+            info!(target: crate::WALLE_Q, "login with password");
             handle_login_resp(cli, cli.password_login(uin as i64, password).await?).await?;
         } else {
-            info!("login with qrcode");
+            info!(target: crate::WALLE_Q, "login with qrcode");
             qrcode_login(cli).await?;
         }
         let token = cli.gen_token().await;
@@ -81,7 +84,10 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
         tokio::fs::write("qrcode.png", &f.image_data)
             .await
             .map_err(|_| RQError::Other("fail to write qrcode.png file".to_owned()))?;
-        info!("请打开 qrcode.png 文件扫描二维码登录");
+        info!(
+            target: crate::WALLE_Q,
+            "请打开 qrcode.png 文件扫描二维码登录"
+        );
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
             match cli.query_qrcode_result(&f.sig).await? {
@@ -102,7 +108,7 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
             }
         }
     } else {
-        warn!("二维码获取失败");
+        warn!(target: crate::WALLE_Q, "二维码获取失败");
         Err(RQError::Other("二维码获取失败".to_owned()))
     }
 }
@@ -112,9 +118,17 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
         match resp {
             LoginResponse::Success(_) => break Ok(()),
             LoginResponse::DeviceLocked(l) => {
-                warn!("password login error: {}", l.message.unwrap());
-                warn!("{}", l.sms_phone.unwrap());
-                warn!("手机打开url，处理完成后重启程序: {}", l.verify_url.unwrap());
+                warn!(
+                    target: crate::WALLE_Q,
+                    "password login error: {}",
+                    l.message.unwrap()
+                );
+                warn!(target: crate::WALLE_Q, "{}", l.sms_phone.unwrap());
+                warn!(
+                    target: crate::WALLE_Q,
+                    "手机打开url，处理完成后重启程序: {}",
+                    l.verify_url.unwrap()
+                );
                 return Err(RQError::Other("password login failure".to_string()));
             }
             LoginResponse::DeviceLockLogin { .. } => {
