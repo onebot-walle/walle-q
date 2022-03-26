@@ -66,6 +66,7 @@ wqerror_codes!(
     group_member_not_exist => "群成员不存在", 35004,
     image_info_decode_error => "图片解码错误", 41001;
     bad_param => "参数错误", 10003,
+    unsupported_param => "不支持的参数", 10004,
     file_open_error => "文件打开失败", 32001,
     file_read_error => "文件读取失败", 32002,
     file_create_error => "文件创建失败", 32003,

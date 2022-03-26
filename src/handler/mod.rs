@@ -57,9 +57,9 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::UnsetGroupAdmin(c) => self.set_group_admin(c, ob, true).await,
 
             Action::UploadFile(c) => self.upload_file(c, ob).await,
-            Action::UploadFileFragmented(_c) => todo!(),
+            Action::UploadFileFragmented(_c) => Err(WQError::unsupported_action()),
             Action::GetFile(c) => self.get_file(c, ob).await,
-            Action::GetFileFragmented(_c) => todo!(),
+            Action::GetFileFragmented(_c) => Err(WQError::unsupported_action()),
         } {
             Ok(resps) => resps,
             Err(e) => e.into(),
@@ -106,6 +106,8 @@ impl Handler {
             "unban_group_member".into(),
             "set_group_admin".into(),
             "unset_group_admin".into(),
+            "upload_file".into(),
+            "get_file".into(),
         ])))
     }
     fn get_version() -> WQResult<Resps> {

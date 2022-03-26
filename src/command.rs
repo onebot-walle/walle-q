@@ -13,7 +13,7 @@ pub(crate) struct Comm {
     #[clap(long, arg_enum, help = "set global log level")]
     pub log: Option<LogLevel>,
 
-    #[clap(long, help = "use Onebot v11 standard instead of v12 (todo)")]
+    #[clap(long, help = "use Onebot v11 standard")]
     #[serde(default)]
     pub v11: bool,
 
@@ -22,6 +22,18 @@ pub(crate) struct Comm {
 
     #[clap(long, help = "time zone for log. (Default: +8)")]
     pub time_zone: Option<i8>,
+
+    #[clap(long, help = "Enable SledDb")]
+    #[serde(default)]
+    pub sled: bool,
+
+    #[clap(long, help = "Disable LevelDb")]
+    #[serde(default)]
+    pub disable_leveldb: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(ArgEnum, Clone, Serialize, Deserialize, Debug)]
@@ -74,11 +86,14 @@ impl Comm {
                 *a = Some(b);
             }
         }
+        fn merge_bool(a: &mut bool, b: bool) {
+            *a = *a || b;
+        }
 
         merge_option(&mut self.log, other.log);
         merge_option(&mut self.event_cache_size, other.event_cache_size);
-        if other.v11 && !self.v11 {
-            self.v11 = true;
-        }
+        merge_bool(&mut self.v11, other.v11);
+        merge_bool(&mut self.sled, other.sled);
+        merge_bool(&mut self.disable_leveldb, other.disable_leveldb);
     }
 }

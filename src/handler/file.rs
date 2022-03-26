@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use crate::database::{save_image, Database, SImage};
 use crate::error::{WQError, WQResult};
@@ -14,7 +14,9 @@ impl super::Handler {
     async fn get_file_data(c: UploadFileContent) -> WQResult<Vec<u8>> {
         match c.r#type.as_str() {
             "url" if let Some(url) = c.url => {
-                get_date_by_url(&url, c.headers.unwrap_or_default()).await
+                uri_reader::uget_with_headers(&url, c.headers.unwrap_or_default())
+                    .await
+                    .map_err(|m| WQError::net_download_fail(m))
             }
             "path" if let Some(path) = c.path => {
                 let input_path = PathBuf::from(path);
@@ -28,7 +30,7 @@ impl super::Handler {
                 Ok(data.into())
             }
             "data" if let Some(data) = c.data => Ok(data),
-            _ => Err(WQError::bad_param("type")),
+            ty => Err(WQError::unsupported_param(ty)),
         }
     }
 
@@ -43,7 +45,7 @@ impl super::Handler {
         let data = Self::get_file_data(c).await?;
         match file_type.as_str() {
             "image" => self.upload_image(data, ob).await,
-            _ => Err(WQError::bad_param("file_type")),
+            ty => Err(WQError::unsupported_param(ty)),
         }
     }
 
@@ -63,7 +65,7 @@ impl super::Handler {
             .map_err(|_| WQError::bad_param("file_type"))?;
         match file_type.as_str() {
             "image" => self.get_image(&c, ob).await,
-            _ => Err(WQError::bad_param("file_type")),
+            ty => Err(WQError::unsupported_param(ty)),
         }
     }
 
@@ -118,16 +120,10 @@ impl super::Handler {
                         Err(WQError::image_data(image.get_file_name()))
                     }
                 }
-                _ => Err(WQError::bad_param("type")),
+                ty => Err(WQError::unsupported_param(ty)),
             }
         } else {
             Err(WQError::image_unuploaded())
         }
     }
-}
-
-async fn get_date_by_url(url: &str, headers: HashMap<String, String>) -> WQResult<Vec<u8>> {
-    uri_reader::uget_with_headers(url, headers)
-        .await
-        .map_err(|m| WQError::net_download_fail(m))
 }
