@@ -13,6 +13,7 @@ use database::DatabaseInit;
 mod command;
 mod config;
 mod database;
+pub(crate) mod error;
 mod handler;
 mod login;
 pub(crate) mod parse;

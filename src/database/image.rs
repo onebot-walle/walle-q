@@ -7,18 +7,20 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use walle_core::resp::FileIdContent;
 
+use crate::error::{WQError, WQResult};
+
 pub const IMAGE_CACHE_DIR: &str = "./data/image";
 
-pub async fn save_image(data: &[u8]) -> Result<ImageInfo, &'static str> {
+pub async fn save_image(data: &[u8]) -> WQResult<ImageInfo> {
     use tokio::io::AsyncWriteExt;
 
-    let info = ImageInfo::try_new(data).map_err(|_| "图片解析失败")?;
+    let info = ImageInfo::try_new(data).map_err(|_| WQError::image_info_decode_error())?;
     let mut file = tokio::fs::File::create(&info.path())
         .await
-        .map_err(|_| "文件创建失败")?;
+        .map_err(|e| WQError::file_create_error(e))?;
     file.write_all(data.as_ref())
         .await
-        .map_err(|_| "文件写入失败")?;
+        .map_err(|e| WQError::file_write_error(e))?;
     Ok(info)
 }
 

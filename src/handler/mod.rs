@@ -1,5 +1,6 @@
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage};
-use crate::parse::{err::rqerror_to_resps, MsgChainBuilder};
+use crate::error::{WQError, WQResult};
+use crate::parse::MsgChainBuilder;
 use async_trait::async_trait;
 use cached::SizedCache;
 use std::sync::Arc;
@@ -30,7 +31,7 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
         if let Some(alt) = action.alt() {
             tracing::info!(target: crate::WALLE_Q, "{}", alt);
         }
-        match action {
+        match match action {
             Action::GetLatestEvents(c) => self.get_latest_events(c, ob).await,
             Action::GetSupportedActions(_) => Self::get_supported_actions(),
             Action::GetStatus(_) => self.get_status(),
@@ -59,27 +60,15 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
             Action::UploadFileFragmented(_c) => todo!(),
             Action::GetFile(c) => self.get_file(c, ob).await,
             Action::GetFileFragmented(_c) => todo!(),
-        }
-    }
-}
-
-trait ResultFlatten {
-    type Output;
-    fn flatten(self) -> Self::Output;
-}
-
-impl<T> ResultFlatten for Result<T, T> {
-    type Output = T;
-    fn flatten(self) -> T {
-        match self {
-            Ok(v) => v,
-            Err(v) => v,
+        } {
+            Ok(resps) => resps,
+            Err(e) => e.into(),
         }
     }
 }
 
 impl Handler {
-    async fn get_latest_events(&self, c: GetLatestEventsContent, _ob: &OneBot) -> Resps {
+    async fn get_latest_events(&self, c: GetLatestEventsContent, _ob: &OneBot) -> WQResult<Resps> {
         let get = || async {
             self.1
                 .lock()
@@ -94,10 +83,10 @@ impl Handler {
             tokio::time::sleep(std::time::Duration::from_secs(c.timeout as u64)).await;
             events = get().await;
         }
-        Resps::success(events.into())
+        Ok(Resps::success(events.into()))
     }
-    fn get_supported_actions() -> Resps {
-        Resps::success(RespContent::SupportActions(vec![
+    fn get_supported_actions() -> WQResult<Resps> {
+        Ok(Resps::success(RespContent::SupportActions(vec![
             "get_latest_events".into(),
             "get_supported_actions".into(),
             "get_status".into(),
@@ -117,10 +106,10 @@ impl Handler {
             "unban_group_member".into(),
             "set_group_admin".into(),
             "unset_group_admin".into(),
-        ]))
+        ])))
     }
-    fn get_version() -> Resps {
-        Resps::success(
+    fn get_version() -> WQResult<Resps> {
+        Ok(Resps::success(
             VersionContent {
                 r#impl: crate::WALLE_Q.to_string(),
                 platform: "qq".to_string(),
@@ -128,138 +117,138 @@ impl Handler {
                 onebot_version: OneBot::onebot_version().to_string(),
             }
             .into(),
-        )
+        ))
     }
-    fn get_status(&self) -> Resps {
-        Resps::success(
+    fn get_status(&self) -> WQResult<Resps> {
+        Ok(Resps::success(
             StatusContent {
                 good: true,
                 online: self.0.online.load(std::sync::atomic::Ordering::Relaxed),
             }
             .into(),
-        )
+        ))
     }
 
-    async fn send_message(&self, c: SendMessageContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            if &c.detail_type == "group" {
-                let group_id = c.group_id.ok_or_else(Resps::bad_param)?;
-                let group_code = group_id.parse().map_err(|_| Resps::bad_param())?;
-                if let Some(chain) =
-                    MsgChainBuilder::group_chain_builder(&self.0, group_code, c.message.clone())
-                        .build()
-                        .await
-                {
-                    let receipt = self
-                        .0
-                        .send_group_message(group_code, chain)
-                        .await
-                        .map_err(rqerror_to_resps)?;
-                    let message_id = receipt.seqs[0].to_string();
-                    let respc = SendMessageRespContent {
-                        message_id,
-                        time: receipt.time as f64,
-                    };
-                    let s_group =
-                        SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
-                    crate::WQDB.insert_group_message(&s_group);
-                    Ok(Resps::success(respc.into()))
-                } else {
-                    Err(Resps::empty_fail(10006, "消息为空".to_string()))
-                }
-            } else if &c.detail_type == "private" {
-                let target_id = c.user_id.ok_or_else(Resps::bad_param)?;
-                let target = target_id.parse().map_err(|_| Resps::bad_param())?;
-                if let Some(chain) =
-                    MsgChainBuilder::private_chain_builder(&self.0, target, c.message.clone())
-                        .build()
-                        .await
-                {
-                    let receipt = self
-                        .0
-                        .send_friend_message(target, chain)
-                        .await
-                        .map_err(rqerror_to_resps)?;
-                    let message_id = receipt.seqs[0].to_string();
-                    let respc = SendMessageRespContent {
-                        message_id,
-                        time: receipt.time as f64,
-                    };
-                    let s_private = SPrivateMessage::receipt(
-                        receipt,
-                        target,
-                        self.0.uin().await,
-                        self.0.account_info.read().await.nickname.clone(),
-                        c.message,
-                    );
-                    crate::WQDB.insert_private_message(&s_private);
-                    Ok(Resps::success(respc.into()))
-                } else {
-                    Err(Resps::empty_fail(10006, "消息为空".to_string()))
-                }
-            } else {
-                Err(Resps::unsupported_action())
-            }
-        };
-        fut.await.flatten()
-    }
-
-    async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            if let Some(m) =
-                crate::WQDB.get_message(c.message_id.parse().map_err(|_| Resps::bad_param())?)
+    async fn send_message(&self, c: SendMessageContent, _ob: &OneBot) -> WQResult<Resps> {
+        if &c.detail_type == "group" {
+            let group_id = c.group_id.ok_or(WQError::bad_param("group_id"))?;
+            let group_code = group_id
+                .parse()
+                .map_err(|_| WQError::bad_param("group_id"))?;
+            if let Some(chain) =
+                MsgChainBuilder::group_chain_builder(&self.0, group_code, c.message.clone())
+                    .build()
+                    .await
             {
-                match m {
-                    SMessage::Private(p) => {
-                        self.0
-                            .recall_friend_message(p.from_uin, p.time as i64, p.seqs, p.rands)
-                            .await
-                            .map_err(rqerror_to_resps)?;
-                    }
-                    SMessage::Group(g) => {
-                        self.0
-                            .recall_group_message(g.group_code, g.seqs, g.rands)
-                            .await
-                            .map_err(rqerror_to_resps)?;
-                    }
-                }
-                Ok(Resps::empty_success())
+                let receipt = self
+                    .0
+                    .send_group_message(group_code, chain)
+                    .await
+                    .map_err(WQError::RQ)?;
+                let message_id = receipt.seqs[0].to_string();
+                let respc = SendMessageRespContent {
+                    message_id,
+                    time: receipt.time as f64,
+                };
+                let s_group =
+                    SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
+                crate::WQDB.insert_group_message(&s_group);
+                Ok(Resps::success(respc.into()))
             } else {
-                Err(Resps::empty_fail(35001, "未找到该消息".to_owned()))
+                Err(WQError::empty_message())
             }
-        };
-        fut.await.flatten()
+        } else if &c.detail_type == "private" {
+            let target_id = c.user_id.ok_or(WQError::bad_param("user_id"))?;
+            let target = target_id
+                .parse()
+                .map_err(|_| WQError::bad_param("user_id"))?;
+            if let Some(chain) =
+                MsgChainBuilder::private_chain_builder(&self.0, target, c.message.clone())
+                    .build()
+                    .await
+            {
+                let receipt = self
+                    .0
+                    .send_friend_message(target, chain)
+                    .await
+                    .map_err(WQError::RQ)?;
+                let message_id = receipt.seqs[0].to_string();
+                let respc = SendMessageRespContent {
+                    message_id,
+                    time: receipt.time as f64,
+                };
+                let s_private = SPrivateMessage::receipt(
+                    receipt,
+                    target,
+                    self.0.uin().await,
+                    self.0.account_info.read().await.nickname.clone(),
+                    c.message,
+                );
+                crate::WQDB.insert_private_message(&s_private);
+                Ok(Resps::success(respc.into()))
+            } else {
+                Err(WQError::empty_message())
+            }
+        } else {
+            Err(WQError::unsupported_action())
+        }
     }
 
-    async fn get_self_info(&self) -> Resps {
-        Resps::success(
+    async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> WQResult<Resps> {
+        if let Some(m) = crate::WQDB.get_message(
+            c.message_id
+                .parse()
+                .map_err(|_| WQError::bad_param("message_id"))?,
+        ) {
+            match m {
+                SMessage::Private(p) => {
+                    self.0
+                        .recall_friend_message(p.from_uin, p.time as i64, p.seqs, p.rands)
+                        .await
+                        .map_err(WQError::RQ)?;
+                }
+                SMessage::Group(g) => {
+                    self.0
+                        .recall_group_message(g.group_code, g.seqs, g.rands)
+                        .await
+                        .map_err(WQError::RQ)?;
+                }
+            }
+            Ok(Resps::empty_success())
+        } else {
+            Err(WQError::message_not_exist())
+        }
+    }
+
+    async fn get_self_info(&self) -> WQResult<Resps> {
+        Ok(Resps::success(
             UserInfoContent {
                 user_id: self.0.uin().await.to_string(),
                 nickname: self.0.account_info.read().await.nickname.clone(),
             }
             .into(),
-        )
+        ))
     }
-    async fn get_user_info(&self, c: UserIdContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            let user_id: i64 = c.user_id.parse().map_err(|_| Resps::bad_param())?;
-            let info = self
-                .0
-                .find_friend(user_id)
-                .await
-                .ok_or_else(|| Resps::empty_fail(35001, "未找到该好友".to_owned()))?;
-            Ok(Resps::success(
-                UserInfoContent {
-                    user_id: info.uin.to_string(),
-                    nickname: info.nick.to_string(),
-                }
-                .into(),
-            ))
-        };
-        fut.await.flatten()
+    async fn get_user_info(&self, c: UserIdContent, _ob: &OneBot) -> WQResult<Resps> {
+        let user_id: i64 = c
+            .user_id
+            .parse()
+            .map_err(|_| WQError::bad_param("user_id"))?;
+        let info = self
+            .0
+            .find_friend(user_id)
+            .await
+            .ok_or_else(|| WQError::friend_not_exist())?;
+        Ok(Resps::success(
+            UserInfoContent {
+                user_id: info.uin.to_string(),
+                nickname: info.nick.to_string(),
+            }
+            .into(),
+        ))
     }
-    async fn get_friend_list(&self) -> Resps {
-        Resps::success(
+    async fn get_friend_list(&self) -> WQResult<Resps> {
+        Ok(Resps::success(
             self.0
                 .friends
                 .read()
@@ -271,28 +260,28 @@ impl Handler {
                 })
                 .collect::<Vec<_>>()
                 .into(),
-        )
+        ))
     }
-    async fn get_group_info(&self, c: GroupIdContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            let group_id: i64 = c.group_id.parse().map_err(|_| Resps::bad_param())?;
-            let info = self
-                .0
-                .find_group(group_id, true)
-                .await
-                .ok_or_else(|| Resps::empty_fail(35001, "未找到该群".to_owned()))?;
-            Ok(Resps::success(
-                GroupInfoContent {
-                    group_id: info.info.uin.to_string(),
-                    group_name: info.info.name.to_string(),
-                }
-                .into(),
-            ))
-        };
-        fut.await.flatten()
+    async fn get_group_info(&self, c: GroupIdContent, _ob: &OneBot) -> WQResult<Resps> {
+        let group_id: i64 = c
+            .group_id
+            .parse()
+            .map_err(|_| WQError::bad_param("group_id"))?;
+        let info = self
+            .0
+            .find_group(group_id, true)
+            .await
+            .ok_or_else(|| WQError::group_not_exist())?;
+        Ok(Resps::success(
+            GroupInfoContent {
+                group_id: info.info.uin.to_string(),
+                group_name: info.info.name.to_string(),
+            }
+            .into(),
+        ))
     }
-    async fn get_group_list(&self) -> Resps {
-        Resps::success(
+    async fn get_group_list(&self) -> WQResult<Resps> {
+        Ok(Resps::success(
             self.0
                 .groups
                 .read()
@@ -304,131 +293,138 @@ impl Handler {
                 })
                 .collect::<Vec<_>>()
                 .into(),
-        )
+        ))
     }
-    async fn get_group_member_list(&self, c: GroupIdContent) -> Resps {
-        let fut = async {
-            let group_id: i64 = c.group_id.parse().map_err(|_| Resps::bad_param())?;
-            let group = self
-                .0
-                .find_group(group_id, true)
-                .await
-                .ok_or_else(|| Resps::empty_fail(35001, "未找到该群".to_owned()))?;
-            let v = group
-                .members
-                .read()
-                .await
-                .iter()
-                .map(|i| UserInfoContent {
-                    user_id: i.uin.to_string(),
-                    nickname: i.nickname.clone(),
-                })
-                .collect::<Vec<_>>();
-            Ok(Resps::success(v.into()))
-        };
-        fut.await.flatten()
+    async fn get_group_member_list(&self, c: GroupIdContent) -> WQResult<Resps> {
+        let group_id: i64 = c
+            .group_id
+            .parse()
+            .map_err(|_| WQError::bad_param("group_id"))?;
+        let group = self
+            .0
+            .find_group(group_id, true)
+            .await
+            .ok_or_else(|| WQError::group_not_exist())?;
+        let v = group
+            .members
+            .read()
+            .await
+            .iter()
+            .map(|i| UserInfoContent {
+                user_id: i.uin.to_string(),
+                nickname: i.nickname.clone(),
+            })
+            .collect::<Vec<_>>();
+        Ok(Resps::success(v.into()))
     }
-    async fn get_group_member_info(&self, c: IdsContent) -> Resps {
-        let fut = async {
-            let group_id: i64 = c.group_id.parse().map_err(|_| Resps::bad_param())?;
-            let uin: i64 = c.user_id.parse().map_err(|_| Resps::bad_param())?;
-            let group = self
-                .0
-                .find_group(group_id, true)
-                .await
-                .ok_or_else(|| Resps::empty_fail(35001, "未找到该群".to_owned()))?;
-            let list = group.members.read().await;
-            let v: Vec<_> = list.iter().filter(|i| i.uin == uin).collect();
-            if v.is_empty() {
-                Err(Resps::empty_fail(35001, "未找到该群成员".to_owned()))
-            } else {
-                Ok(Resps::success(
-                    UserInfoContent {
-                        user_id: v[0].uin.to_string(),
-                        nickname: v[0].nickname.clone(),
-                    }
-                    .into(),
-                ))
-            }
-        };
-        fut.await.flatten()
+    async fn get_group_member_info(&self, c: IdsContent) -> WQResult<Resps> {
+        let group_id: i64 = c
+            .group_id
+            .parse()
+            .map_err(|_| WQError::bad_param("group_id"))?;
+        let uin: i64 = c
+            .user_id
+            .parse()
+            .map_err(|_| WQError::bad_param("user_id"))?;
+        let group = self
+            .0
+            .find_group(group_id, true)
+            .await
+            .ok_or_else(|| WQError::group_not_exist())?;
+        let list = group.members.read().await;
+        let v: Vec<_> = list.iter().filter(|i| i.uin == uin).collect();
+        if v.is_empty() {
+            Err(WQError::group_member_not_exist())
+        } else {
+            Ok(Resps::success(
+                UserInfoContent {
+                    user_id: v[0].uin.to_string(),
+                    nickname: v[0].nickname.clone(),
+                }
+                .into(),
+            ))
+        }
     }
-    async fn set_group_name(&self, c: SetGroupNameContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            self.0
-                .update_group_name(
-                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
-                    c.group_name,
-                )
-                .await
-                .map_err(rqerror_to_resps)?;
-            Ok(Resps::empty_success())
-        };
-        fut.await.flatten()
+    async fn set_group_name(&self, c: SetGroupNameContent, _ob: &OneBot) -> WQResult<Resps> {
+        self.0
+            .update_group_name(
+                c.group_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("group_id"))?,
+                c.group_name,
+            )
+            .await
+            .map_err(WQError::RQ)?;
+        Ok(Resps::empty_success())
     }
-    async fn leave_group(&self, c: GroupIdContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            self.0
-                .group_quit(c.group_id.parse().map_err(|_| Resps::bad_param())?)
-                .await
-                .map_err(rqerror_to_resps)?;
-            Ok(Resps::empty_success())
-        };
-        fut.await.flatten()
+    async fn leave_group(&self, c: GroupIdContent, _ob: &OneBot) -> WQResult<Resps> {
+        self.0
+            .group_quit(
+                c.group_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("group_id"))?,
+            )
+            .await
+            .map_err(WQError::RQ)?;
+        Ok(Resps::empty_success())
     }
-    async fn kick_group_member(&self, c: IdsContent, _ob: &OneBot) -> Resps {
-        let fut = async {
-            self.0
-                .group_kick(
-                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
-                    vec![c.user_id.parse().map_err(|_| Resps::bad_param())?],
-                    "",
-                    false,
-                )
-                .await
-                .map_err(rqerror_to_resps)?;
-            Ok(Resps::empty_success())
-        };
-        fut.await.flatten()
+    async fn kick_group_member(&self, c: IdsContent, _ob: &OneBot) -> WQResult<Resps> {
+        self.0
+            .group_kick(
+                c.group_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("group_id"))?,
+                vec![c
+                    .user_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("user_id"))?],
+                "",
+                false,
+            )
+            .await
+            .map_err(WQError::RQ)?;
+        Ok(Resps::empty_success())
     }
-    async fn ban_group_member(&self, c: IdsContent, _ob: &OneBot, unban: bool) -> Resps {
+    async fn ban_group_member(&self, c: IdsContent, _ob: &OneBot, unban: bool) -> WQResult<Resps> {
         use std::time::Duration;
 
-        let fut = async {
-            let duration: Duration = if unban {
-                Duration::from_secs(0)
-            } else {
-                Duration::from_secs(c.extra.get("duration").map_or(Ok(60), |v| {
-                    match v.clone().downcast_int() {
-                        Ok(v) => Ok(v as u64),
-                        Err(_) => Err(Resps::bad_param()),
-                    }
-                })?)
-            };
-            self.0
-                .group_mute(
-                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
-                    c.user_id.parse().map_err(|_| Resps::bad_param())?,
-                    duration,
-                )
-                .await
-                .map_err(rqerror_to_resps)?;
-            Ok(Resps::empty_success())
+        let duration: Duration = if unban {
+            Duration::from_secs(0)
+        } else {
+            Duration::from_secs(c.extra.get("duration").map_or(Ok(60), |v| {
+                match v.clone().downcast_int() {
+                    Ok(v) => Ok(v as u64),
+                    Err(_) => Err(WQError::bad_param("duration")),
+                }
+            })?)
         };
-        fut.await.flatten()
+        self.0
+            .group_mute(
+                c.group_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("group_id"))?,
+                c.user_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("user_id"))?,
+                duration,
+            )
+            .await
+            .map_err(WQError::RQ)?;
+        Ok(Resps::empty_success())
     }
-    async fn set_group_admin(&self, c: IdsContent, _ob: &OneBot, unset: bool) -> Resps {
-        let fut = async {
-            self.0
-                .group_set_admin(
-                    c.group_id.parse().map_err(|_| Resps::bad_param())?,
-                    c.user_id.parse().map_err(|_| Resps::bad_param())?,
-                    !unset,
-                )
-                .await
-                .map_err(rqerror_to_resps)?;
-            Ok(Resps::empty_success())
-        };
-        fut.await.flatten()
+    async fn set_group_admin(&self, c: IdsContent, _ob: &OneBot, unset: bool) -> WQResult<Resps> {
+        self.0
+            .group_set_admin(
+                c.group_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("group_id"))?,
+                c.user_id
+                    .parse()
+                    .map_err(|_| WQError::bad_param("user_id"))?,
+                !unset,
+            )
+            .await
+            .map_err(WQError::RQ)?;
+        Ok(Resps::empty_success())
     }
 }
