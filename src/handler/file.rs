@@ -51,7 +51,7 @@ impl super::Handler {
 
     pub async fn upload_image(&self, data: Vec<u8>, _ob: &OneBot) -> WQResult<Resps> {
         let info = save_image(&data).await?;
-        crate::WQDB._insert_image(&info);
+        self.2._insert_image(&info);
         Ok(Resps::success(info.as_file_id_content().into()))
     }
 
@@ -72,7 +72,7 @@ impl super::Handler {
     pub async fn get_image(&self, c: &GetFileContent, _ob: &OneBot) -> WQResult<Resps> {
         if let Some(image) = hex::decode(&c.file_id)
             .ok()
-            .and_then(|id| crate::WQDB.get_image(&id))
+            .and_then(|id| self.2.get_image(&id))
         {
             match c.r#type.as_str() {
                 "url" => {

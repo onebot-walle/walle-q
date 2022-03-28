@@ -4,11 +4,8 @@ use std::sync::Arc;
 
 use cached::Cached;
 use clap::Parser;
-use lazy_static::lazy_static;
 use rs_qq::client::Client;
 use walle_core::ColoredAlt;
-
-use database::DatabaseInit;
 
 mod command;
 mod config;
@@ -21,17 +18,13 @@ pub(crate) mod parse;
 const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-lazy_static! {
-    pub(crate) static ref WQDB: crate::database::leveldb::LevelDb =
-        crate::database::leveldb::LevelDb::init();
-}
-
 #[tokio::main]
 async fn main() {
     let mut comm = command::Comm::parse();
     let config = config::Config::load().unwrap();
     comm.merge(config.command);
     comm.subscribe();
+    let wqdb = comm.db();
     init().await;
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -56,7 +49,11 @@ async fn main() {
         "qq",
         &self_id.to_string(),
         config.onebot.clone(),
-        Arc::new(handler::Handler(qclient.clone(), cache.clone())),
+        Arc::new(handler::Handler(
+            qclient.clone(),
+            cache.clone(),
+            wqdb.clone(),
+        )),
     )
     .arc();
 
@@ -65,7 +62,7 @@ async fn main() {
         if !comm.v11 {
             ob.run().await.unwrap();
             while let Some(msg) = rx.recv().await {
-                if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
+                if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
                     if let Some(alt) = event.alt() {
                         tracing::info!("{}", alt);
                     }
@@ -89,7 +86,7 @@ async fn main() {
             ob11.run().await.unwrap();
             while let Some(msg) = rx.recv().await {
                 parse::v11::meta_event_process(&ob11, &msg).await;
-                if let Some(event) = crate::parse::qevent2event(&ob, msg).await {
+                if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
                     cache
                         .lock()
                         .await

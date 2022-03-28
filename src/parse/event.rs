@@ -1,11 +1,15 @@
-use crate::database::{Database, SGroupMessage, SPrivateMessage};
+use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
 
 use rs_qq::client::handler::QEvent;
 use rs_qq::structs::GroupMemberPermission;
 use tracing::{info, warn};
 use walle_core::{Event, ExtendedMap, MessageContent, NoticeContent};
 
-pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Option<Event> {
+pub(crate) async fn qevent2event(
+    ob: &walle_core::impls::OneBot,
+    event: QEvent,
+    wqdb: &WQDatabase,
+) -> Option<Event> {
     match event {
         // meta
         QEvent::Login(uin) => {
@@ -20,7 +24,7 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
 
         // message
         QEvent::FriendMessage(pme) => {
-            let message = super::msg_chain2msg_seg_vec(pme.message.elements.clone());
+            let message = super::msg_chain2msg_seg_vec(pme.message.elements.clone(), wqdb);
             let event = ob
                 .new_event(
                     MessageContent::new_private_message_content(
@@ -34,11 +38,11 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
                 )
                 .await;
             let s_private = SPrivateMessage::new(pme.message, message);
-            crate::WQDB.insert_private_message(&s_private);
+            wqdb.insert_private_message(&s_private);
             Some(event)
         }
         QEvent::GroupMessage(gme) => {
-            let message = super::msg_chain2msg_seg_vec(gme.message.elements.clone());
+            let message = super::msg_chain2msg_seg_vec(gme.message.elements.clone(), wqdb);
             let event = ob
                 .new_event(
                     MessageContent::new_group_message_content(
@@ -53,7 +57,7 @@ pub async fn qevent2event(ob: &walle_core::impls::OneBot, event: QEvent) -> Opti
                 )
                 .await;
             let s_group = SGroupMessage::new(gme.message, message);
-            crate::WQDB.insert_group_message(&s_group);
+            wqdb.insert_group_message(&s_group);
             Some(event)
         }
         QEvent::SelfGroupMessage(e) => {

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use clap::{ArgEnum, Parser};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{
@@ -30,10 +32,6 @@ pub(crate) struct Comm {
     #[clap(long, help = "Disable LevelDb")]
     #[serde(default)]
     pub disable_leveldb: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(ArgEnum, Clone, Serialize, Deserialize, Debug)]
@@ -78,6 +76,17 @@ impl Comm {
             .with(tracing_subscriber::fmt::layer().with_timer(timer))
             .with(filter)
             .init();
+    }
+
+    pub(crate) fn db(&self) -> Arc<crate::database::WQDatabase> {
+        let mut db = crate::database::WQDatabase::default();
+        if !self.disable_leveldb {
+            db = db.level();
+        }
+        if self.sled {
+            db = db.sled();
+        }
+        Arc::new(db)
     }
 
     pub(crate) fn merge(&mut self, other: Self) {

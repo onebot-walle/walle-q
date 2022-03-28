@@ -1,4 +1,4 @@
-use crate::database::{Database, SImage};
+use crate::database::{Database, SImage, WQDatabase};
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use rs_qq::Client;
@@ -29,10 +29,10 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub async fn build(self) -> Option<MessageChain> {
+    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Option<MessageChain> {
         let mut chain = MessageChain::default();
         for msg_seg in self.message {
-            push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli).await;
+            push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli, wqdb).await;
         }
         if chain.0.is_empty() {
             None
@@ -42,7 +42,7 @@ impl<'a> MsgChainBuilder<'a> {
     }
 }
 
-pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
+pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<MessageSegment> {
     match elem {
         RQElem::Text(text) => Some(MessageSegment::text(text.content)),
         RQElem::At(elem::At { target: 0, .. }) => Some(MessageSegment::mention_all()),
@@ -80,14 +80,14 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
             data: [("data".to_string(), l.content.into())].into(),
         }),
         RQElem::FriendImage(i) => {
-            crate::WQDB._insert_image(&i);
+            wqdb._insert_image(&i);
             Some(MessageSegment::Image {
                 extend: [("url".to_string(), i.url().into())].into(),
                 file_id: i.hex_image_id(),
             })
         }
         RQElem::GroupImage(i) => {
-            crate::WQDB._insert_image(&i);
+            wqdb._insert_image(&i);
             Some(MessageSegment::Image {
                 extend: [("url".to_string(), i.url().into())].into(),
                 file_id: i.hex_image_id(),
@@ -100,8 +100,11 @@ pub fn rq_elem2msg_seg(elem: RQElem) -> Option<MessageSegment> {
     }
 }
 
-pub fn msg_chain2msg_seg_vec(chain: MessageChain) -> Vec<MessageSegment> {
-    chain.into_iter().filter_map(rq_elem2msg_seg).collect()
+pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> Vec<MessageSegment> {
+    chain
+        .into_iter()
+        .filter_map(|s| rq_elem2msg_seg(s, wqdb))
+        .collect()
 }
 
 async fn push_msg_seg(
@@ -110,6 +113,7 @@ async fn push_msg_seg(
     target: i64,
     group: bool,
     cli: &Client,
+    wqdb: &WQDatabase,
 ) {
     match seg {
         MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
@@ -147,7 +151,7 @@ async fn push_msg_seg(
         } => {
             if let Some(info) = hex::decode(&file_id)
                 .ok()
-                .and_then(|id| crate::WQDB.get_image(&id))
+                .and_then(|id| wqdb.get_image(&id))
             {
                 if group {
                     if let Some(image) = info.try_into_group_elem(cli, target).await {

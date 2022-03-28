@@ -80,11 +80,11 @@ impl Default for WQDatabase {
 }
 
 impl WQDatabase {
-    fn sled(mut self) -> Self {
+    pub(crate) fn sled(mut self) -> Self {
         self.0.push(WQDatabaseInner::SledDb(sleddb::SledDb::init()));
         self
     }
-    fn level(mut self) -> Self {
+    pub(crate) fn level(mut self) -> Self {
         self.0
             .push(WQDatabaseInner::LevelDb(leveldb::LevelDb::init()));
         self

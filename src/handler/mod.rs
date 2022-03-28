@@ -1,4 +1,4 @@
-use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage};
+use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
 use crate::error::{WQError, WQResult};
 use crate::parse::MsgChainBuilder;
 use async_trait::async_trait;
@@ -23,6 +23,7 @@ pub(crate) mod v11;
 pub(crate) struct Handler(
     pub(crate) Arc<rs_qq::Client>,
     pub(crate) Arc<Mutex<SizedCache<String, Event>>>,
+    pub(crate) Arc<WQDatabase>,
 );
 
 #[async_trait]
@@ -139,7 +140,7 @@ impl Handler {
                 .map_err(|_| WQError::bad_param("group_id"))?;
             if let Some(chain) =
                 MsgChainBuilder::group_chain_builder(&self.0, group_code, c.message.clone())
-                    .build()
+                    .build(&self.2)
                     .await
             {
                 let receipt = self
@@ -154,7 +155,7 @@ impl Handler {
                 };
                 let s_group =
                     SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
-                crate::WQDB.insert_group_message(&s_group);
+                self.2.insert_group_message(&s_group);
                 Ok(Resps::success(respc.into()))
             } else {
                 Err(WQError::empty_message())
@@ -166,7 +167,7 @@ impl Handler {
                 .map_err(|_| WQError::bad_param("user_id"))?;
             if let Some(chain) =
                 MsgChainBuilder::private_chain_builder(&self.0, target, c.message.clone())
-                    .build()
+                    .build(&self.2)
                     .await
             {
                 let receipt = self
@@ -186,7 +187,7 @@ impl Handler {
                     self.0.account_info.read().await.nickname.clone(),
                     c.message,
                 );
-                crate::WQDB.insert_private_message(&s_private);
+                self.2.insert_private_message(&s_private);
                 Ok(Resps::success(respc.into()))
             } else {
                 Err(WQError::empty_message())
@@ -197,7 +198,7 @@ impl Handler {
     }
 
     async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> WQResult<Resps> {
-        if let Some(m) = crate::WQDB.get_message(
+        if let Some(m) = self.2.get_message(
             c.message_id
                 .parse()
                 .map_err(|_| WQError::bad_param("message_id"))?,
