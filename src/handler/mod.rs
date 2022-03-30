@@ -5,16 +5,17 @@ use async_trait::async_trait;
 use cached::SizedCache;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use walle_core::action::{
+    DeleteMessage, GetGroupInfo, GetGroupMemberInfo, GetGroupMemberList, GetLatestEvents,
+    GetUserInfo, KickGroupMember, LeaveGroup, SendMessage, SetGroupName,
+};
+use walle_core::ExtendedMap;
 use walle_core::{
-    action::{
-        DeleteMessageContent, GetLatestEventsContent, GroupIdContent, IdsContent,
-        SendMessageContent, SetGroupNameContent, UserIdContent,
-    },
     impls::OneBot,
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    Action, ActionHandler, ColoredAlt, Event, RespContent, Resps,
+    ActionHandler, ColoredAlt, Event, RespContent, Resps, StandardAction,
 };
 
 mod file;
@@ -27,40 +28,50 @@ pub(crate) struct Handler(
 );
 
 #[async_trait]
-impl ActionHandler<Action, Resps, OneBot> for Handler {
-    async fn handle(&self, action: Action, ob: &OneBot) -> Resps {
+impl ActionHandler<StandardAction, Resps, OneBot> for Handler {
+    async fn handle(&self, action: StandardAction, ob: &OneBot) -> Resps {
         if let Some(alt) = action.alt() {
             tracing::info!(target: crate::WALLE_Q, "{}", alt);
         }
         match match action {
-            Action::GetLatestEvents(c) => self.get_latest_events(c, ob).await,
-            Action::GetSupportedActions(_) => Self::get_supported_actions(),
-            Action::GetStatus(_) => self.get_status(),
-            Action::GetVersion(_) => Self::get_version(),
+            StandardAction::GetLatestEvents(c) => self.get_latest_events(c, ob).await,
+            StandardAction::GetSupportedActions(_) => Self::get_supported_actions(),
+            StandardAction::GetStatus(_) => self.get_status(),
+            StandardAction::GetVersion(_) => Self::get_version(),
 
-            Action::SendMessage(c) => self.send_message(c, ob).await,
-            Action::DeleteMessage(c) => self.delete_message(c, ob).await,
+            StandardAction::SendMessage(c) => self.send_message(c, ob).await,
+            StandardAction::DeleteMessage(c) => self.delete_message(c, ob).await,
 
-            Action::GetSelfInfo(_) => self.get_self_info().await,
-            Action::GetUserInfo(c) => self.get_user_info(c, ob).await,
-            Action::GetFriendList(_) => self.get_friend_list().await,
+            StandardAction::GetSelfInfo(_) => self.get_self_info().await,
+            StandardAction::GetUserInfo(c) => self.get_user_info(c, ob).await,
+            StandardAction::GetFriendList(_) => self.get_friend_list().await,
 
-            Action::GetGroupInfo(c) => self.get_group_info(c, ob).await,
-            Action::GetGroupList(_) => self.get_group_list().await,
-            Action::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
-            Action::GetGroupMemberList(c) => self.get_group_member_list(c).await,
-            Action::SetGroupName(c) => self.set_group_name(c, ob).await,
-            Action::LeaveGroup(c) => self.leave_group(c, ob).await,
-            Action::KickGroupMember(c) => self.kick_group_member(c, ob).await,
-            Action::BanGroupMember(c) => self.ban_group_member(c, ob, false).await,
-            Action::UnbanGroupMember(c) => self.ban_group_member(c, ob, true).await,
-            Action::SetGroupAdmin(c) => self.set_group_admin(c, ob, false).await,
-            Action::UnsetGroupAdmin(c) => self.set_group_admin(c, ob, true).await,
+            StandardAction::GetGroupInfo(c) => self.get_group_info(c, ob).await,
+            StandardAction::GetGroupList(_) => self.get_group_list().await,
+            StandardAction::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
+            StandardAction::GetGroupMemberList(c) => self.get_group_member_list(c).await,
+            StandardAction::SetGroupName(c) => self.set_group_name(c, ob).await,
+            StandardAction::LeaveGroup(c) => self.leave_group(c, ob).await,
+            StandardAction::KickGroupMember(c) => self.kick_group_member(c, ob).await,
+            StandardAction::BanGroupMember(c) => {
+                self.ban_group_member(c.group_id, c.user_id, c.extra, ob, false)
+                    .await
+            }
+            StandardAction::UnbanGroupMember(c) => {
+                self.ban_group_member(c.group_id, c.user_id, c.extra, ob, true)
+                    .await
+            }
+            StandardAction::SetGroupAdmin(c) => {
+                self.set_group_admin(c.group_id, c.user_id, ob, false).await
+            }
+            StandardAction::UnsetGroupAdmin(c) => {
+                self.set_group_admin(c.group_id, c.user_id, ob, true).await
+            }
 
-            Action::UploadFile(c) => self.upload_file(c, ob).await,
-            Action::UploadFileFragmented(_c) => Err(WQError::unsupported_action()),
-            Action::GetFile(c) => self.get_file(c, ob).await,
-            Action::GetFileFragmented(_c) => Err(WQError::unsupported_action()),
+            StandardAction::UploadFile(c) => self.upload_file(c, ob).await,
+            StandardAction::UploadFileFragmented(_c) => Err(WQError::unsupported_action()),
+            StandardAction::GetFile(c) => self.get_file(c, ob).await,
+            StandardAction::GetFileFragmented(_c) => Err(WQError::unsupported_action()),
         } {
             Ok(resps) => resps,
             Err(e) => e.into(),
@@ -69,7 +80,7 @@ impl ActionHandler<Action, Resps, OneBot> for Handler {
 }
 
 impl Handler {
-    async fn get_latest_events(&self, c: GetLatestEventsContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn get_latest_events(&self, c: GetLatestEvents, _ob: &OneBot) -> WQResult<Resps> {
         let get = || async {
             self.1
                 .lock()
@@ -132,7 +143,7 @@ impl Handler {
         ))
     }
 
-    async fn send_message(&self, c: SendMessageContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn send_message(&self, c: SendMessage, _ob: &OneBot) -> WQResult<Resps> {
         if &c.detail_type == "group" {
             let group_id = c.group_id.ok_or(WQError::bad_param("group_id"))?;
             let group_code = group_id
@@ -197,7 +208,7 @@ impl Handler {
         }
     }
 
-    async fn delete_message(&self, c: DeleteMessageContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn delete_message(&self, c: DeleteMessage, _ob: &OneBot) -> WQResult<Resps> {
         if let Some(m) = self.2.get_message(
             c.message_id
                 .parse()
@@ -232,7 +243,7 @@ impl Handler {
             .into(),
         ))
     }
-    async fn get_user_info(&self, c: UserIdContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn get_user_info(&self, c: GetUserInfo, _ob: &OneBot) -> WQResult<Resps> {
         let user_id: i64 = c
             .user_id
             .parse()
@@ -265,7 +276,7 @@ impl Handler {
                 .into(),
         ))
     }
-    async fn get_group_info(&self, c: GroupIdContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn get_group_info(&self, c: GetGroupInfo, _ob: &OneBot) -> WQResult<Resps> {
         let group_id: i64 = c
             .group_id
             .parse()
@@ -298,7 +309,7 @@ impl Handler {
                 .into(),
         ))
     }
-    async fn get_group_member_list(&self, c: GroupIdContent) -> WQResult<Resps> {
+    async fn get_group_member_list(&self, c: GetGroupMemberList) -> WQResult<Resps> {
         let group_id: i64 = c
             .group_id
             .parse()
@@ -320,7 +331,7 @@ impl Handler {
             .collect::<Vec<_>>();
         Ok(Resps::success(v.into()))
     }
-    async fn get_group_member_info(&self, c: IdsContent) -> WQResult<Resps> {
+    async fn get_group_member_info(&self, c: GetGroupMemberInfo) -> WQResult<Resps> {
         let group_id: i64 = c
             .group_id
             .parse()
@@ -348,7 +359,7 @@ impl Handler {
             ))
         }
     }
-    async fn set_group_name(&self, c: SetGroupNameContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn set_group_name(&self, c: SetGroupName, _ob: &OneBot) -> WQResult<Resps> {
         self.0
             .update_group_name(
                 c.group_id
@@ -360,7 +371,7 @@ impl Handler {
             .map_err(WQError::RQ)?;
         Ok(Resps::empty_success())
     }
-    async fn leave_group(&self, c: GroupIdContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn leave_group(&self, c: LeaveGroup, _ob: &OneBot) -> WQResult<Resps> {
         self.0
             .group_quit(
                 c.group_id
@@ -371,7 +382,7 @@ impl Handler {
             .map_err(WQError::RQ)?;
         Ok(Resps::empty_success())
     }
-    async fn kick_group_member(&self, c: IdsContent, _ob: &OneBot) -> WQResult<Resps> {
+    async fn kick_group_member(&self, c: KickGroupMember, _ob: &OneBot) -> WQResult<Resps> {
         self.0
             .group_kick(
                 c.group_id
@@ -388,13 +399,20 @@ impl Handler {
             .map_err(WQError::RQ)?;
         Ok(Resps::empty_success())
     }
-    async fn ban_group_member(&self, c: IdsContent, _ob: &OneBot, unban: bool) -> WQResult<Resps> {
+    async fn ban_group_member(
+        &self,
+        group_id: String,
+        user_id: String,
+        extra: ExtendedMap,
+        _ob: &OneBot,
+        unban: bool,
+    ) -> WQResult<Resps> {
         use std::time::Duration;
 
         let duration: Duration = if unban {
             Duration::from_secs(0)
         } else {
-            Duration::from_secs(c.extra.get("duration").map_or(Ok(60), |v| {
+            Duration::from_secs(extra.get("duration").map_or(Ok(60), |v| {
                 match v.clone().downcast_int() {
                     Ok(v) => Ok(v as u64),
                     Err(_) => Err(WQError::bad_param("duration")),
@@ -403,27 +421,29 @@ impl Handler {
         };
         self.0
             .group_mute(
-                c.group_id
+                group_id
                     .parse()
                     .map_err(|_| WQError::bad_param("group_id"))?,
-                c.user_id
-                    .parse()
-                    .map_err(|_| WQError::bad_param("user_id"))?,
+                user_id.parse().map_err(|_| WQError::bad_param("user_id"))?,
                 duration,
             )
             .await
             .map_err(WQError::RQ)?;
         Ok(Resps::empty_success())
     }
-    async fn set_group_admin(&self, c: IdsContent, _ob: &OneBot, unset: bool) -> WQResult<Resps> {
+    async fn set_group_admin(
+        &self,
+        group_id: String,
+        user_id: String,
+        _ob: &OneBot,
+        unset: bool,
+    ) -> WQResult<Resps> {
         self.0
             .group_set_admin(
-                c.group_id
+                group_id
                     .parse()
                     .map_err(|_| WQError::bad_param("group_id"))?,
-                c.user_id
-                    .parse()
-                    .map_err(|_| WQError::bad_param("user_id"))?,
+                user_id.parse().map_err(|_| WQError::bad_param("user_id"))?,
                 !unset,
             )
             .await

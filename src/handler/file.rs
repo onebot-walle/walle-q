@@ -4,14 +4,11 @@ use crate::database::{save_image, Database, SImage};
 use crate::error::{WQError, WQResult};
 
 use tokio::{fs::File, io::AsyncReadExt};
-use walle_core::{
-    action::{GetFileContent, UploadFileContent},
-    impls::OneBot,
-    Resps,
-};
+use walle_core::action::{GetFile, UploadFile};
+use walle_core::{impls::OneBot, Resps};
 
 impl super::Handler {
-    async fn get_file_data(c: UploadFileContent) -> WQResult<Vec<u8>> {
+    async fn get_file_data(c: UploadFile) -> WQResult<Vec<u8>> {
         match c.r#type.as_str() {
             "url" if let Some(url) = c.url => {
                 uri_reader::uget_with_headers(&url, c.headers.unwrap_or_default())
@@ -34,7 +31,7 @@ impl super::Handler {
         }
     }
 
-    pub async fn upload_file(&self, c: UploadFileContent, ob: &OneBot) -> WQResult<Resps> {
+    pub async fn upload_file(&self, c: UploadFile, ob: &OneBot) -> WQResult<Resps> {
         let file_type = c
             .extra
             .get("file_type")
@@ -55,7 +52,7 @@ impl super::Handler {
         Ok(Resps::success(info.as_file_id_content().into()))
     }
 
-    pub async fn get_file(&self, c: GetFileContent, ob: &OneBot) -> WQResult<Resps> {
+    pub async fn get_file(&self, c: GetFile, ob: &OneBot) -> WQResult<Resps> {
         let file_type = c
             .extra
             .get("file_type")
@@ -69,7 +66,7 @@ impl super::Handler {
         }
     }
 
-    pub async fn get_image(&self, c: &GetFileContent, _ob: &OneBot) -> WQResult<Resps> {
+    pub async fn get_image(&self, c: &GetFile, _ob: &OneBot) -> WQResult<Resps> {
         if let Some(image) = hex::decode(&c.file_id)
             .ok()
             .and_then(|id| self.2.get_image(&id))
@@ -78,7 +75,7 @@ impl super::Handler {
                 "url" => {
                     if let Some(url) = image.get_url() {
                         Ok(Resps::success(
-                            UploadFileContent {
+                            UploadFile {
                                 r#type: "url".to_string(),
                                 name: image.get_file_name().to_string(),
                                 url: Some(url),
@@ -93,7 +90,7 @@ impl super::Handler {
                 "path" => {
                     if image.path().exists() {
                         Ok(Resps::success(
-                            UploadFileContent {
+                            UploadFile {
                                 r#type: "path".to_string(),
                                 name: image.get_file_name().to_string(),
                                 path: Some(image.path().to_str().unwrap().to_string()),
@@ -108,7 +105,7 @@ impl super::Handler {
                 "data" => {
                     if let Ok(data) = image.data().await {
                         Ok(Resps::success(
-                            UploadFileContent {
+                            UploadFile {
                                 r#type: "data".to_string(),
                                 name: image.get_file_name().to_string(),
                                 data: Some(data),

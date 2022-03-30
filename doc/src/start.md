@@ -19,26 +19,33 @@ onebot: # Onebot 协议相关配置
   http:                     # http 配置
     - host: "your.host"
       port: 6700
-      access_token: "..."   # 可选，默认为空
+      access_token: ~       # 可选，默认为空
       event_enable: true    # 是否推送事件
       event_buffer_size: 16 # 事件推送缓存区大小
   http_webhook: []          # http webhook 配置
     - url: "webhook.url"
-      access_token: "..."   # 可选，默认为空
+      access_token: ~       # 可选，默认为空
       time_out: 4           # 超时时间，单位秒
   websocket:                # websocket 配置
     - host: "your.host"
       port: 8844
-      access_token: "..."   # 可选，默认为空
+      access_token: ~       # 可选，默认为空
   websocket_rev:            # websocket 反向配置
     - url: "your.url"       
-      access_token: "..."   # 可选，默认为空
+      access_token: ~       # 可选，默认为空
       reconnect_interval: 4 # 重连间隔，单位秒
 
-uin: ~                      # 可选，为空则使用扫码登陆
-password: ~                 # 可选，为空则使用扫码登陆
-protocol: ~                 # 可选，0..5，默认为0
-str_protocol: ~             # 可选，默认 IPad，优先级低于protcol
+uin: ~                      # 为空则使用扫码登陆
+password: ~                 # 为空则使用扫码登陆
+protocol: ~                 # 0..5，默认为0
+str_protocol: ~             # 默认 IPad，优先级低于protcol
+
+log: ~                      # 日志级别，可选：trace, debug, info, warn, error
+v11: false                  # 是否使用 Onebot v11 版本协议
+event_cache_size: 16        # 事件缓存区大小
+time_zone: +8               # 时区，默认为+8
+disable_leveldb: false      # 禁用 leveldb 数据库
+sled: false                 # 启用 sled 数据库 (内存占用较大)
 ```
 
 已支持协议设备：
