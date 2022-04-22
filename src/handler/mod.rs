@@ -15,7 +15,7 @@ use walle_core::{
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
-    ActionHandler, ColoredAlt, Event, RespContent, Resps, StandardAction,
+    ActionHandler, ColoredAlt, RespContent, Resps, StandardAction, StandardEvent,
 };
 
 mod file;
@@ -23,7 +23,7 @@ pub(crate) mod v11;
 
 pub(crate) struct Handler(
     pub(crate) Arc<rs_qq::Client>,
-    pub(crate) Arc<Mutex<SizedCache<String, Event>>>,
+    pub(crate) Arc<Mutex<SizedCache<String, StandardEvent>>>,
     pub(crate) Arc<WQDatabase>,
 );
 

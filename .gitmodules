@@ -2,7 +2,3 @@
 	path = Walle-core
 	url = git@github.com:abrahum/Walle-core.git
 	branch = master
-[submodule "rs-qq"]
-	path = rs-qq
-	url = git@github.com:lz1998/rs-qq.git
-	branch = master

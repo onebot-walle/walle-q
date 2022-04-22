@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use rq_engine::{RQError, RQResult};
 use rs_qq::msg::elem::{FriendImage, GroupImage};
 use rs_qq::structs::ImageInfo;
 use rs_qq::Client;
+use rs_qq::{RQError, RQResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use walle_core::resp::FileIdContent;

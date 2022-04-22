@@ -3,13 +3,13 @@ use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
 use rs_qq::client::handler::QEvent;
 use rs_qq::structs::GroupMemberPermission;
 use tracing::{info, warn};
-use walle_core::{Event, ExtendedMap, MessageContent, NoticeContent};
+use walle_core::{ExtendedMap, MessageContent, NoticeContent, StandardEvent};
 
 pub(crate) async fn qevent2event(
     ob: &walle_core::impls::OneBot,
     event: QEvent,
     wqdb: &WQDatabase,
-) -> Option<Event> {
+) -> Option<StandardEvent> {
     match event {
         // meta
         QEvent::Login(uin) => {

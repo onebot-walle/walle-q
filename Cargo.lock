@@ -1777,17 +1777,6 @@ dependencies = [
 
 [[package]]
 name = "rmp-serde"
-version = "0.15.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "723ecff9ad04f4ad92fe1c8ca6c20d2196d9286e9c60727c4cb5511629260e9d"
-dependencies = [
- "byteorder",
- "rmp",
- "serde",
-]
-
-[[package]]
-name = "rmp-serde"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3eedffbfcc6a428f230c04baf8f59bd73c1781361e4286111fe900849aaddaf"
@@ -1800,6 +1789,7 @@ dependencies = [
 [[package]]
 name = "rq-engine"
 version = "0.1.0"
+source = "git+https://github.com/lz1998/rs-qq.git?branch=master#e7c61314953dfab69ee894f73823972f3390760f"
 dependencies = [
  "byteorder",
  "bytes",
@@ -1822,6 +1812,7 @@ dependencies = [
 [[package]]
 name = "rs-qq"
 version = "0.1.0"
+source = "git+https://github.com/lz1998/rs-qq.git?branch=master#e7c61314953dfab69ee894f73823972f3390760f"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2492,7 +2483,7 @@ dependencies = [
  "colored",
  "futures-util",
  "hyper",
- "rmp-serde 0.15.5",
+ "rmp-serde",
  "serde",
  "serde_json",
  "thiserror",
@@ -2514,8 +2505,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "md5",
- "rmp-serde 1.0.0",
- "rq-engine",
+ "rmp-serde",
  "rs-qq",
  "rusty-leveldb",
  "serde",

@@ -1,4 +1,4 @@
-use rq_engine::structs::{FriendMessage, GroupMessage, MessageReceipt};
+use rs_qq::structs::{FriendMessage, GroupMessage, MessageReceipt};
 use serde::{Deserialize, Serialize};
 use walle_core::Message;
 
