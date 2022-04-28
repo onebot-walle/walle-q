@@ -1,0 +1,56 @@
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+            rname: walle-q.exe
+            name: walle-q-win-i686.exe
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rname: walle-q.exe
+            name: walle-q-win-x86_64.exe
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            rname: walle-q
+            name: walle-q-linux-aarch64.exe
+          - os: ubuntu-latest
+            target: i686-unknown-linux-gnu
+            rname: walle-q
+            name: walle-q-linux-i686.exe
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            rname: walle-q
+            name: walle-q-win-x86_64.exe
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: rust-toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          target: ${{ matrix.target }}
+      - name: cargo-build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+      - name: upload-release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/release/${{ matrix.rname }}
+          asset_name: ${{ matrix.name }}
+          tag: ${{ github.ref }}
