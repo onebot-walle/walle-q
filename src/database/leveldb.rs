@@ -4,7 +4,7 @@ use rusty_leveldb::{Options, DB};
 
 use super::{Database, DatabaseInit, MessageId, SImage};
 
-const MEM_CACHE_LIMIT: usize = 1;
+const MEM_CACHE_LIMIT: usize = 10;
 
 pub(crate) struct LevelDb(std::sync::Mutex<DB>, AtomicUsize);
 

@@ -2,7 +2,7 @@ use crate::database::{Database, SImage, WQDatabase};
 use rs_qq::msg::elem::{self, RQElem};
 use rs_qq::msg::MessageChain;
 use rs_qq::Client;
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 use walle_core::{Message, MessageSegment};
 
 pub struct MsgChainBuilder<'a> {
@@ -92,6 +92,10 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 extend: [("url".to_string(), i.url().into())].into(),
                 file_id: i.hex_image_id(),
             })
+        }
+        RQElem::Other(_) => {
+            trace!("unknown Other MsgElem: {:?}", elem);
+            None
         }
         elem => {
             debug!("unsupported MsgElem: {:?}", elem);

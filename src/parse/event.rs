@@ -108,7 +108,7 @@ pub(crate) async fn qevent2event(
         QEvent::GroupLeave(e) => Some(
             ob.new_event(
                 NoticeContent::GroupMemberDecrease {
-                    sub_type: if e.leave.operator_uin.is_some() {
+                    sub_type: if e.leave.operator_uin.is_none() {
                         "leave".to_string()
                     } else {
                         "kick".to_string()

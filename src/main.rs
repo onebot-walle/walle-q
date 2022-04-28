@@ -63,8 +63,8 @@ async fn main() {
             ob.run().await.unwrap();
             while let Some(msg) = rx.recv().await {
                 if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
-                    if let Some(alt) = event.alt() {
-                        tracing::info!("{}", alt);
+                    if let Some(alt) = event.colored_alt() {
+                        tracing::info!(target: WALLE_Q, "{}", alt);
                     }
                     cache
                         .lock()
@@ -91,10 +91,10 @@ async fn main() {
                         .lock()
                         .await
                         .cache_set(event.id.clone(), event.clone());
-                    let e: walle_v11::Event = event.try_into().unwrap();
-                    if let Some(alt) = e.alt() {
-                        tracing::info!("{}", alt);
+                    if let Some(alt) = event.colored_alt() {
+                        tracing::info!(target: WALLE_Q, "{}", alt);
                     }
+                    let e: walle_v11::Event = event.try_into().unwrap();
                     ob11.send_event(e).unwrap();
                 }
             }

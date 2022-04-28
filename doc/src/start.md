@@ -40,7 +40,7 @@ password: ~                 # 为空则使用扫码登陆
 protocol: ~                 # 0..5，默认为0
 str_protocol: ~             # 默认 IPad，优先级低于protcol
 
-log: ~                      # 日志级别，可选：trace, debug, info, warn, error
+log: ~                      # 日志级别，可选：Trace, Debug, Info, Warn, Error
 v11: false                  # 是否使用 Onebot v11 版本协议
 event_cache_size: 16        # 事件缓存区大小
 time_zone: +8               # 时区，默认为+8

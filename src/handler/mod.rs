@@ -30,7 +30,7 @@ pub(crate) struct Handler(
 #[async_trait]
 impl ActionHandler<StandardAction, Resps, OneBot> for Handler {
     async fn handle(&self, action: StandardAction, ob: &OneBot) -> Resps {
-        if let Some(alt) = action.alt() {
+        if let Some(alt) = action.colored_alt() {
             tracing::info!(target: crate::WALLE_Q, "{}", alt);
         }
         match match action {
