@@ -1,4 +1,4 @@
 [submodule "Walle-core"]
 	path = Walle-core
-	url = git@github.com:abrahum/Walle-core.git
+	url = https://github.com/abrahum/Walle-core.git
 	branch = master
