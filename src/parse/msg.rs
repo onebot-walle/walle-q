@@ -200,7 +200,10 @@ pub trait SendAble {
 impl SendAble for MessageSegment {
     fn check(&self) -> bool {
         match self {
-            Self::Text { .. } | Self::Mention { .. } | Self::MentionAll { .. } => true,
+            Self::Text { .. }
+            | Self::Mention { .. }
+            | Self::MentionAll { .. }
+            | Self::Image { .. } => true,
             Self::Custom { ty, .. } if ty == "face" => true,
             _ => false,
         }
