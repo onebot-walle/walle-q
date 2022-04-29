@@ -7,9 +7,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use walle_core::action::{
     DeleteMessage, GetGroupInfo, GetGroupMemberInfo, GetGroupMemberList, GetLatestEvents,
-    GetUserInfo, KickGroupMember, LeaveGroup, SendMessage, SetGroupName,
+    GetMessage, GetUserInfo, KickGroupMember, LeaveGroup, SendMessage, SetGroupName,
 };
-use walle_core::ExtendedMap;
 use walle_core::{
     impls::OneBot,
     resp::{
@@ -17,6 +16,7 @@ use walle_core::{
     },
     ActionHandler, ColoredAlt, RespContent, Resps, StandardAction, StandardEvent,
 };
+use walle_core::{ExtendedMap, MessageContent};
 
 mod file;
 pub(crate) mod v11;
@@ -41,6 +41,7 @@ impl ActionHandler<StandardAction, Resps, OneBot> for Handler {
 
             StandardAction::SendMessage(c) => self.send_message(c, ob).await,
             StandardAction::DeleteMessage(c) => self.delete_message(c, ob).await,
+            StandardAction::GetMessage(c) => self.get_message(c, ob).await,
 
             StandardAction::GetSelfInfo(_) => self.get_self_info().await,
             StandardAction::GetUserInfo(c) => self.get_user_info(c, ob).await,
@@ -143,7 +144,7 @@ impl Handler {
         ))
     }
 
-    async fn send_message(&self, c: SendMessage, _ob: &OneBot) -> WQResult<Resps> {
+    async fn send_message(&self, c: SendMessage, ob: &OneBot) -> WQResult<Resps> {
         if &c.detail_type == "group" {
             let group_id = c.group_id.ok_or(WQError::bad_param("group_id"))?;
             let group_code = group_id
@@ -161,11 +162,25 @@ impl Handler {
                     .map_err(WQError::RQ)?;
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
-                    message_id,
+                    message_id: message_id.clone(),
                     time: receipt.time as f64,
                 };
-                let s_group =
-                    SGroupMessage::receipt(receipt, group_code, self.0.uin().await, c.message);
+                let s_group = SGroupMessage::receipt(
+                    receipt.clone(),
+                    group_code,
+                    ob.new_event(
+                        MessageContent::new_group_message_content(
+                            c.message,
+                            message_id,
+                            ob.self_id.read().await.clone(),
+                            group_id,
+                            [].into(),
+                        )
+                        .into(),
+                        receipt.time as f64,
+                    )
+                    .await,
+                );
                 self.2.insert_group_message(&s_group);
                 Ok(Resps::success(respc.into()))
             } else {
@@ -188,15 +203,23 @@ impl Handler {
                     .map_err(WQError::RQ)?;
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
-                    message_id,
+                    message_id: message_id.clone(),
                     time: receipt.time as f64,
                 };
                 let s_private = SPrivateMessage::receipt(
-                    receipt,
+                    receipt.clone(),
                     target,
-                    self.0.uin().await,
-                    self.0.account_info.read().await.nickname.clone(),
-                    c.message,
+                    ob.new_event(
+                        MessageContent::new_private_message_content(
+                            c.message,
+                            message_id,
+                            ob.self_id.read().await.clone(),
+                            [].into(),
+                        )
+                        .into(),
+                        receipt.time as f64,
+                    )
+                    .await,
                 );
                 self.2.insert_private_message(&s_private);
                 Ok(Resps::success(respc.into()))
@@ -217,7 +240,7 @@ impl Handler {
             match m {
                 SMessage::Private(p) => {
                     self.0
-                        .recall_friend_message(p.from_uin, p.time as i64, p.seqs, p.rands)
+                        .recall_friend_message(p.target_id, p.time as i64, p.seqs, p.rands)
                         .await
                         .map_err(WQError::RQ)?;
                 }
@@ -229,6 +252,18 @@ impl Handler {
                 }
             }
             Ok(Resps::empty_success())
+        } else {
+            Err(WQError::message_not_exist())
+        }
+    }
+
+    async fn get_message(&self, c: GetMessage, _ob: &OneBot) -> WQResult<Resps> {
+        if let Some(m) = self.2.get_message(
+            c.message_id
+                .parse()
+                .map_err(|_| WQError::bad_param("message_id"))?,
+        ) {
+            Ok(Resps::success(m.event().into()))
         } else {
             Err(WQError::message_not_exist())
         }

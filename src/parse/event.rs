@@ -28,7 +28,7 @@ pub(crate) async fn qevent2event(
             let event = ob
                 .new_event(
                     MessageContent::new_private_message_content(
-                        message.clone(),
+                        message,
                         pme.message.seqs[0].to_string(),
                         pme.message.from_uin.to_string(),
                         ExtendedMap::default(),
@@ -37,7 +37,7 @@ pub(crate) async fn qevent2event(
                     pme.message.time as f64,
                 )
                 .await;
-            let s_private = SPrivateMessage::new(pme.message, message);
+            let s_private = SPrivateMessage::new(pme.message, event.clone());
             wqdb.insert_private_message(&s_private);
             Some(event)
         }
@@ -46,7 +46,7 @@ pub(crate) async fn qevent2event(
             let event = ob
                 .new_event(
                     MessageContent::new_group_message_content(
-                        message.clone(),
+                        message,
                         gme.message.seqs[0].to_string(),
                         gme.message.from_uin.to_string(),
                         gme.message.group_code.to_string(),
@@ -56,7 +56,7 @@ pub(crate) async fn qevent2event(
                     gme.message.time as f64,
                 )
                 .await;
-            let s_group = SGroupMessage::new(gme.message, message);
+            let s_group = SGroupMessage::new(gme.message, event.clone());
             wqdb.insert_group_message(&s_group);
             Some(event)
         }
