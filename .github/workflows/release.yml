@@ -61,10 +61,10 @@ jobs:
       - name: submodle
         run: git submodule update --init
       - name: multilib
-        if: ${{ matrix.target == "i686-unknown-linux-gnu" }}
+        if: ${{ matrix.target == 'i686-unknown-linux-gnu' }}
         run: sudo apt-get install -y gcc-multilib
       - name: aarch64-gcc
-        if: ${{ matrix.target == "aarch64-unknown-linux-gnu" }}
+        if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         run: sudo apt-get install -y gcc-aarch64-linux-gnu
       - name: rust-toolchain
         uses: actions-rs/toolchain@v1
