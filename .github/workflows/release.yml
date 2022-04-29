@@ -47,11 +47,11 @@ jobs:
       matrix:
         include:
           - target: aarch64-unknown-linux-gnu
-            name: walle-q-linux-aarch64.exe
+            name: walle-q-linux-aarch64
           - target: i686-unknown-linux-gnu
-            name: walle-q-linux-i686.exe
+            name: walle-q-linux-i686
           - target: x86_64-unknown-linux-gnu
-            name: walle-q-linux-x86_64.exe
+            name: walle-q-linux-x86_64
 
     steps:
       - name: checkout
