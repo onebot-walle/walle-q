@@ -16,6 +16,7 @@ serde_yaml = "0.8"
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "time"] }
+tracing-appender = "0.2"
 time = { version = "0.3", features = ["macros"] }
 rmp-serde = "1.0.0"
 lazy_static = "1.4"

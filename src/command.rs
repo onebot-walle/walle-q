@@ -4,6 +4,7 @@ use clap::{ArgEnum, Parser};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{
     filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
+    Layer,
 };
 
 #[derive(Parser, Serialize, Deserialize, Debug, Default)]
@@ -72,9 +73,23 @@ impl Comm {
         let filter = tracing_subscriber::filter::Targets::new()
             .with_default(self.log.clone().unwrap_or_default())
             .with_target("sled", LevelFilter::WARN);
+        let file_appender =
+            tracing_appender::rolling::daily(crate::LOG_PATH, format!("{}.log", crate::WALLE_Q));
         tracing_subscriber::registry()
-            .with(tracing_subscriber::fmt::layer().with_timer(timer))
-            .with(filter)
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_timer(timer.clone())
+                    .with_filter(filter),
+            )
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_writer(file_appender)
+                    .with_timer(timer)
+                    .with_ansi(false)
+                    .with_filter(
+                        tracing_subscriber::filter::Targets::new().with_default(LevelFilter::WARN),
+                    ),
+            )
             .init();
     }
 

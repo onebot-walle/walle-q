@@ -9,8 +9,6 @@ use walle_core::resp::FileIdContent;
 
 use crate::error::{WQError, WQResult};
 
-pub const IMAGE_CACHE_DIR: &str = "./data/image";
-
 pub async fn save_image(data: &[u8]) -> WQResult<ImageInfo> {
     use tokio::io::AsyncWriteExt;
 
@@ -41,7 +39,7 @@ pub trait SImage: Sized {
         hex::encode(self.image_id())
     }
     fn path(&self) -> PathBuf {
-        let mut path = PathBuf::from(IMAGE_CACHE_DIR);
+        let mut path = PathBuf::from(crate::IMAGE_CACHE_DIR);
         path.push(self.hex_image_id());
         path
     }

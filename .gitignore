@@ -7,3 +7,5 @@ session.token
 book
 .idea
 .vscode
+walle-q-*.exe
+/log

@@ -17,6 +17,8 @@ pub(crate) mod parse;
 
 const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const LOG_PATH: &str = "./log";
+const IMAGE_CACHE_DIR: &str = "./data/image";
 
 #[tokio::main]
 async fn main() {
@@ -107,7 +109,6 @@ async fn main() {
 }
 
 async fn init() {
-    tokio::fs::create_dir_all(database::image::IMAGE_CACHE_DIR)
-        .await
-        .ok();
+    tokio::fs::create_dir_all(crate::IMAGE_CACHE_DIR).await.ok();
+    tokio::fs::create_dir(crate::LOG_PATH).await.ok();
 }
