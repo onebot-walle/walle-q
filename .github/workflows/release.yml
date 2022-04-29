@@ -48,11 +48,9 @@ jobs:
         include:
           - target: aarch64-unknown-linux-gnu
             name: walle-q-linux-aarch64.exe
-          - os: ubuntu-latest
-            target: i686-unknown-linux-gnu
+          - target: i686-unknown-linux-gnu
             name: walle-q-linux-i686.exe
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-gnu
             name: walle-q-linux-x86_64.exe
 
     steps:
@@ -62,8 +60,8 @@ jobs:
           fetch-depth: 0
       - name: submodle
         run: git submodule update --init
-      - name: openssl
-        run: sudo apt-get install -y libssl-dev
+      - name: multilib
+        run: sudo apt-get install -y gcc-multilib
       - name: rust-toolchain
         uses: actions-rs/toolchain@v1
         with:
