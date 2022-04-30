@@ -72,7 +72,8 @@ impl Comm {
         );
         let filter = tracing_subscriber::filter::Targets::new()
             .with_default(self.log.clone().unwrap_or_default())
-            .with_target("sled", LevelFilter::WARN);
+            .with_target("sled", LevelFilter::WARN)
+            .with_target("hyper", LevelFilter::INFO);
         let file_appender =
             tracing_appender::rolling::daily(crate::LOG_PATH, format!("{}.log", crate::WALLE_Q));
         tracing_subscriber::registry()

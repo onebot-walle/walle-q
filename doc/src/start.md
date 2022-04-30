@@ -25,7 +25,7 @@ onebot: # Onebot 协议相关配置
   http_webhook: []          # http webhook 配置
     - url: "webhook.url"
       access_token: ~       # 可选，默认为空
-      time_out: 4           # 超时时间，单位秒
+      timeout: 4           # 超时时间，单位秒
   websocket:                # websocket 配置
     - host: "your.host"
       port: 8844
