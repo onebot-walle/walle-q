@@ -39,7 +39,7 @@ impl Database for LevelDb {
             .lock()
             .unwrap()
             .get(&key.to_be_bytes())
-            .and_then(|v| rmp_serde::from_read_ref(&v).unwrap())
+            .and_then(|v| rmp_serde::from_slice(&v).unwrap())
     }
     fn _insert_message<T>(&self, value: &T)
     where
@@ -61,7 +61,7 @@ impl Database for LevelDb {
             .lock()
             .unwrap()
             .get(key)
-            .and_then(|v| rmp_serde::from_read_ref(&v).unwrap())
+            .and_then(|v| rmp_serde::from_slice(&v).unwrap())
     }
     fn _insert_image<T>(&self, value: &T)
     where

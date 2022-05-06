@@ -19,7 +19,7 @@ const TOKEN_PATH: &str = "session.token";
 ///
 /// if login success, start client heartbeat
 pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -> RQResult<()> {
-    let token_login: bool = match fs::read(TOKEN_PATH).map(|s| rmp_serde::from_read_ref(&s)) {
+    let token_login: bool = match fs::read(TOKEN_PATH).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
                 target: crate::WALLE_Q,

@@ -24,7 +24,7 @@ impl Database for SledDb {
         self.message_tree
             .get(key.to_be_bytes())
             .unwrap()
-            .map(|v| rmp_serde::from_read_ref(&v).unwrap())
+            .map(|v| rmp_serde::from_slice(&v).unwrap())
     }
 
     fn _insert_message<T>(&self, value: &T)
@@ -43,7 +43,7 @@ impl Database for SledDb {
         self.image_tree
             .get(key)
             .unwrap()
-            .map(|v| rmp_serde::from_read_ref(&v).unwrap())
+            .map(|v| rmp_serde::from_slice(&v).unwrap())
     }
 
     fn _insert_image<T>(&self, value: &T)
