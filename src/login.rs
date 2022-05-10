@@ -2,11 +2,11 @@ use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rs_qq::client::Client;
-use rs_qq::ext::common::after_login;
-use rs_qq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password, Token};
-use rs_qq::{LoginResponse, QRCodeState};
-use rs_qq::{RQError, RQResult};
+use ricq::client::Client;
+use ricq::ext::common::after_login;
+use ricq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password, Token};
+use ricq::{LoginResponse, QRCodeState};
+use ricq::{RQError, RQResult};
 use tracing::{debug, info, warn};
 
 #[allow(dead_code)]

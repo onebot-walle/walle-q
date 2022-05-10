@@ -1,4 +1,4 @@
-use rs_qq::RQError;
+use ricq::RQError;
 use walle_core::Resps;
 
 use thiserror::Error;

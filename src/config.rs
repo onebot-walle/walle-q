@@ -1,7 +1,7 @@
 use crate::WALLE_Q;
-use rs_qq::device::Device;
-use rs_qq::version::{get_version, Protocol};
-use rs_qq::Config as RsQQConfig;
+use ricq::device::Device;
+use ricq::version::{get_version, Protocol};
+use ricq::Config as RsQQConfig;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tracing::{info, warn};

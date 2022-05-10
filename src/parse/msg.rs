@@ -1,7 +1,7 @@
 use crate::database::{Database, SImage, WQDatabase};
-use rs_qq::msg::elem::{self, RQElem};
-use rs_qq::msg::MessageChain;
-use rs_qq::Client;
+use ricq::msg::elem::{self, RQElem};
+use ricq::msg::MessageChain;
+use ricq::Client;
 use tracing::{debug, trace, warn};
 use walle_core::{Message, MessageSegment};
 
@@ -13,7 +13,7 @@ pub struct MsgChainBuilder<'a> {
 }
 
 impl<'a> MsgChainBuilder<'a> {
-    pub fn group_chain_builder(cli: &'a rs_qq::Client, target: i64, message: Message) -> Self {
+    pub fn group_chain_builder(cli: &'a Client, target: i64, message: Message) -> Self {
         MsgChainBuilder {
             cli,
             target,
@@ -21,7 +21,7 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub fn private_chain_builder(cli: &'a rs_qq::Client, target: i64, message: Message) -> Self {
+    pub fn private_chain_builder(cli: &'a Client, target: i64, message: Message) -> Self {
         MsgChainBuilder {
             cli,
             target,

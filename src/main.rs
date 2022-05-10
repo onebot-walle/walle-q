@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use cached::Cached;
 use clap::Parser;
-use rs_qq::client::Client;
+use ricq::client::Client;
 use walle_core::ColoredAlt;
 
 mod command;

@@ -22,7 +22,7 @@ mod file;
 pub(crate) mod v11;
 
 pub(crate) struct Handler(
-    pub(crate) Arc<rs_qq::Client>,
+    pub(crate) Arc<ricq::Client>,
     pub(crate) Arc<Mutex<SizedCache<String, StandardEvent>>>,
     pub(crate) Arc<WQDatabase>,
 );

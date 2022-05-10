@@ -1,4 +1,4 @@
-use rs_qq::handler::QEvent;
+use ricq::handler::QEvent;
 
 pub async fn meta_event_process(ob: &walle_v11::impls::OneBot11, event: &QEvent) {
     match event {

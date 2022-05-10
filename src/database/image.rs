@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use rs_qq::msg::elem::{FriendImage, GroupImage};
-use rs_qq::structs::ImageInfo;
-use rs_qq::Client;
-use rs_qq::{RQError, RQResult};
+use ricq::msg::elem::{FriendImage, GroupImage};
+use ricq::structs::ImageInfo;
+use ricq::Client;
+use ricq::{RQError, RQResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use walle_core::resp::FileIdContent;
@@ -138,7 +138,7 @@ impl SImage for GroupImage {
         }
     }
     async fn try_into_friend_elem(&self, cli: &Client, target: i64) -> Option<FriendImage> {
-        use rs_qq::ext::image::upload_friend_image_ext;
+        use ricq::ext::image::upload_friend_image_ext;
         let info = new_info_from_group(self);
 
         upload_friend_image_ext(cli, target, info, |info| {
@@ -170,7 +170,7 @@ impl SImage for ImageInfo {
         local_image_data(self).await.map_err(RQError::IO)
     }
     async fn try_into_friend_elem(&self, cli: &Client, target: i64) -> Option<FriendImage> {
-        use rs_qq::ext::image::upload_friend_image_ext;
+        use ricq::ext::image::upload_friend_image_ext;
         upload_friend_image_ext(cli, target, self.clone(), |info| {
             Box::pin(async { info.data().await })
         })
@@ -178,7 +178,7 @@ impl SImage for ImageInfo {
         .ok()
     }
     async fn try_into_group_elem(&self, cli: &Client, target: i64) -> Option<GroupImage> {
-        use rs_qq::ext::image::upload_group_image_ext;
+        use ricq::ext::image::upload_group_image_ext;
         upload_group_image_ext(cli, target, self.clone(), |info| {
             Box::pin(async { info.data().await })
         })

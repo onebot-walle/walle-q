@@ -1,4 +1,4 @@
-use rs_qq::structs::{FriendMessage, GroupMessage, MessageReceipt};
+use ricq::structs::{FriendMessage, GroupMessage, MessageReceipt};
 use serde::{Deserialize, Serialize};
 use walle_core::StandardEvent;
 

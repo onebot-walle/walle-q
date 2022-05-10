@@ -1,7 +1,7 @@
 use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
 
-use rs_qq::client::handler::QEvent;
-use rs_qq::structs::GroupMemberPermission;
+use ricq::client::handler::QEvent;
+use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent, StandardEvent};
 
