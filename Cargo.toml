@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-walle-core = { path = "Walle-core", features = ["impl", "websocket", "http"] }
-walle-v11 = { path = "Walle-core/walle-v11" }
+walle-core = { version = "0.2", features = ["impl", "websocket", "http"] }
+walle-v11 = { version = "0.2" }
 ricq = "0.1"
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"
@@ -20,7 +20,7 @@ tracing-appender = "0.2"
 time = { version = "0.3", features = ["macros"] }
 rmp-serde = "1.0.0"
 lazy_static = "1.4"
-uuid = "0.8"
+uuid = "1.0"
 clap = { version = "3.0", features = ["derive"] }
 cached = "0.34"
 bytes = "1.1"
