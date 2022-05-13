@@ -46,16 +46,12 @@ async fn main() {
     let cache = Arc::new(tokio::sync::Mutex::new(cached::SizedCache::with_size(
         comm.event_cache_size.unwrap_or(100),
     )));
-    let ob = walle_core::impls::OneBot::new(
+    let ob = walle_core::impls::StandardOneBot::new(
         WALLE_Q,
         "qq",
         &self_id.to_string(),
         config.onebot.clone(),
-        Arc::new(handler::Handler(
-            qclient.clone(),
-            cache.clone(),
-            wqdb.clone(),
-        )),
+        handler::Handler(qclient.clone(), cache.clone(), wqdb.clone()),
     )
     .arc();
 
@@ -82,7 +78,7 @@ async fn main() {
                 "qq",
                 &self_id.to_string(),
                 config.onebot,
-                Arc::new(handler::v11::V11Handler(ob.clone())),
+                handler::v11::V11Handler(ob.clone()),
             )
             .arc();
             ob11.run().await.unwrap();

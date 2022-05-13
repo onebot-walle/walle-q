@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-walle-core = { version = "0.2", features = ["impl", "websocket", "http"] }
-walle-v11 = { version = "0.2" }
+walle-core = { version = "0.3", features = ["impl", "websocket", "http"] }
+walle-v11 = { version = "0.3" }
 ricq = "0.1"
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"

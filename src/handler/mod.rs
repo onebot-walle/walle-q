@@ -10,7 +10,7 @@ use walle_core::action::{
     GetMessage, GetUserInfo, KickGroupMember, LeaveGroup, SendMessage, SetGroupName,
 };
 use walle_core::{
-    impls::OneBot,
+    impls::StandardOneBot,
     resp::{
         GroupInfoContent, SendMessageRespContent, StatusContent, UserInfoContent, VersionContent,
     },
@@ -26,6 +26,8 @@ pub(crate) struct Handler(
     pub(crate) Arc<Mutex<SizedCache<String, StandardEvent>>>,
     pub(crate) Arc<WQDatabase>,
 );
+
+pub(crate) type OneBot = StandardOneBot<Handler>;
 
 #[async_trait]
 impl ActionHandler<StandardAction, Resps, OneBot> for Handler {

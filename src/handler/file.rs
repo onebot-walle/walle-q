@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use crate::database::{save_image, Database, SImage};
 use crate::error::{WQError, WQResult};
 
+use super::OneBot;
 use tokio::{fs::File, io::AsyncReadExt};
 use walle_core::action::{GetFile, UploadFile};
-use walle_core::{impls::OneBot, Resps};
+use walle_core::Resps;
 
 impl super::Handler {
     async fn get_file_data(c: UploadFile) -> WQResult<Vec<u8>> {

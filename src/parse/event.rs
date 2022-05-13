@@ -1,4 +1,5 @@
 use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
+use crate::handler::OneBot;
 
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
@@ -6,7 +7,7 @@ use tracing::{info, warn};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent, StandardEvent};
 
 pub(crate) async fn qevent2event(
-    ob: &walle_core::impls::OneBot,
+    ob: &OneBot,
     event: QEvent,
     wqdb: &WQDatabase,
 ) -> Option<StandardEvent> {
