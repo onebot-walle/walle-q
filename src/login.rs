@@ -51,8 +51,7 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
         cli.register_client().await?;
     }
     after_login(cli).await;
-    cli.reload_friends().await?;
-    cli.reload_groups(1024).await
+    Ok(())
 }
 
 pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
