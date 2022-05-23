@@ -1,9 +1,10 @@
-use crate::database::{Database, SImage, WQDatabase};
 use ricq::msg::elem::{self, RQElem};
 use ricq::msg::MessageChain;
 use ricq::Client;
 use tracing::{debug, trace, warn};
 use walle_core::{Message, MessageSegment};
+
+use crate::database::{Database, SImage, WQDatabase};
 
 pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
@@ -122,10 +123,15 @@ async fn push_msg_seg(
     match seg {
         MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
         MessageSegment::Mention { user_id, .. } => {
-            if let Ok(target) = user_id.parse() {
+            if let Ok(user_id) = user_id.parse() {
+                let display = cli
+                    .get_group_member_info(target, user_id)
+                    .await
+                    .map(|info| info.nickname)
+                    .unwrap_or(user_id.to_string());
                 chain.push(elem::At {
-                    display: user_id.to_string(),
-                    target,
+                    display,
+                    target: user_id,
                 })
             }
         }
