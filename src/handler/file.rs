@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 
+use tokio::{fs::File, io::AsyncReadExt};
+use walle_core::action::{GetFile, UploadFile};
+use walle_core::Resps;
+
 use crate::database::{save_image, Database, SImage};
 use crate::error::{WQError, WQResult};
 
 use super::OneBot;
-use tokio::{fs::File, io::AsyncReadExt};
-use walle_core::action::{GetFile, UploadFile};
-use walle_core::Resps;
 
 impl super::Handler {
     async fn get_file_data(c: UploadFile) -> WQResult<Vec<u8>> {
@@ -14,7 +15,7 @@ impl super::Handler {
             "url" if let Some(url) = c.url => {
                 uri_reader::uget_with_headers(&url, c.headers.unwrap_or_default())
                     .await
-                    .map_err(|m| WQError::net_download_fail(m))
+                    .map_err(WQError::net_download_fail)
             }
             "path" if let Some(path) = c.path => {
                 let input_path = PathBuf::from(path);
@@ -25,7 +26,7 @@ impl super::Handler {
                 file.read_to_end(&mut data).await.map_err(|e| {
                     WQError::file_read_error(e)
                 })?;
-                Ok(data.into())
+                Ok(data)
             }
             "data" if let Some(data) = c.data => Ok(data),
             ty => Err(WQError::unsupported_param(ty)),
@@ -36,7 +37,7 @@ impl super::Handler {
         let file_type = c
             .extra
             .get("file_type")
-            .ok_or(WQError::bad_param("file_type"))?
+            .ok_or_else(|| WQError::bad_param("file_type"))?
             .clone()
             .downcast_str()
             .map_err(|_| WQError::bad_param("file_type"))?;
@@ -57,7 +58,7 @@ impl super::Handler {
         let file_type = c
             .extra
             .get("file_type")
-            .ok_or(WQError::bad_param("file_type"))?
+            .ok_or_else(|| WQError::bad_param("file_type"))?
             .clone()
             .downcast_str()
             .map_err(|_| WQError::bad_param("file_type"))?;

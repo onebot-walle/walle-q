@@ -15,10 +15,10 @@ pub async fn save_image(data: &[u8]) -> WQResult<ImageInfo> {
     let info = ImageInfo::try_new(data).map_err(|_| WQError::image_info_decode_error())?;
     let mut file = tokio::fs::File::create(&info.path())
         .await
-        .map_err(|e| WQError::file_create_error(e))?;
+        .map_err(WQError::file_create_error)?;
     file.write_all(data.as_ref())
         .await
-        .map_err(|e| WQError::file_write_error(e))?;
+        .map_err(WQError::file_write_error)?;
     Ok(info)
 }
 

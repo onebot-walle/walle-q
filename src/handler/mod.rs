@@ -150,7 +150,7 @@ impl Handler {
 
     async fn send_message(&self, c: SendMessage, ob: &OneBot) -> WQResult<Resps> {
         if &c.detail_type == "group" {
-            let group_id = c.group_id.ok_or(WQError::bad_param("group_id"))?;
+            let group_id = c.group_id.ok_or_else(|| WQError::bad_param("group_id"))?;
             let group_code = group_id
                 .parse()
                 .map_err(|_| WQError::bad_param("group_id"))?;
@@ -191,7 +191,7 @@ impl Handler {
                 Err(WQError::empty_message())
             }
         } else if &c.detail_type == "private" {
-            let target_id = c.user_id.ok_or(WQError::bad_param("user_id"))?;
+            let target_id = c.user_id.ok_or_else(|| WQError::bad_param("user_id"))?;
             let target = target_id
                 .parse()
                 .map_err(|_| WQError::bad_param("user_id"))?;
@@ -325,11 +325,11 @@ impl Handler {
             .get_group_info(group_id)
             .await
             .map_err(WQError::RQ)?
-            .ok_or_else(|| WQError::group_not_exist())?;
+            .ok_or_else(WQError::group_not_exist)?;
         Ok(Resps::success(
             GroupInfoContent {
                 group_id: info.uin.to_string(),
-                group_name: info.name.to_string(),
+                group_name: info.name,
             }
             .into(),
         ))
@@ -359,7 +359,7 @@ impl Handler {
             .get_group_info(group_id)
             .await
             .map_err(WQError::RQ)?
-            .ok_or_else(|| WQError::group_not_exist())?;
+            .ok_or_else(WQError::group_not_exist)?;
 
         let v = self
             .0
@@ -391,7 +391,7 @@ impl Handler {
         Ok(Resps::success(
             UserInfoContent {
                 user_id: member.uin.to_string(),
-                nickname: member.nickname.clone(),
+                nickname: member.nickname,
             }
             .into(),
         ))
