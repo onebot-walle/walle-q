@@ -1,9 +1,7 @@
-use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
-use crate::error::{WQError, WQResult};
-use crate::parse::MsgChainBuilder;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use cached::SizedCache;
-use std::sync::Arc;
 use tokio::sync::Mutex;
 use walle_core::action::{
     DeleteMessage, GetGroupInfo, GetGroupMemberInfo, GetGroupMemberList, GetLatestEvents,
@@ -17,6 +15,10 @@ use walle_core::{
     ActionHandler, ColoredAlt, RespContent, Resps, StandardAction, StandardEvent,
 };
 use walle_core::{ExtendedMap, MessageContent};
+
+use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
+use crate::error::{WQError, WQResult};
+use crate::parse::MsgChainBuilder;
 
 mod file;
 pub(crate) mod v11;
@@ -148,7 +150,7 @@ impl Handler {
 
     async fn send_message(&self, c: SendMessage, ob: &OneBot) -> WQResult<Resps> {
         if &c.detail_type == "group" {
-            let group_id = c.group_id.ok_or(WQError::bad_param("group_id"))?;
+            let group_id = c.group_id.ok_or_else(|| WQError::bad_param("group_id"))?;
             let group_code = group_id
                 .parse()
                 .map_err(|_| WQError::bad_param("group_id"))?;
@@ -189,7 +191,7 @@ impl Handler {
                 Err(WQError::empty_message())
             }
         } else if &c.detail_type == "private" {
-            let target_id = c.user_id.ok_or(WQError::bad_param("user_id"))?;
+            let target_id = c.user_id.ok_or_else(|| WQError::bad_param("user_id"))?;
             let target = target_id
                 .parse()
                 .map_err(|_| WQError::bad_param("user_id"))?;
@@ -287,13 +289,13 @@ impl Handler {
             .map_err(|_| WQError::bad_param("user_id"))?;
         let info = self
             .0
-            .find_friend(user_id)
+            .get_summary_info(user_id)
             .await
-            .ok_or_else(|| WQError::friend_not_exist())?;
+            .map_err(WQError::RQ)?;
         Ok(Resps::success(
             UserInfoContent {
                 user_id: info.uin.to_string(),
-                nickname: info.nick.to_string(),
+                nickname: info.nickname,
             }
             .into(),
         ))
@@ -301,13 +303,13 @@ impl Handler {
     async fn get_friend_list(&self) -> WQResult<Resps> {
         Ok(Resps::success(
             self.0
-                .friends
-                .read()
+                .get_friend_list()
                 .await
+                .map_err(WQError::RQ)?
                 .iter()
                 .map(|i| UserInfoContent {
-                    user_id: i.0.to_string(),
-                    nickname: i.1.nick.to_string(),
+                    user_id: i.uin.to_string(),
+                    nickname: i.nick.to_string(),
                 })
                 .collect::<Vec<_>>()
                 .into(),
@@ -320,13 +322,14 @@ impl Handler {
             .map_err(|_| WQError::bad_param("group_id"))?;
         let info = self
             .0
-            .find_group(group_id, true)
+            .get_group_info(group_id)
             .await
-            .ok_or_else(|| WQError::group_not_exist())?;
+            .map_err(WQError::RQ)?
+            .ok_or_else(WQError::group_not_exist)?;
         Ok(Resps::success(
             GroupInfoContent {
-                group_id: info.info.uin.to_string(),
-                group_name: info.info.name.to_string(),
+                group_id: info.uin.to_string(),
+                group_name: info.name,
             }
             .into(),
         ))
@@ -334,13 +337,13 @@ impl Handler {
     async fn get_group_list(&self) -> WQResult<Resps> {
         Ok(Resps::success(
             self.0
-                .groups
-                .read()
+                .get_group_list()
                 .await
-                .iter()
+                .map_err(WQError::RQ)?
+                .into_iter()
                 .map(|i| GroupInfoContent {
-                    group_id: i.0.to_string(),
-                    group_name: i.1.info.name.clone(),
+                    group_id: i.code.to_string(),
+                    group_name: i.name,
                 })
                 .collect::<Vec<_>>()
                 .into(),
@@ -353,13 +356,16 @@ impl Handler {
             .map_err(|_| WQError::bad_param("group_id"))?;
         let group = self
             .0
-            .find_group(group_id, true)
+            .get_group_info(group_id)
             .await
-            .ok_or_else(|| WQError::group_not_exist())?;
-        let v = group
-            .members
-            .read()
+            .map_err(WQError::RQ)?
+            .ok_or_else(WQError::group_not_exist)?;
+
+        let v = self
+            .0
+            .get_group_member_list(group_id, group.owner_uin)
             .await
+            .map_err(WQError::RQ)?
             .iter()
             .map(|i| UserInfoContent {
                 user_id: i.uin.to_string(),
@@ -377,24 +383,18 @@ impl Handler {
             .user_id
             .parse()
             .map_err(|_| WQError::bad_param("user_id"))?;
-        let group = self
+        let member = self
             .0
-            .find_group(group_id, true)
+            .get_group_member_info(group_id, uin)
             .await
-            .ok_or_else(|| WQError::group_not_exist())?;
-        let list = group.members.read().await;
-        let v: Vec<_> = list.iter().filter(|i| i.uin == uin).collect();
-        if v.is_empty() {
-            Err(WQError::group_member_not_exist())
-        } else {
-            Ok(Resps::success(
-                UserInfoContent {
-                    user_id: v[0].uin.to_string(),
-                    nickname: v[0].nickname.clone(),
-                }
-                .into(),
-            ))
-        }
+            .map_err(WQError::RQ)?;
+        Ok(Resps::success(
+            UserInfoContent {
+                user_id: member.uin.to_string(),
+                nickname: member.nickname,
+            }
+            .into(),
+        ))
     }
     async fn set_group_name(&self, c: SetGroupName, _ob: &OneBot) -> WQResult<Resps> {
         self.0
