@@ -77,13 +77,22 @@ pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::Q
 async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
     let resp = cli.fetch_qrcode().await?;
     if let QRCodeState::ImageFetch(f) = resp {
-        tokio::fs::write("qrcode.png", &f.image_data)
-            .await
-            .map_err(|_| RQError::Other("fail to write qrcode.png file".to_owned()))?;
-        info!(
-            target: crate::WALLE_Q,
-            "请打开 qrcode.png 文件扫描二维码登录"
+        let mut image = rqrr::PreparedImage::prepare(
+            image::load_from_memory(&f.image_data).unwrap().into_luma8(),
         );
+        let grids = image.detect_grids();
+        let (_, content) = grids[0].decode().unwrap();
+        let code = qrcode::QrCode::new(&content).unwrap();
+        let rended = code.render::<qrcode::render::unicode::Dense1x2>().build();
+        info!(target: crate::WALLE_Q, "扫描二维码登录:");
+        println!("{}", rended);
+        // tokio::fs::write("qrcode.png", &f.image_data)
+        //     .await
+        //     .map_err(|_| RQError::Other("fail to write qrcode.png file".to_owned()))?;
+        // info!(
+        //     target: crate::WALLE_Q,
+        //     "请打开 qrcode.png 文件扫描二维码登录"
+        // );
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
             match cli.query_qrcode_result(&f.sig).await? {

@@ -1,9 +1,9 @@
-pub(crate) mod image;
+pub(crate) mod simage;
 pub(crate) mod leveldb;
 pub(crate) mod message;
 pub(crate) mod sleddb;
 
-pub use image::*;
+pub use simage::*;
 pub use message::*;
 
 pub(crate) trait DatabaseInit {
