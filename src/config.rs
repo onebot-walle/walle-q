@@ -5,7 +5,7 @@ use ricq::Config as RsQQConfig;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use tracing::{info, warn};
-use walle_core::ImplConfig;
+use walle_core::config::ImplConfig;
 
 type IOResult<T> = Result<T, std::io::Error>;
 

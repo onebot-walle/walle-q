@@ -83,14 +83,14 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         RQElem::FriendImage(i) => {
             wqdb._insert_image(&i);
             Some(MessageSegment::Image {
-                extend: [("url".to_string(), i.url().into())].into(),
+                extra: [("url".to_string(), i.url().into())].into(),
                 file_id: i.hex_image_id(),
             })
         }
         RQElem::GroupImage(i) => {
             wqdb._insert_image(&i);
             Some(MessageSegment::Image {
-                extend: [("url".to_string(), i.url().into())].into(),
+                extra: [("url".to_string(), i.url().into())].into(),
                 file_id: i.hex_image_id(),
             })
         }
@@ -155,10 +155,7 @@ async fn push_msg_seg(
             }
             _ => warn!("unsupported custom type: {}", ty),
         },
-        MessageSegment::Image {
-            file_id,
-            mut extend,
-        } => {
+        MessageSegment::Image { file_id, mut extra } => {
             if let Some(info) = hex::decode(&file_id)
                 .ok()
                 .and_then(|id| wqdb.get_image(&id))
@@ -170,7 +167,7 @@ async fn push_msg_seg(
                 } else if let Some(image) = info.try_into_friend_elem(cli, target).await {
                     chain.push(image);
                 }
-            } else if let Some(b64) = extend.remove("url").and_then(|b64| b64.downcast_str().ok()) {
+            } else if let Some(b64) = extra.remove("url").and_then(|b64| b64.downcast_str().ok()) {
                 match uri_reader::uget(&b64).await {
                     Ok(data) => {
                         if group {

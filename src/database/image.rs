@@ -5,20 +5,21 @@ use ricq::Client;
 use ricq::{RQError, RQResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use walle_core::resp::FileIdContent;
+use walle_core::resp::{FileIdContent, RespError};
+use walle_core::ExtendedMap;
 
-use crate::error::{WQError, WQResult};
+use crate::error;
 
-pub async fn save_image(data: &[u8]) -> WQResult<ImageInfo> {
+pub async fn save_image(data: &[u8]) -> Result<ImageInfo, RespError> {
     use tokio::io::AsyncWriteExt;
 
-    let info = ImageInfo::try_new(data).map_err(|_| WQError::image_info_decode_error())?;
+    let info = ImageInfo::try_new(data).map_err(|_| error::image_info_decode_error())?;
     let mut file = tokio::fs::File::create(&info.path())
         .await
-        .map_err(WQError::file_create_error)?;
+        .map_err(error::file_create_error)?;
     file.write_all(data.as_ref())
         .await
-        .map_err(WQError::file_write_error)?;
+        .map_err(error::file_write_error)?;
     Ok(info)
 }
 
@@ -46,6 +47,7 @@ pub trait SImage: Sized {
     fn as_file_id_content(&self) -> FileIdContent {
         FileIdContent {
             file_id: self.hex_image_id(),
+            extra: ExtendedMap::default(),
         }
     }
 }

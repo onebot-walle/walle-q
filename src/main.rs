@@ -20,6 +20,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const LOG_PATH: &str = "./log";
 const IMAGE_CACHE_DIR: &str = "./data/image";
 
+type WQResp = walle_core::Resps<walle_core::StandardEvent>;
+
 #[tokio::main]
 async fn main() {
     let mut comm = command::Comm::parse();

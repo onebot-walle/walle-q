@@ -74,6 +74,7 @@ pub(crate) async fn qevent2event(
                     sub_type: "".to_string(),
                     message_id: e.recall.msg_seq.to_string(),
                     user_id: e.recall.friend_uin.to_string(),
+                    extra: ExtendedMap::default(),
                 }
                 .into(),
                 e.recall.time as f64,
@@ -85,6 +86,7 @@ pub(crate) async fn qevent2event(
                 NoticeContent::FriendIncrease {
                     sub_type: "".to_string(),
                     user_id: e.friend.uin.to_string(),
+                    extra: ExtendedMap::default(),
                 }
                 .into(),
                 walle_core::timestamp_nano_f64(),
@@ -100,6 +102,7 @@ pub(crate) async fn qevent2event(
                     group_id: e.new_member.group_code.to_string(),
                     user_id: e.new_member.member_uin.to_string(),
                     operator_id: "".to_string(),
+                    extra: ExtendedMap::default(),
                 }
                 .into(),
                 walle_core::timestamp_nano_f64(),
@@ -121,6 +124,7 @@ pub(crate) async fn qevent2event(
                     } else {
                         e.leave.member_uin.to_string()
                     },
+                    extra: ExtendedMap::default(),
                 }
                 .into(),
                 walle_core::timestamp_nano_f64(),
@@ -134,6 +138,7 @@ pub(crate) async fn qevent2event(
                     group_id: e.group_mute.group_code.to_string(),
                     user_id: e.group_mute.target_uin.to_string(),
                     operator_id: e.group_mute.operator_uin.to_string(),
+                    extra: ExtendedMap::default(),
                 }
                 .into(),
                 e.group_mute.time as f64,
@@ -152,6 +157,7 @@ pub(crate) async fn qevent2event(
                     group_id: e.recall.group_code.to_string(),
                     user_id: e.recall.author_uin.to_string(),
                     operator_id: e.recall.operator_uin.to_string(),
+                    extra: ExtendedMap::default(),
                 }
                 .into(),
                 e.recall.time as f64,
@@ -168,6 +174,7 @@ pub(crate) async fn qevent2event(
                             group_id: e.group_code.to_string(),
                             user_id: e.member_uin.to_string(),
                             operator_id: "".to_string(), //todo
+                            extra: ExtendedMap::default(),
                         }
                         .into(),
                         walle_core::timestamp_nano_f64(),
@@ -181,6 +188,7 @@ pub(crate) async fn qevent2event(
                             group_id: e.group_code.to_string(),
                             user_id: e.member_uin.to_string(),
                             operator_id: "".to_string(), //todo
+                            extra: ExtendedMap::default(),
                         }
                         .into(),
                         walle_core::timestamp_nano_f64(),

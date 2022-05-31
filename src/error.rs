@@ -1,78 +1,33 @@
 use ricq::RQError;
-use walle_core::Resps;
+use walle_core::error_type;
+use walle_core::resp::RespError;
 
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum WQError {
-    #[error("{0}")]
-    RQ(#[from] RQError),
-    #[error("{0}")]
-    Static(&'static str),
-    #[error("{0}:{1}")]
-    Str(&'static str, String),
-}
-
-pub type WQResult<T> = Result<T, WQError>;
-
-pub(crate) fn rqerror_to_resps(error: RQError) -> Resps {
-    Resps::empty_fail(34001, error.to_string())
-}
-
-macro_rules! wqerror_codes {
-    ($($t: ident => $msg: expr, $code: expr),*;$($t1: ident => $msg1: expr, $code1: expr),*) => {
-        impl From<WQError> for Resps {
-            fn from(e: WQError) -> Self {
-                match e {
-                    WQError::RQ(e) => rqerror_to_resps(e),
-                    WQError::Static(e) => match e {
-                        $(
-                        $msg => Resps::empty_fail($code, $msg.to_string()),
-                        )*
-                        _ => Resps::empty_fail(20002, e.to_string()),
-                    },
-                    WQError::Str(s, _) => match s {
-                        $(
-                        $msg1 => Resps::empty_fail($code1, e.to_string()),
-                        )*
-                        _ => Resps::empty_fail(20002, e.to_string()),
-                    },
-                }
+macro_rules! format_error_type {
+    ($name: ident, $retcode: expr, $message: expr, $k: ident, $kt: ty) => {
+        pub fn $name($k: $kt) -> RespError {
+            RespError {
+                code: $retcode,
+                message: format!("{}:{}", $message, $k),
             }
-        }
-        impl WQError {
-            $(
-            pub fn $t() -> Self {
-                WQError::Static($msg)
-            }
-            )*
-            $(
-            pub fn $t1<T: ToString>(m: T) -> Self
-            {
-                WQError::Str($msg1, m.to_string())
-            }
-            )*
         }
     };
 }
 
-wqerror_codes!(
-    unsupported_action => "不支持的动作请求", 10002,
-    empty_message => "消息为空", 10003,
-    image_unuploaded => "图片未上传", 32001,
-    message_not_exist => "消息不存在", 35001,
-    friend_not_exist => "好友不存在", 35002,
-    group_not_exist => "群不存在", 35003,
-    group_member_not_exist => "群成员不存在", 35004,
-    image_info_decode_error => "图片解码错误", 41001;
-    bad_param => "参数错误", 10003,
-    unsupported_param => "不支持的参数", 10004,
-    file_open_error => "文件打开失败", 32001,
-    file_read_error => "文件读取失败", 32002,
-    file_create_error => "文件创建失败", 32003,
-    file_write_error => "文件写入失败", 32004,
-    net_download_fail => "网络下载失败", 33001,
-    image_url => "图片URL错误", 41002,
-    image_path => "图片路径错误", 41003,
-    image_data => "图片内容错误", 41004
-);
+format_error_type!(bad_param, 10003, "参数错误", param, &str);
+error_type!(empty_message, 10003, "消息为空");
+format_error_type!(unsupported_param, 10004, "不支持的参数", param, &str);
+format_error_type!(file_open_error, 32001, "文件打开失败", e, std::io::Error);
+format_error_type!(file_read_error, 32002, "文件读取失败", e, std::io::Error);
+error_type!(image_unuploaded, 32003, "图片未上传");
+format_error_type!(file_create_error, 32004, "文件创建失败", e, std::io::Error);
+format_error_type!(file_write_error, 32005, "文件写入失败", e, std::io::Error);
+error_type!(net_download_fail, 33001, "网络下载失败");
+format_error_type!(rq_error, 34001, "ricq错误", e, RQError);
+error_type!(message_not_exist, 35001, "消息不存在");
+error_type!(friend_not_exist, 35002, "好友不存在");
+error_type!(group_not_exist, 35003, "群不存在");
+error_type!(group_member_not_exist, 35004, "群成员不存在");
+error_type!(image_info_decode_error, 41001, "图片解码错误");
+format_error_type!(bad_image_url, 41002, "图片URL错误", url, &str);
+format_error_type!(bad_image_path, 41003, "图片路径错误", path, &str);
+format_error_type!(bad_image_data, 41004, "图片内容错误", data, &str);
