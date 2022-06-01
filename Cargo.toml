@@ -1,6 +1,6 @@
 [package]
 name = "walle-q"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -23,12 +23,10 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "time"] }
 tracing-appender = "0.2"
 time = { version = "0.3", features = ["macros"] }
 rmp-serde = "1.0.0"
-lazy_static = "1.4"
 uuid = "1.0"
 clap = { version = "3.0", features = ["derive"] }
 cached = "0.34"
 bytes = "1.1"
-thiserror = "1"
 hex = "0.4"
 base64 = "0.13"
 

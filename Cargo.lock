@@ -2639,7 +2639,7 @@ dependencies = [
 
 [[package]]
 name = "walle-q"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "base64",
@@ -2648,7 +2648,6 @@ dependencies = [
  "clap",
  "hex",
  "image 0.24.2",
- "lazy_static",
  "md5",
  "qrcode",
  "ricq",
@@ -2659,7 +2658,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sled",
- "thiserror",
  "time 0.3.9",
  "tokio",
  "tracing",
