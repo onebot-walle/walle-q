@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use ricq::client::Client;
 use ricq::ext::common::after_login;
-use ricq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password, Token};
+use ricq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password};
 use ricq::{LoginResponse, QRCodeState};
 use ricq::{RQError, RQResult};
 use tracing::{debug, info, warn};
@@ -57,15 +57,12 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
 pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
     let token = cli.gen_token().await;
     let credential = if let (Some(uin), Some(password)) = (config.uin, &config.password) {
-        Credential::Both(
-            Token(token),
-            Password {
-                uin: uin as i64,
-                password: password.to_owned(),
-            },
-        )
+        Credential::Password(Password {
+            uin: uin as i64,
+            password: password.to_owned(),
+        })
     } else {
-        Credential::Token(Token(token))
+        Credential::Token(token)
     };
     auto_reconnect(
         cli.clone(),
