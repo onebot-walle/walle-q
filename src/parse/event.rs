@@ -61,10 +61,6 @@ pub(crate) async fn qevent2event(
             wqdb.insert_group_message(&s_group);
             Some(event)
         }
-        QEvent::SelfGroupMessage(e) => {
-            info!("SelfGroupMessage: {:?}", e);
-            None
-        }
 
         // notice
         // friend
