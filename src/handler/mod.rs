@@ -306,6 +306,7 @@ impl Handler {
                 .get_friend_list()
                 .await
                 .map_err(WQError::RQ)?
+                .friends
                 .iter()
                 .map(|i| UserInfoContent {
                     user_id: i.uin.to_string(),
