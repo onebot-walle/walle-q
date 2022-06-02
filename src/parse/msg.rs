@@ -2,7 +2,7 @@ use ricq::msg::elem::{self, RQElem};
 use ricq::msg::MessageChain;
 use ricq::Client;
 use tracing::{debug, trace, warn};
-use walle_core::{Message, MessageSegment};
+use walle_core::{extended_map, Message, MessageSegment};
 
 use crate::database::{Database, SImage, WQDatabase};
 
@@ -50,47 +50,43 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         RQElem::At(at) => Some(MessageSegment::mention(at.target.to_string())),
         RQElem::Face(face) => Some(MessageSegment::Custom {
             ty: "face".to_owned(),
-            data: [
-                ("id".to_string(), (face.index as i64).into()),
-                ("file".to_string(), face.name.into()),
-            ]
-            .into(),
+            data: extended_map! {
+                "id": face.index,
+                "file": face.name
+            },
         }),
         RQElem::MarketFace(face) => Some(MessageSegment::text(face.name)),
         RQElem::Dice(d) => Some(MessageSegment::Custom {
             ty: "dice".to_owned(),
-            data: [("value".to_string(), (d.value as i64).into())].into(),
+            data: extended_map! {
+                "value": d.value,
+            },
         }),
         RQElem::FingerGuessing(f) => Some(MessageSegment::Custom {
             ty: "rps".to_owned(),
-            data: [(
-                "value".to_string(),
-                {
-                    match f {
-                        elem::FingerGuessing::Rock => 0i8,
-                        elem::FingerGuessing::Scissors => 1,
-                        elem::FingerGuessing::Paper => 2,
-                    }
+            data: extended_map! {
+                "value": match f {
+                    elem::FingerGuessing::Rock => 0i8,
+                    elem::FingerGuessing::Paper => 1,
+                    elem::FingerGuessing::Scissors => 2,
                 }
-                .into(),
-            )]
-            .into(),
+            },
         }),
         RQElem::LightApp(l) => Some(MessageSegment::Custom {
             ty: "json".to_owned(),
-            data: [("data".to_string(), l.content.into())].into(),
+            data: extended_map! {"data": l.content},
         }),
         RQElem::FriendImage(i) => {
             wqdb._insert_image(&i);
             Some(MessageSegment::Image {
-                extra: [("url".to_string(), i.url().into())].into(),
+                extra: extended_map! {"url": i.url()},
                 file_id: i.hex_image_id(),
             })
         }
         RQElem::GroupImage(i) => {
             wqdb._insert_image(&i);
             Some(MessageSegment::Image {
-                extra: [("url".to_string(), i.url().into())].into(),
+                extra: extended_map! {"url": i.url()},
                 file_id: i.hex_image_id(),
             })
         }

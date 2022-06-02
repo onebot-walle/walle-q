@@ -2617,9 +2617,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "walle-core"
-version = "0.4.0-beta.4"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f28fde55c9a8efb6fffc137a9e7f27a7cc8f2ec287ffbe9a8697407778bcaf29"
+checksum = "7111684df87f054ffbbba484bc6c7dbac8b2936e557216dcc5a59e8242dd81ca"
 dependencies = [
  "async-trait",
  "colored",
@@ -2671,9 +2671,9 @@ dependencies = [
 
 [[package]]
 name = "walle-v11"
-version = "0.4.0-beta.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa4caddbfbf7892e68c30eb2a1c6098a02f55c3479a912b7be59155d3e1171cb"
+checksum = "13eb026c65ad7a64f543db8921351f7c29fdd02f78602fcc61bce4881196c3f0"
 dependencies = [
  "async-trait",
  "colored",
