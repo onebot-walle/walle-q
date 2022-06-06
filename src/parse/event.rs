@@ -4,6 +4,7 @@ use crate::handler::OneBot;
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
+use walle_core::extended_map;
 use walle_core::{ExtendedMap, MessageContent, NoticeContent, StandardEvent};
 
 pub(crate) async fn qevent2event(
@@ -32,7 +33,9 @@ pub(crate) async fn qevent2event(
                         message,
                         pme.message.seqs[0].to_string(),
                         pme.message.from_uin.to_string(),
-                        ExtendedMap::default(),
+                        extended_map! {
+                            "user_name": pme.message.from_nick
+                        },
                     )
                     .into(),
                     pme.message.time as f64,
@@ -51,7 +54,10 @@ pub(crate) async fn qevent2event(
                         gme.message.seqs[0].to_string(),
                         gme.message.from_uin.to_string(),
                         gme.message.group_code.to_string(),
-                        ExtendedMap::default(),
+                        extended_map! {
+                            "user_card": gme.message.group_card,
+                            "group_name": gme.message.group_name,
+                        },
                     )
                     .into(),
                     gme.message.time as f64,
@@ -82,7 +88,9 @@ pub(crate) async fn qevent2event(
                 NoticeContent::FriendIncrease {
                     sub_type: "".to_string(),
                     user_id: e.friend.uin.to_string(),
-                    extra: ExtendedMap::default(),
+                    extra: extended_map! {
+                        "user_name": e.friend.nick,
+                    },
                 }
                 .into(),
                 walle_core::timestamp_nano_f64(),
@@ -134,10 +142,12 @@ pub(crate) async fn qevent2event(
                     group_id: e.group_mute.group_code.to_string(),
                     user_id: e.group_mute.target_uin.to_string(),
                     operator_id: e.group_mute.operator_uin.to_string(),
-                    extra: ExtendedMap::default(),
+                    extra: extended_map! {
+                        "duration": e.group_mute.time,
+                    },
                 }
                 .into(),
-                e.group_mute.time as f64,
+                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),

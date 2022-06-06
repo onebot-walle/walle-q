@@ -84,4 +84,4 @@ A qq platform OneBot Implementation
 ## 已知问题
 
 - 群管理设置 `operator_id` 缺失
-- 私聊消息无法撤回
+- 新成员入群 `operator_id` 缺失
