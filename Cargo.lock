@@ -2657,6 +2657,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2 0.10.2",
  "sled",
  "time 0.3.9",
  "tokio",

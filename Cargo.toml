@@ -25,6 +25,7 @@ cached = "0.34"
 bytes = "1.1"
 hex = "0.4"
 base64 = "0.13"
+sha2 = "0.10"
 
 qrcode = "0.12"
 rqrr = "0.5"

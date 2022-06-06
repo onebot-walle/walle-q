@@ -16,11 +16,15 @@ macro_rules! format_error_type {
 format_error_type!(bad_param, 10003, "参数错误", param, &str);
 error_type!(empty_message, 10003, "消息为空");
 format_error_type!(unsupported_param, 10004, "不支持的参数", param, &str);
+error_type!(prepare_file_first, 20003, "请先 Prepare 再上传后续文件");
+error_type!(file_total_size_not_match, 20004, "文件大小不匹配");
+error_type!(file_sha256_not_match, 20005, "文件sha256不匹配");
 format_error_type!(file_open_error, 32001, "文件打开失败", e, std::io::Error);
 format_error_type!(file_read_error, 32002, "文件读取失败", e, std::io::Error);
 error_type!(image_unuploaded, 32003, "图片未上传");
 format_error_type!(file_create_error, 32004, "文件创建失败", e, std::io::Error);
 format_error_type!(file_write_error, 32005, "文件写入失败", e, std::io::Error);
+error_type!(file_not_found, 32006, "文件不存在");
 error_type!(net_download_fail, 33001, "网络下载失败");
 format_error_type!(rq_error, 34001, "ricq错误", e, RQError);
 error_type!(message_not_exist, 35001, "消息不存在");

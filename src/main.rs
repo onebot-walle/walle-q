@@ -19,6 +19,7 @@ const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const LOG_PATH: &str = "./log";
 const IMAGE_CACHE_DIR: &str = "./data/image";
+const FILE_CACHE_DIR: &str = "./data/file";
 
 type WQResp = walle_core::Resps<walle_core::StandardEvent>;
 
@@ -53,7 +54,12 @@ async fn main() {
         "qq",
         &self_id.to_string(),
         config.onebot.clone(),
-        handler::Handler(qclient.clone(), cache.clone(), wqdb.clone()),
+        handler::Handler {
+            client: qclient.clone(),
+            event_cache: cache.clone(),
+            database: wqdb.clone(),
+            uploading_fragment: tokio::sync::Mutex::new(cached::TimedCache::with_lifespan(60)),
+        },
     )
     .arc();
 
@@ -108,5 +114,6 @@ async fn main() {
 
 async fn init() {
     tokio::fs::create_dir_all(crate::IMAGE_CACHE_DIR).await.ok();
+    tokio::fs::create_dir_all(crate::FILE_CACHE_DIR).await.ok();
     tokio::fs::create_dir(crate::LOG_PATH).await.ok();
 }

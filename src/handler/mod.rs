@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cached::SizedCache;
+use cached::{SizedCache, TimedCache};
 use tokio::sync::Mutex;
 use walle_core::action::{
     DeleteMessage, GetGroupInfo, GetGroupMemberInfo, GetGroupMemberList, GetLatestEvents,
@@ -22,16 +22,19 @@ use crate::error;
 use crate::parse::MsgChainBuilder;
 use crate::WQResp;
 
+use self::file::FragmentFile;
+
 type WQRespResult = Result<WQResp, RespError>;
 
 mod file;
 pub(crate) mod v11;
 
-pub(crate) struct Handler(
-    pub(crate) Arc<ricq::Client>,
-    pub(crate) Arc<Mutex<SizedCache<String, StandardEvent>>>,
-    pub(crate) Arc<WQDatabase>,
-);
+pub(crate) struct Handler {
+    pub(crate) client: Arc<ricq::Client>,
+    pub(crate) event_cache: Arc<Mutex<SizedCache<String, StandardEvent>>>,
+    pub(crate) database: Arc<WQDatabase>,
+    pub(crate) uploading_fragment: Mutex<TimedCache<String, FragmentFile>>,
+}
 
 pub(crate) type OneBot = StandardOneBot<Handler>;
 
@@ -79,9 +82,9 @@ impl ActionHandler<StandardAction, WQResp, OneBot> for Handler {
             }
 
             StandardAction::UploadFile(c) => self.upload_file(c, ob).await,
-            // StandardAction::UploadFileFragmented(_c) => Err(WQError::unsupported_action()),
+            StandardAction::UploadFileFragmented(c) => self.upload_file_fragmented(c, ob).await,
             StandardAction::GetFile(c) => self.get_file(c, ob).await,
-            // StandardAction::GetFileFragmented(_c) => Err(WQError::unsupported_action()),
+            StandardAction::GetFileFragmented(c) => self.get_file_fragmented(c, ob).await,
             _ => Err(error_builder::unsupported_action()),
         }
     }
@@ -90,7 +93,7 @@ impl ActionHandler<StandardAction, WQResp, OneBot> for Handler {
 impl Handler {
     async fn get_latest_events(&self, c: GetLatestEvents, _ob: &OneBot) -> WQRespResult {
         let get = || async {
-            self.1
+            self.event_cache
                 .lock()
                 .await
                 .value_order()
@@ -127,7 +130,9 @@ impl Handler {
             "set_group_admin".into(),
             "unset_group_admin".into(),
             "upload_file".into(),
+            "upload_file_fragmented".into(),
             "get_file".into(),
+            "get_file_fragmented".into(),
         ])))
     }
     fn get_version() -> WQRespResult {
@@ -146,7 +151,10 @@ impl Handler {
         Ok(Resps::success(
             StatusContent {
                 good: true,
-                online: self.0.online.load(std::sync::atomic::Ordering::Relaxed),
+                online: self
+                    .client
+                    .online
+                    .load(std::sync::atomic::Ordering::Relaxed),
                 extra: ExtendedMap::default(),
             }
             .into(),
@@ -158,12 +166,12 @@ impl Handler {
             let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
             let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
             if let Some(chain) =
-                MsgChainBuilder::group_chain_builder(&self.0, group_code, c.message.clone())
-                    .build(&self.2)
+                MsgChainBuilder::group_chain_builder(&self.client, group_code, c.message.clone())
+                    .build(&self.database)
                     .await
             {
                 let receipt = self
-                    .0
+                    .client
                     .send_group_message(group_code, chain)
                     .await
                     .map_err(error::rq_error)?;
@@ -189,7 +197,7 @@ impl Handler {
                     )
                     .await,
                 );
-                self.2.insert_group_message(&s_group);
+                self.database.insert_group_message(&s_group);
                 Ok(Resps::success(respc.into()))
             } else {
                 Err(error::empty_message())
@@ -198,12 +206,12 @@ impl Handler {
             let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
             let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
             if let Some(chain) =
-                MsgChainBuilder::private_chain_builder(&self.0, target, c.message.clone())
-                    .build(&self.2)
+                MsgChainBuilder::private_chain_builder(&self.client, target, c.message.clone())
+                    .build(&self.database)
                     .await
             {
                 let receipt = self
-                    .0
+                    .client
                     .send_friend_message(target, chain)
                     .await
                     .map_err(error::rq_error)?;
@@ -228,7 +236,7 @@ impl Handler {
                     )
                     .await,
                 );
-                self.2.insert_private_message(&s_private);
+                self.database.insert_private_message(&s_private);
                 Ok(Resps::success(respc.into()))
             } else {
                 Err(error::empty_message())
@@ -239,20 +247,20 @@ impl Handler {
     }
 
     async fn delete_message(&self, c: DeleteMessage, _ob: &OneBot) -> WQRespResult {
-        if let Some(m) = self.2.get_message(
+        if let Some(m) = self.database.get_message(
             c.message_id
                 .parse()
                 .map_err(|_| error::bad_param("message_id"))?,
         ) {
             match m {
                 SMessage::Private(p) => {
-                    self.0
+                    self.client
                         .recall_friend_message(p.target_id, p.time as i64, p.seqs, p.rands)
                         .await
                         .map_err(error::rq_error)?;
                 }
                 SMessage::Group(g) => {
-                    self.0
+                    self.client
                         .recall_group_message(g.group_code, g.seqs, g.rands)
                         .await
                         .map_err(error::rq_error)?;
@@ -265,7 +273,7 @@ impl Handler {
     }
 
     async fn get_message(&self, c: GetMessage, _ob: &OneBot) -> WQRespResult {
-        if let Some(m) = self.2.get_message(
+        if let Some(m) = self.database.get_message(
             c.message_id
                 .parse()
                 .map_err(|_| error::bad_param("message_id"))?,
@@ -279,8 +287,8 @@ impl Handler {
     async fn get_self_info(&self) -> WQRespResult {
         Ok(Resps::success(
             UserInfoContent {
-                user_id: self.0.uin().await.to_string(),
-                nickname: self.0.account_info.read().await.nickname.clone(),
+                user_id: self.client.uin().await.to_string(),
+                nickname: self.client.account_info.read().await.nickname.clone(),
                 extra: ExtendedMap::default(),
             }
             .into(),
@@ -289,7 +297,7 @@ impl Handler {
     async fn get_user_info(&self, c: GetUserInfo, _ob: &OneBot) -> WQRespResult {
         let user_id: i64 = c.user_id.parse().map_err(|_| error::bad_param("user_id"))?;
         let info = self
-            .0
+            .client
             .get_summary_info(user_id)
             .await
             .map_err(error::rq_error)?;
@@ -304,7 +312,7 @@ impl Handler {
     }
     async fn get_friend_list(&self) -> WQRespResult {
         Ok(Resps::success(
-            self.0
+            self.client
                 .get_friend_list()
                 .await
                 .map_err(error::rq_error)?
@@ -325,7 +333,7 @@ impl Handler {
             .parse()
             .map_err(|_| error::bad_param("group_id"))?;
         let info = self
-            .0
+            .client
             .get_group_info(group_id)
             .await
             .map_err(error::rq_error)?
@@ -341,7 +349,7 @@ impl Handler {
     }
     async fn get_group_list(&self) -> WQRespResult {
         Ok(Resps::success(
-            self.0
+            self.client
                 .get_group_list()
                 .await
                 .map_err(error::rq_error)?
@@ -361,14 +369,14 @@ impl Handler {
             .parse()
             .map_err(|_| error::bad_param("group_id"))?;
         let group = self
-            .0
+            .client
             .get_group_info(group_id)
             .await
             .map_err(error::rq_error)?
             .ok_or_else(error::group_not_exist)?;
 
         let v = self
-            .0
+            .client
             .get_group_member_list(group_id, group.owner_uin)
             .await
             .map_err(error::rq_error)?
@@ -388,7 +396,7 @@ impl Handler {
             .map_err(|_| error::bad_param("group_id"))?;
         let uin: i64 = c.user_id.parse().map_err(|_| error::bad_param("user_id"))?;
         let member = self
-            .0
+            .client
             .get_group_member_info(group_id, uin)
             .await
             .map_err(error::rq_error)?;
@@ -402,7 +410,7 @@ impl Handler {
         ))
     }
     async fn set_group_name(&self, c: SetGroupName, _ob: &OneBot) -> WQRespResult {
-        self.0
+        self.client
             .update_group_name(
                 c.group_id
                     .parse()
@@ -414,7 +422,7 @@ impl Handler {
         Ok(Resps::empty_success())
     }
     async fn leave_group(&self, c: LeaveGroup, _ob: &OneBot) -> WQRespResult {
-        self.0
+        self.client
             .group_quit(
                 c.group_id
                     .parse()
@@ -425,7 +433,7 @@ impl Handler {
         Ok(Resps::empty_success())
     }
     async fn kick_group_member(&self, c: KickGroupMember, _ob: &OneBot) -> WQRespResult {
-        self.0
+        self.client
             .group_kick(
                 c.group_id
                     .parse()
@@ -458,7 +466,7 @@ impl Handler {
                 }
             })?)
         };
-        self.0
+        self.client
             .group_mute(
                 group_id.parse().map_err(|_| error::bad_param("group_id"))?,
                 user_id.parse().map_err(|_| error::bad_param("user_id"))?,
@@ -475,7 +483,7 @@ impl Handler {
         _ob: &OneBot,
         unset: bool,
     ) -> WQRespResult {
-        self.0
+        self.client
             .group_set_admin(
                 group_id.parse().map_err(|_| error::bad_param("group_id"))?,
                 user_id.parse().map_err(|_| error::bad_param("user_id"))?,
