@@ -86,13 +86,6 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
         let rended = code.render::<qrcode::render::unicode::Dense1x2>().build();
         info!(target: crate::WALLE_Q, "扫描二维码登录:");
         println!("{}", rended);
-        // tokio::fs::write("qrcode.png", &f.image_data)
-        //     .await
-        //     .map_err(|_| RQError::Other("fail to write qrcode.png file".to_owned()))?;
-        // info!(
-        //     target: crate::WALLE_Q,
-        //     "请打开 qrcode.png 文件扫描二维码登录"
-        // );
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
             match cli.query_qrcode_result(&f.sig).await? {
@@ -109,7 +102,11 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
                         .await?;
                     break handle_login_resp(cli, resp).await;
                 }
-                _ => todo!(),
+                QRCodeState::Canceled => {
+                    warn!(target: crate::WALLE_Q, "二维码已取消");
+                    return Err(RQError::Other("二维码已取消".to_owned()));
+                }
+                QRCodeState::ImageFetch(_) => unreachable!(),
             }
         }
     } else {
@@ -139,7 +136,24 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
             LoginResponse::DeviceLockLogin { .. } => {
                 resp = cli.device_lock_login().await?;
             }
-            _ => unimplemented!(),
+            LoginResponse::AccountFrozen => {
+                warn!(target: crate::WALLE_Q, "账号被冻结");
+                return Err(RQError::Other("账号被冻结".to_string()));
+            }
+            LoginResponse::NeedCaptcha(_) => {
+                unimplemented!();
+            }
+            LoginResponse::TooManySMSRequest => {
+                warn!(target: crate::WALLE_Q, "短信验证码请求过于频繁");
+                return Err(RQError::Other("短信验证码请求过于频繁".to_string()));
+            }
+            LoginResponse::UnknownStatus(s) => {
+                warn!(
+                    target: crate::WALLE_Q,
+                    "LoginResponse UnknownStatus: {:?}", s
+                );
+                return Err(RQError::Other("未知状态".to_string()));
+            }
         }
     }
 }
