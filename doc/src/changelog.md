@@ -1,3 +1,15 @@
+## 0.1.2
+
+### Features
+
+- 命令行二维码打印
+- 添加部分扩展字段
+
+### Internal
+
+- ricq update to 0.1.8
+- walle-core update to 0.5.0
+
 ## 0.0.3
 
 - 支持图片消息发送
