@@ -35,6 +35,7 @@ A qq platform OneBot Implementation
 - [x] 群成员禁言
 - [x] 群管理员设置
 - [x] 群管理取消设置
+- [x] 好友添加请求
 - [ ] ...
 
 ## 已支持消息段
@@ -45,6 +46,7 @@ A qq platform OneBot Implementation
 - [x] at消息
 - [x] face消息
 - [x] image消息
+- [x] reply消息
 - [ ] ...
 
 ### 仅接收
@@ -56,25 +58,30 @@ A qq platform OneBot Implementation
 
 ## 已支持 API
 
-- [x] get_latest_events
-- [x] get_supported_actions
-- [x] get_status
-- [x] get_version
-- [x] send_message
-- [x] delete_message
-- [x] get_self_info
-- [x] get_user_info
-- [x] get_friend_list
-- [x] get_group_info
-- [x] get_group_list
-- [x] get_group_member_list
-- [x] get_group_member_info
-- [x] set_group_name
-- [x] kick_group_member
-- [x] ban_group_member
-- [x] unban_group_member
-- [x] set_group_admin
-- [x] unset_group_admin
+- [x] 获取近期事件 get_latest_events
+- [x] 获取支持的动作列表 get_supported_actions
+- [x] 获取运行状态 get_status
+- [x] 获取版本信息 get_version
+- [x] 发送消息 send_message
+- [x] 删除消息 delete_message
+- [x] 获取消息 get_message
+- [x] 获取机器人自身信息 get_self_info
+- [x] 获取用户信息 get_user_info
+- [x] 获取好友列表 get_friend_list
+- [x] 处理好友请求 set_new_friend
+- [x] 删除好友 delete_friend
+- [x] 获取好友请求列表 get_new_friend_request
+- [x] 获取群信息 get_group_info
+- [x] 获取群列表 get_group_list
+- [x] 获取群成员信息 get_group_member_info
+- [x] 获取群成员列表 get_group_member_list
+- [x] 设置群名称 set_group_name
+- [x] 退出群 leave_group
+- [x] 踢出群成员 kick_group_member
+- [x] 禁言群成员 ban_group_member
+- [x] 解禁群成员 unban_group_member
+- [x] 设置群管理员 set_group_admin
+- [x] 取消群管理员 unset_group_admin
 - [ ] ...
 
 ## OneBot-v11 协议支持

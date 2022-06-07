@@ -45,6 +45,9 @@ impl<'a> MsgChainBuilder<'a> {
         }
         if let Some(r) = reply {
             chain.with_reply(r);
+            if chain.0.len() == 1 {
+                chain.push(elem::Text::new(" ".to_string()));
+            }
         }
         if chain.0.is_empty() {
             Ok(None)

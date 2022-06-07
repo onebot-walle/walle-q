@@ -6,6 +6,7 @@
 - 添加 set_new_friend 动作
 - 添加 delete_friend 动作
 - 添加 get_new_friend_request 动作
+- 支持收发 Reply MessageSegment
 
 ## 0.1.2
 

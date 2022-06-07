@@ -162,7 +162,7 @@
 
 群信息列表，每一个元素的字段同 `get_group_info` 的响应数据。
 
-## 获取群成员列表 get_group_member_info
+## 获取群成员信息 get_group_member_info
 
 动作请求:
 
