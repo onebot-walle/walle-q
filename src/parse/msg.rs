@@ -1,8 +1,8 @@
-use ricq::msg::elem::{self, RQElem};
+use ricq::msg::elem::{self, FlashImage, RQElem};
 use ricq::msg::MessageChain;
 use ricq::Client;
 use tracing::{debug, trace, warn};
-use walle_core::{extended_map, Message, MessageSegment};
+use walle_core::{extended_map, ExtendedMapExt, Message, MessageSegment};
 
 use crate::database::{Database, SImage, WQDatabase};
 
@@ -79,17 +79,33 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         RQElem::FriendImage(i) => {
             wqdb._insert_image(&i);
             Some(MessageSegment::Image {
-                extra: extended_map! {"url": i.url()},
+                extra: extended_map! {"url": i.url(), "flash": false},
                 file_id: i.hex_image_id(),
             })
         }
         RQElem::GroupImage(i) => {
             wqdb._insert_image(&i);
             Some(MessageSegment::Image {
-                extra: extended_map! {"url": i.url()},
+                extra: extended_map! {"url": i.url(), "flash": false},
                 file_id: i.hex_image_id(),
             })
         }
+        RQElem::FlashImage(fi) => match fi {
+            FlashImage::FriendImage(fi) => {
+                wqdb._insert_image(&fi);
+                Some(MessageSegment::Image {
+                    extra: extended_map! {"url": fi.url(), "flash": true},
+                    file_id: fi.hex_image_id(),
+                })
+            }
+            FlashImage::GroupImage(gi) => {
+                wqdb._insert_image(&gi);
+                Some(MessageSegment::Image {
+                    extra: extended_map! {"url": gi.url(), "flash": true},
+                    file_id: gi.hex_image_id(),
+                })
+            }
+        },
         RQElem::Other(_) => {
             trace!("unknown Other MsgElem: {:?}", elem);
             None
@@ -106,6 +122,16 @@ pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> V
         .into_iter()
         .filter_map(|s| rq_elem2msg_seg(s, wqdb))
         .collect()
+}
+
+macro_rules! maybe_flash {
+    ($chain: ident, $flash: expr, $image: ident) => {
+        if $flash {
+            $chain.push(FlashImage::from($image));
+        } else {
+            $chain.push($image);
+        }
+    };
 }
 
 async fn push_msg_seg(
@@ -152,28 +178,29 @@ async fn push_msg_seg(
             _ => warn!("unsupported custom type: {}", ty),
         },
         MessageSegment::Image { file_id, mut extra } => {
+            let flash = extra.try_remove("flash").unwrap_or(false);
             if let Some(info) = hex::decode(&file_id)
                 .ok()
                 .and_then(|id| wqdb.get_image(&id))
             {
                 if group {
                     if let Some(image) = info.try_into_group_elem(cli, target).await {
-                        chain.push(image);
+                        maybe_flash!(chain, flash, image);
                     }
                 } else if let Some(image) = info.try_into_friend_elem(cli, target).await {
-                    chain.push(image);
+                    maybe_flash!(chain, flash, image);
                 }
-            } else if let Some(b64) = extra.remove("url").and_then(|b64| b64.downcast_str().ok()) {
-                match uri_reader::uget(&b64).await {
+            } else if let Some(uri) = extra.remove("url").and_then(|b64| b64.downcast_str().ok()) {
+                match uri_reader::uget(&uri).await {
                     Ok(data) => {
                         if group {
                             match cli.upload_group_image(target, data).await {
-                                Ok(image) => chain.push(image),
+                                Ok(image) => maybe_flash!(chain, flash, image),
                                 Err(e) => warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e),
                             }
                         } else {
                             match cli.upload_friend_image(target, data).await {
-                                Ok(image) => chain.push(image),
+                                Ok(image) => maybe_flash!(chain, flash, image),
                                 Err(e) => warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e),
                             }
                         }

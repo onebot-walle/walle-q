@@ -138,7 +138,7 @@ impl super::Handler {
                 ty => Err(error::unsupported_param(ty)),
             }
         } else {
-            Err(error::image_unuploaded())
+            Err(error::file_not_found())
         }
     }
 
