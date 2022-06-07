@@ -50,9 +50,9 @@ sled: false                 # 启用 sled 数据库 (内存占用较大)
 
 已支持协议设备：
 
-- 0 -> `IPad`
-- 1 -> `AndroidPhone`
-- 2 -> `AndroidWatch`
-- 3 -> `MacOS`
-- 4 -> `QiDian`
-- 5 -> `IPad`
+- 0: `IPad`
+- 1: `AndroidPhone`
+- 2: `AndroidWatch`
+- 3: `MacOS`
+- 4: `QiDian`
+- 5: `IPad`

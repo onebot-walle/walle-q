@@ -1,10 +1,10 @@
-pub(crate) mod simage;
 pub(crate) mod leveldb;
 pub(crate) mod message;
+pub(crate) mod simage;
 pub(crate) mod sleddb;
 
-pub use simage::*;
 pub use message::*;
+pub use simage::*;
 
 pub(crate) trait DatabaseInit {
     fn init() -> Self;
@@ -71,13 +71,8 @@ impl Database for WQDatabaseInner {
 }
 
 // insert all but read the first
+#[derive(Default)]
 pub(crate) struct WQDatabase(pub(crate) Vec<WQDatabaseInner>);
-
-impl Default for WQDatabase {
-    fn default() -> Self {
-        Self(vec![])
-    }
-}
 
 impl WQDatabase {
     pub(crate) fn sled(mut self) -> Self {

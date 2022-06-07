@@ -168,7 +168,7 @@ impl Handler {
             if let Some(chain) =
                 MsgChainBuilder::group_chain_builder(&self.client, group_code, c.message.clone())
                     .build(&self.database)
-                    .await
+                    .await?
             {
                 let receipt = self
                     .client
@@ -208,7 +208,7 @@ impl Handler {
             if let Some(chain) =
                 MsgChainBuilder::private_chain_builder(&self.client, target, c.message.clone())
                     .build(&self.database)
-                    .await
+                    .await?
             {
                 let receipt = self
                     .client

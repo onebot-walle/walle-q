@@ -174,10 +174,10 @@ impl super::Handler {
                 file_path.push(format!("{}-{}", file_id, offset));
                 let mut file = tokio::fs::File::create(file_path)
                     .await
-                    .map_err(|e| error::file_create_error(e))?;
+                    .map_err(error::file_create_error)?;
                 file.write_all(&data)
                     .await
-                    .map_err(|e| error::file_write_error(e))?;
+                    .map_err(error::file_write_error)?;
                 match self.uploading_fragment.lock().await.cache_get_mut(&file_id) {
                     Some(f) => f.files.push((offset, size)),
                     None => return Err(error::prepare_file_first()),
@@ -191,7 +191,7 @@ impl super::Handler {
                     .lock()
                     .await
                     .cache_remove(&file_id)
-                    .ok_or(error::prepare_file_first())?;
+                    .ok_or_else(error::prepare_file_first)?;
                 fragment.files.sort();
                 let mut data = Vec::with_capacity(fragment.total_size as usize);
                 let mut total_size = 0;
@@ -200,10 +200,10 @@ impl super::Handler {
                     file_path.push(format!("{}-{}", file_id, offset));
                     let mut file = tokio::fs::File::open(file_path)
                         .await
-                        .map_err(|e| error::file_open_error(e))?;
+                        .map_err(error::file_open_error)?;
                     file.read_buf(&mut data)
                         .await
-                        .map_err(|e| error::file_read_error(e))?;
+                        .map_err(error::file_read_error)?;
                     total_size += size;
                 }
                 if total_size != fragment.total_size {
@@ -226,7 +226,7 @@ impl super::Handler {
             h: &super::Handler,
             simage: impl SImage,
         ) -> Result<(ImageInfo, String), RespError> {
-            let data = simage.data().await.map_err(|e| error::rq_error(e))?;
+            let data = simage.data().await.map_err(error::rq_error)?;
             let sha256 = {
                 let mut s = sha2::Sha256::default();
                 s.update(&data);
@@ -241,12 +241,12 @@ impl super::Handler {
                 let (info, sha256) = match self
                     .database
                     .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)
-                    .ok_or(error::file_not_found())?
+                    .ok_or_else(error::file_not_found)?
                 {
                     Images::Friend(f) => to_info(self, f).await?,
                     Images::Group(g) => to_info(self, g).await?,
                     Images::Info(i) => {
-                        let data = i.data().await.map_err(|e| error::rq_error(e))?;
+                        let data = i.data().await.map_err(error::rq_error)?;
                         let sha256 = {
                             let mut s = sha2::Sha256::default();
                             s.update(&data);
@@ -273,17 +273,15 @@ impl super::Handler {
                 let info: ImageInfo = self
                     .database
                     ._get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)
-                    .ok_or(error::file_not_found())?;
+                    .ok_or_else(error::file_not_found)?;
                 let mut file = tokio::fs::File::open(info.path())
                     .await
-                    .map_err(|e| error::file_open_error(e))?;
+                    .map_err(error::file_open_error)?;
                 file.seek(SeekFrom::Start(offset as u64))
                     .await
-                    .map_err(|e| error::file_read_error(e))?;
+                    .map_err(error::file_read_error)?;
                 let mut data = Vec::with_capacity(size as usize);
-                file.read(&mut data)
-                    .await
-                    .map_err(|e| error::file_read_error(e))?;
+                file.read(&mut data).await.map_err(error::file_read_error)?;
                 Ok(Resps::success(data.into()))
             }
         }

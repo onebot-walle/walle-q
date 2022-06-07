@@ -1,10 +1,13 @@
 use ricq::msg::elem::{self, FlashImage, RQElem};
 use ricq::msg::MessageChain;
 use ricq::Client;
-use tracing::{debug, trace, warn};
+use serde::{Deserialize, Serialize};
+use tracing::{debug, warn};
+use walle_core::resp::RespError;
 use walle_core::{extended_map, ExtendedMapExt, Message, MessageSegment};
 
 use crate::database::{Database, SImage, WQDatabase};
+use crate::error;
 
 pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
@@ -30,15 +33,23 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Option<MessageChain> {
+    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Result<Option<MessageChain>, RespError> {
         let mut chain = MessageChain::default();
+        let mut reply = None;
         for msg_seg in self.message {
-            push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli, wqdb).await;
+            if let Some(r) =
+                push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli, wqdb).await?
+            {
+                reply = Some(r);
+            }
+        }
+        if let Some(r) = reply {
+            chain.with_reply(r);
         }
         if chain.0.is_empty() {
-            None
+            Ok(None)
         } else {
-            Some(chain)
+            Ok(Some(chain))
         }
     }
 }
@@ -106,22 +117,37 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 })
             }
         },
+        RQElem::RichMsg(rich) => Some(MessageSegment::Custom {
+            ty: "xml".to_string(),
+            data: extended_map! {
+                "service_id": rich.service_id,
+                "data": rich.template1
+            },
+        }),
         RQElem::Other(_) => {
-            trace!("unknown Other MsgElem: {:?}", elem);
+            tracing::trace!(target: crate::WALLE_Q, "unknown Other MsgElem: {:?}", elem);
             None
         }
         elem => {
-            debug!("unsupported MsgElem: {:?}", elem);
+            debug!(target: crate::WALLE_Q, "unsupported MsgElem: {:?}", elem);
             None
         }
     }
 }
 
 pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> Vec<MessageSegment> {
-    chain
-        .into_iter()
-        .filter_map(|s| rq_elem2msg_seg(s, wqdb))
-        .collect()
+    let mut rv = vec![];
+    if let Some(reply) = chain.reply() {
+        rv.push(MessageSegment::Reply {
+            message_id: reply.reply_seq.to_string(),
+            user_id: reply.sender.to_string(),
+            extra: extended_map! {},
+        })
+    }
+    for seg in chain.into_iter().filter_map(|s| rq_elem2msg_seg(s, wqdb)) {
+        rv.push(seg);
+    }
+    rv
 }
 
 macro_rules! maybe_flash {
@@ -141,7 +167,7 @@ async fn push_msg_seg(
     group: bool,
     cli: &Client,
     wqdb: &WQDatabase,
-) {
+) -> Result<Option<elem::Reply>, RespError> {
     match seg {
         MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
         MessageSegment::Mention { user_id, .. } => {
@@ -150,7 +176,7 @@ async fn push_msg_seg(
                     .get_group_member_info(target, user_id)
                     .await
                     .map(|info| info.nickname)
-                    .unwrap_or(user_id.to_string());
+                    .unwrap_or_else(|_| user_id.to_string());
                 chain.push(elem::At {
                     display,
                     target: user_id,
@@ -161,6 +187,31 @@ async fn push_msg_seg(
             display: "all".to_string(),
             target: 0,
         }),
+        // MessageSegment::Reply { message_id, .. } => {
+        //     let reply_seq: i32 = message_id
+        //         .parse()
+        //         .map_err(|_| error::bad_param("message_id"))?;
+        //     let event: MessageEvent = wqdb
+        //         .get_message(reply_seq)
+        //         .ok_or_else(error::message_not_exist)?
+        //         .event()
+        //         .try_into()
+        //         .unwrap();
+        //     let sub_chain = {
+        //         let mut chain = MessageChain::default();
+        //         chain.push(elem::Text {
+        //             content: event.alt_message().to_string(),
+        //         });
+        //         chain
+        //     };
+        //     return Ok(Some(elem::Reply {
+        //         reply_seq,
+        //         sender: event.user_id().parse().unwrap(),
+        //         group_id: 0,
+        //         time: event.time as i32,
+        //         elements: sub_chain,
+        //     }));
+        // }
         MessageSegment::Custom { ty, mut data } => match ty.as_str() {
             "face" => {
                 if let Some(id) = data.remove("id").and_then(|v| v.downcast_int().ok()) {
@@ -174,6 +225,18 @@ async fn push_msg_seg(
                 } else {
                     warn!("invalid face id");
                 }
+            }
+            "xml" => {
+                let service_id =
+                    data.try_remove::<i64>("service_id")
+                        .map_err(|_| error::bad_param("service_id"))? as i32;
+                let template1: String = data
+                    .try_remove("data")
+                    .map_err(|_| error::bad_param("data"))?;
+                chain.push(elem::RichMsg {
+                    service_id,
+                    template1,
+                });
             }
             _ => warn!("unsupported custom type: {}", ty),
         },
@@ -217,6 +280,7 @@ async fn push_msg_seg(
             warn!("unsupported MessageSegment: {:?}", seg);
         }
     }
+    Ok(None)
 }
 
 pub trait SendAble {
@@ -235,3 +299,11 @@ impl SendAble for MessageSegment {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MaybeNode {
+    Node(),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Forward {}

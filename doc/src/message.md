@@ -1,6 +1,6 @@
 # 消息 Message
 
-根据 OneBot 协议规定，消息是由不定数个消息段组成的 List。
+根据 OneBot 协议规定，消息是由不定数个消息段 (MessageSegment) 组成的 List。
 
 以下列举支持的消息段：
 
@@ -69,4 +69,38 @@
 | ---- | ------ | --------- |
 | data | String | json 内容 |
 
+## 回复消息 reply
 
+> *未支持发送该消息段*
+
+| 字段       | 类型   | 说明             |
+| ---------- | ------ | ---------------- |
+| message_id | String | 回复引用的消息ID |
+| user_id    | String | 回复引用的用户ID |
+
+## 富文本消息 xml
+
+| 字段       | 类型   | 说明     |
+| ---------- | ------ | -------- |
+| service_id | i64    | 服务 ID  |
+| data       | String | xml 内容 |
+
+## 合并转发 forward
+
+> preview
+
+| 字段  | 类型        | 说明           |
+| ----- | ----------- | -------------- |
+| nodes | Vec\<Node\> | 转发的消息节点 |
+
+## 合并转发节点 node
+
+> 无法单独发送，请使用 forward 消息段包含 node 发送。
+> preview
+
+| 字段      | 类型                  | 说明    |
+| --------- | --------------------- | ------- |
+| user_id   | String                | 用户 ID |
+| time      | f64                   | 时间    |
+| user_name | String                | 用户名  |
+| message   | Vec\<MessageSegment\> | 消息    |
