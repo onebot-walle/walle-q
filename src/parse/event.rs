@@ -1,10 +1,10 @@
 use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
-use crate::handler::OneBot;
+use crate::OneBot;
 
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
-use walle_core::extended_map;
+use walle_core::{extended_map, RequestContent};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent, StandardEvent};
 
 pub(crate) async fn qevent2event(
@@ -204,6 +204,23 @@ pub(crate) async fn qevent2event(
                 _ => None,
             }
         }
+        QEvent::FriendRequest(fre) => Some(
+            ob.new_event(
+                RequestContent {
+                    detail_type: "new_friend".to_string(),
+                    sub_type: "".to_string(),
+                    extra: extended_map! {
+                        "request_id": fre.request.msg_seq,
+                        "user_id": fre.request.req_uin,
+                        "user_name": fre.request.req_nick,
+                        "message": fre.request.message,
+                    },
+                }
+                .into(),
+                walle_core::timestamp_nano_f64(),
+            )
+            .await,
+        ),
 
         event => {
             warn!("unsupported event: {:?}", event);

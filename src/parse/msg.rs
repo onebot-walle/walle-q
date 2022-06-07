@@ -4,7 +4,7 @@ use ricq::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 use walle_core::resp::RespError;
-use walle_core::{extended_map, ExtendedMapExt, Message, MessageSegment};
+use walle_core::{extended_map, ExtendedMapExt, Message, MessageEvent, MessageSegment};
 
 use crate::database::{Database, SImage, WQDatabase};
 use crate::error;
@@ -187,31 +187,31 @@ async fn push_msg_seg(
             display: "all".to_string(),
             target: 0,
         }),
-        // MessageSegment::Reply { message_id, .. } => {
-        //     let reply_seq: i32 = message_id
-        //         .parse()
-        //         .map_err(|_| error::bad_param("message_id"))?;
-        //     let event: MessageEvent = wqdb
-        //         .get_message(reply_seq)
-        //         .ok_or_else(error::message_not_exist)?
-        //         .event()
-        //         .try_into()
-        //         .unwrap();
-        //     let sub_chain = {
-        //         let mut chain = MessageChain::default();
-        //         chain.push(elem::Text {
-        //             content: event.alt_message().to_string(),
-        //         });
-        //         chain
-        //     };
-        //     return Ok(Some(elem::Reply {
-        //         reply_seq,
-        //         sender: event.user_id().parse().unwrap(),
-        //         group_id: 0,
-        //         time: event.time as i32,
-        //         elements: sub_chain,
-        //     }));
-        // }
+        MessageSegment::Reply { message_id, .. } => {
+            let reply_seq: i32 = message_id
+                .parse()
+                .map_err(|_| error::bad_param("message_id"))?;
+            let event: MessageEvent = wqdb
+                .get_message(reply_seq)
+                .ok_or_else(error::message_not_exist)?
+                .event()
+                .try_into()
+                .unwrap();
+            let sub_chain = {
+                let mut chain = MessageChain::default();
+                chain.push(elem::Text {
+                    content: event.alt_message().to_string(),
+                });
+                chain
+            };
+            return Ok(Some(elem::Reply {
+                reply_seq,
+                sender: event.user_id().parse().unwrap(),
+                group_id: 0,
+                time: event.time as i32,
+                elements: sub_chain,
+            }));
+        }
         MessageSegment::Custom { ty, mut data } => match ty.as_str() {
             "face" => {
                 if let Some(id) = data.remove("id").and_then(|v| v.downcast_int().ok()) {

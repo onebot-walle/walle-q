@@ -113,6 +113,34 @@
 
 好友信息列表，每一个元素的字段同 `get_user_info` 的响应数据。
 
+## 处理好友请求 set_new_friend
+
+动作请求：
+
+| 字段       | 类型   | 说明         |
+| ---------- | ------ | ------------ |
+| user_id    | String | 用户 ID      |
+| request_id | i64    | 请求 ID      |
+| accept     | bool   | 是否接受请求 |
+
+无动作响应数据
+
+
+## 删除好友 delete_friend
+
+| 字段    | 类型   | 说明    |
+| ------- | ------ | ------- |
+| user_id | String | 用户 ID |
+
+
+无动作响应数据
+
+## 获取好友请求列表 get_new_friend_request
+
+无动作请求数据
+
+动作响应为 Vec\<event.request.new_friend\>
+
 ## 获取群信息 get_group_info
 
 动作请求:

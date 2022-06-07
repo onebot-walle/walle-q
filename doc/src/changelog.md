@@ -1,3 +1,12 @@
+## 0.1.3 (unrelease)
+
+### Features
+
+- 添加 event.request.new_friend
+- 添加 set_new_friend 动作
+- 添加 delete_friend 动作
+- 添加 get_new_friend_request 动作
+
 ## 0.1.2
 
 ### Features

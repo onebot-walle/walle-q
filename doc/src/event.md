@@ -104,3 +104,14 @@
 | user_id     | String | 成员 ID   |
 | group_id    | String | 群 ID     |
 | operator_id | String | 操作者 ID |
+
+# 请求事件 request
+
+## 好友添加请求 request.new_friend
+
+| 字段       | 类型   | 说明          |
+| ---------- | ------ | ------------- |
+| request_id | i64    | 请求 ID       |
+| user_id    | String | 用户 ID       |
+| user_name  | String | 用户名称/昵称 |
+| message    | String | 请求信息      |

@@ -3,15 +3,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cached::{SizedCache, TimedCache};
 use tokio::sync::Mutex;
-use walle_core::action::{
-    DeleteMessage, GetGroupInfo, GetGroupMemberInfo, GetGroupMemberList, GetLatestEvents,
-    GetMessage, GetUserInfo, KickGroupMember, LeaveGroup, SendMessage, SetGroupName,
-};
-use walle_core::impls::StandardOneBot;
-use walle_core::resp::{
-    error_builder, GroupInfoContent, RespError, SendMessageRespContent, StatusContent,
-    UserInfoContent, VersionContent,
-};
+use walle_core::{action::*, ExtendedValue};
+use walle_core::{extended_value, resp::*};
 use walle_core::{
     ActionHandler, ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction,
     StandardEvent,
@@ -19,8 +12,9 @@ use walle_core::{
 
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
 use crate::error;
+use crate::extra::*;
 use crate::parse::MsgChainBuilder;
-use crate::WQResp;
+use crate::{OneBot, WQResp};
 
 use self::file::FragmentFile;
 
@@ -36,7 +30,36 @@ pub(crate) struct Handler {
     pub(crate) uploading_fragment: Mutex<TimedCache<String, FragmentFile>>,
 }
 
-pub(crate) type OneBot = StandardOneBot<Handler>;
+impl ActionHandler<WQAction, WQResp, OneBot> for Handler {
+    type Error = RespError;
+    fn handle<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        action: WQAction,
+        ob: &'life1 OneBot,
+    ) -> core::pin::Pin<Box<dyn core::future::Future<Output = WQRespResult> + Send + 'async_trait>>
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        match action {
+            WQAction::Standard(standard) => self.handle(standard, ob),
+            WQAction::Extra(extended) => self.handle(extended, ob),
+        }
+    }
+}
+
+#[async_trait]
+impl ActionHandler<WQExtraAction, WQResp, OneBot> for Handler {
+    type Error = RespError;
+    async fn handle(&self, action: WQExtraAction, _ob: &OneBot) -> WQRespResult {
+        match action {
+            WQExtraAction::SetNewFriend(c) => self.set_new_friend(c).await,
+            WQExtraAction::DeleteFriend(c) => self.delete_friend(c).await,
+            WQExtraAction::GetNewFriendRequest(_) => self.get_new_friend_request().await,
+        }
+    }
+}
 
 #[async_trait]
 impl ActionHandler<StandardAction, WQResp, OneBot> for Handler {
@@ -46,39 +69,39 @@ impl ActionHandler<StandardAction, WQResp, OneBot> for Handler {
             tracing::info!(target: crate::WALLE_Q, "{}", alt);
         }
         match action {
-            StandardAction::GetLatestEvents(c) => self.get_latest_events(c, ob).await,
+            StandardAction::GetLatestEvents(c) => self.get_latest_events(c).await,
             StandardAction::GetSupportedActions(_) => Self::get_supported_actions(),
             StandardAction::GetStatus(_) => self.get_status(),
             StandardAction::GetVersion(_) => Self::get_version(),
 
             StandardAction::SendMessage(c) => self.send_message(c, ob).await,
-            StandardAction::DeleteMessage(c) => self.delete_message(c, ob).await,
-            StandardAction::GetMessage(c) => self.get_message(c, ob).await,
+            StandardAction::DeleteMessage(c) => self.delete_message(c).await,
+            StandardAction::GetMessage(c) => self.get_message(c).await,
 
             StandardAction::GetSelfInfo(_) => self.get_self_info().await,
-            StandardAction::GetUserInfo(c) => self.get_user_info(c, ob).await,
+            StandardAction::GetUserInfo(c) => self.get_user_info(c).await,
             StandardAction::GetFriendList(_) => self.get_friend_list().await,
 
-            StandardAction::GetGroupInfo(c) => self.get_group_info(c, ob).await,
+            StandardAction::GetGroupInfo(c) => self.get_group_info(c).await,
             StandardAction::GetGroupList(_) => self.get_group_list().await,
             StandardAction::GetGroupMemberInfo(c) => self.get_group_member_info(c).await,
             StandardAction::GetGroupMemberList(c) => self.get_group_member_list(c).await,
-            StandardAction::SetGroupName(c) => self.set_group_name(c, ob).await,
-            StandardAction::LeaveGroup(c) => self.leave_group(c, ob).await,
-            StandardAction::KickGroupMember(c) => self.kick_group_member(c, ob).await,
+            StandardAction::SetGroupName(c) => self.set_group_name(c).await,
+            StandardAction::LeaveGroup(c) => self.leave_group(c).await,
+            StandardAction::KickGroupMember(c) => self.kick_group_member(c).await,
             StandardAction::BanGroupMember(c) => {
-                self.ban_group_member(c.group_id, c.user_id, c.extra, ob, false)
+                self.ban_group_member(c.group_id, c.user_id, c.extra, false)
                     .await
             }
             StandardAction::UnbanGroupMember(c) => {
-                self.ban_group_member(c.group_id, c.user_id, c.extra, ob, true)
+                self.ban_group_member(c.group_id, c.user_id, c.extra, true)
                     .await
             }
             StandardAction::SetGroupAdmin(c) => {
-                self.set_group_admin(c.group_id, c.user_id, ob, false).await
+                self.set_group_admin(c.group_id, c.user_id, false).await
             }
             StandardAction::UnsetGroupAdmin(c) => {
-                self.set_group_admin(c.group_id, c.user_id, ob, true).await
+                self.set_group_admin(c.group_id, c.user_id, true).await
             }
 
             StandardAction::UploadFile(c) => self.upload_file(c, ob).await,
@@ -91,7 +114,7 @@ impl ActionHandler<StandardAction, WQResp, OneBot> for Handler {
 }
 
 impl Handler {
-    async fn get_latest_events(&self, c: GetLatestEvents, _ob: &OneBot) -> WQRespResult {
+    async fn get_latest_events(&self, c: GetLatestEvents) -> WQRespResult {
         let get = || async {
             self.event_cache
                 .lock()
@@ -246,7 +269,7 @@ impl Handler {
         }
     }
 
-    async fn delete_message(&self, c: DeleteMessage, _ob: &OneBot) -> WQRespResult {
+    async fn delete_message(&self, c: DeleteMessage) -> WQRespResult {
         if let Some(m) = self.database.get_message(
             c.message_id
                 .parse()
@@ -272,7 +295,7 @@ impl Handler {
         }
     }
 
-    async fn get_message(&self, c: GetMessage, _ob: &OneBot) -> WQRespResult {
+    async fn get_message(&self, c: GetMessage) -> WQRespResult {
         if let Some(m) = self.database.get_message(
             c.message_id
                 .parse()
@@ -294,7 +317,7 @@ impl Handler {
             .into(),
         ))
     }
-    async fn get_user_info(&self, c: GetUserInfo, _ob: &OneBot) -> WQRespResult {
+    async fn get_user_info(&self, c: GetUserInfo) -> WQRespResult {
         let user_id: i64 = c.user_id.parse().map_err(|_| error::bad_param("user_id"))?;
         let info = self
             .client
@@ -327,7 +350,7 @@ impl Handler {
                 .into(),
         ))
     }
-    async fn get_group_info(&self, c: GetGroupInfo, _ob: &OneBot) -> WQRespResult {
+    async fn get_group_info(&self, c: GetGroupInfo) -> WQRespResult {
         let group_id: i64 = c
             .group_id
             .parse()
@@ -409,7 +432,7 @@ impl Handler {
             .into(),
         ))
     }
-    async fn set_group_name(&self, c: SetGroupName, _ob: &OneBot) -> WQRespResult {
+    async fn set_group_name(&self, c: SetGroupName) -> WQRespResult {
         self.client
             .update_group_name(
                 c.group_id
@@ -421,7 +444,7 @@ impl Handler {
             .map_err(error::rq_error)?;
         Ok(Resps::empty_success())
     }
-    async fn leave_group(&self, c: LeaveGroup, _ob: &OneBot) -> WQRespResult {
+    async fn leave_group(&self, c: LeaveGroup) -> WQRespResult {
         self.client
             .group_quit(
                 c.group_id
@@ -432,7 +455,7 @@ impl Handler {
             .map_err(error::rq_error)?;
         Ok(Resps::empty_success())
     }
-    async fn kick_group_member(&self, c: KickGroupMember, _ob: &OneBot) -> WQRespResult {
+    async fn kick_group_member(&self, c: KickGroupMember) -> WQRespResult {
         self.client
             .group_kick(
                 c.group_id
@@ -451,7 +474,6 @@ impl Handler {
         group_id: String,
         user_id: String,
         extra: ExtendedMap,
-        _ob: &OneBot,
         unban: bool,
     ) -> WQRespResult {
         use std::time::Duration;
@@ -480,7 +502,6 @@ impl Handler {
         &self,
         group_id: String,
         user_id: String,
-        _ob: &OneBot,
         unset: bool,
     ) -> WQRespResult {
         self.client
@@ -492,5 +513,48 @@ impl Handler {
             .await
             .map_err(error::rq_error)?;
         Ok(Resps::empty_success())
+    }
+}
+
+impl Handler {
+    async fn set_new_friend(&self, c: SetNewFriend) -> WQRespResult {
+        self.client
+            .solve_friend_system_message(
+                c.request_id,
+                c.user_id.parse().map_err(|_| error::bad_param("user_id"))?,
+                c.accept,
+            )
+            .await
+            .map_err(error::rq_error)?;
+        Ok(Resps::empty_success())
+    }
+    async fn delete_friend(&self, c: DeleteFriend) -> WQRespResult {
+        self.client
+            .delete_friend(c.user_id.parse().map_err(|_| error::bad_param("user_id"))?)
+            .await
+            .map_err(error::rq_error)?;
+        Ok(Resps::empty_success())
+    }
+    async fn get_new_friend_request(&self) -> WQRespResult {
+        Ok(Resps::success(
+            ExtendedValue::List(
+                self.client
+                    .get_friend_system_messages()
+                    .await
+                    .map_err(error::rq_error)?
+                    .requests
+                    .into_iter()
+                    .map(|r| {
+                        extended_value!({
+                            "request_id": r.msg_seq,
+                            "user_id": r.req_uin,
+                            "user_name": r.req_nick,
+                            "message": r.message,
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .into(),
+        ))
     }
 }

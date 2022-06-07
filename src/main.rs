@@ -5,12 +5,13 @@ use std::sync::Arc;
 use cached::Cached;
 use clap::Parser;
 use ricq::client::Client;
-use walle_core::ColoredAlt;
+use walle_core::{ColoredAlt, Resps, StandardEvent};
 
 mod command;
 mod config;
 mod database;
 pub(crate) mod error;
+pub(crate) mod extra;
 mod handler;
 mod login;
 pub(crate) mod parse;
@@ -22,6 +23,13 @@ const IMAGE_CACHE_DIR: &str = "./data/image";
 const FILE_CACHE_DIR: &str = "./data/file";
 
 type WQResp = walle_core::Resps<walle_core::StandardEvent>;
+type OneBot = walle_core::impls::CustomOneBot<
+    StandardEvent,
+    extra::WQAction,
+    Resps<StandardEvent>,
+    handler::Handler,
+    12,
+>;
 
 #[tokio::main]
 async fn main() {
@@ -49,7 +57,7 @@ async fn main() {
     let cache = Arc::new(tokio::sync::Mutex::new(cached::SizedCache::with_size(
         comm.event_cache_size.unwrap_or(100),
     )));
-    let ob = walle_core::impls::StandardOneBot::new(
+    let ob = OneBot::new(
         WALLE_Q,
         "qq",
         &self_id.to_string(),
