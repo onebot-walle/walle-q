@@ -11,6 +11,7 @@ walle-v11 = { version = "0.5.0" }
 ricq = "0.1.7"
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"
+async-recursion = "*"
 serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.8"
 serde_json = "1"

@@ -13,7 +13,7 @@ use walle_core::{
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
 use crate::error;
 use crate::extra::*;
-use crate::parse::MsgChainBuilder;
+use crate::parse::{MsgChainBuilder, RQSendable};
 use crate::{OneBot, WQResp};
 
 use self::file::FragmentFile;
@@ -188,16 +188,23 @@ impl Handler {
         if &c.detail_type == "group" {
             let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
             let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
-            if let Some(chain) =
+            if let Some(s) =
                 MsgChainBuilder::group_chain_builder(&self.client, group_code, c.message.clone())
                     .build(&self.database)
                     .await?
             {
-                let receipt = self
-                    .client
-                    .send_group_message(group_code, chain)
-                    .await
-                    .map_err(error::rq_error)?;
+                let receipt = match s {
+                    RQSendable::Chain(chain) => self
+                        .client
+                        .send_group_message(group_code, chain)
+                        .await
+                        .map_err(error::rq_error)?,
+                    RQSendable::Forward(msgs) => self
+                        .client
+                        .send_group_forward_message(group_code, msgs)
+                        .await
+                        .map_err(error::rq_error)?,
+                };
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
                     message_id: message_id.clone(),
@@ -228,16 +235,19 @@ impl Handler {
         } else if &c.detail_type == "private" {
             let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
             let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
-            if let Some(chain) =
+            if let Some(s) =
                 MsgChainBuilder::private_chain_builder(&self.client, target, c.message.clone())
                     .build(&self.database)
                     .await?
             {
-                let receipt = self
-                    .client
-                    .send_friend_message(target, chain)
-                    .await
-                    .map_err(error::rq_error)?;
+                let receipt = match s {
+                    RQSendable::Chain(chain) => self
+                        .client
+                        .send_friend_message(target, chain)
+                        .await
+                        .map_err(error::rq_error)?,
+                    RQSendable::Forward(_) => return Err(error::unsupported_param("forward")),
+                };
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
                     message_id: message_id.clone(),

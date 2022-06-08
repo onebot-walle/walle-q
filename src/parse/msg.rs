@@ -1,19 +1,28 @@
 use ricq::msg::elem::{self, FlashImage, RQElem};
 use ricq::msg::MessageChain;
+use ricq::structs::ForwardMessage;
 use ricq::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 use walle_core::resp::RespError;
-use walle_core::{extended_map, ExtendedMapExt, Message, MessageEvent, MessageSegment};
+use walle_core::{
+    extended_map, ExtendedMapExt, ExtendedValue, Message, MessageEvent, MessageSegment,
+};
 
 use crate::database::{Database, SImage, WQDatabase};
 use crate::error;
+use crate::extra::segment::NodeEnum;
 
 pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
     target: i64,
     group: bool,
     message: Message,
+}
+
+pub enum RQSendable {
+    Chain(MessageChain),
+    Forward(Vec<ForwardMessage>),
 }
 
 impl<'a> MsgChainBuilder<'a> {
@@ -33,12 +42,21 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Result<Option<MessageChain>, RespError> {
+    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Result<Option<RQSendable>, RespError> {
         let mut chain = MessageChain::default();
+        let mut forward = Vec::new();
         let mut reply = None;
         for msg_seg in self.message {
-            if let Some(r) =
-                push_msg_seg(&mut chain, msg_seg, self.target, self.group, self.cli, wqdb).await?
+            if let Some(r) = push_msg_seg(
+                &mut chain,
+                msg_seg,
+                self.target,
+                self.group,
+                self.cli,
+                wqdb,
+                &mut forward,
+            )
+            .await?
             {
                 reply = Some(r);
             }
@@ -49,10 +67,12 @@ impl<'a> MsgChainBuilder<'a> {
                 chain.push(elem::Text::new(" ".to_string()));
             }
         }
-        if chain.0.is_empty() {
-            Ok(None)
+        if !chain.0.is_empty() {
+            Ok(Some(RQSendable::Chain(chain)))
+        } else if !forward.is_empty() {
+            Ok(Some(RQSendable::Forward(forward)))
         } else {
-            Ok(Some(chain))
+            Ok(None)
         }
     }
 }
@@ -170,6 +190,7 @@ async fn push_msg_seg(
     group: bool,
     cli: &Client,
     wqdb: &WQDatabase,
+    forward: &mut Vec<ForwardMessage>,
 ) -> Result<Option<elem::Reply>, RespError> {
     match seg {
         MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
@@ -240,6 +261,22 @@ async fn push_msg_seg(
                     service_id,
                     template1,
                 });
+            }
+            "forward" => {
+                let nodes: Vec<NodeEnum> = serde_json::from_str(
+                    &serde_json::to_string(
+                        &data
+                            .try_remove::<Vec<ExtendedValue>>("nodes")
+                            .map_err(|_| error::bad_param("nodes"))?,
+                    )
+                    .unwrap(),
+                )
+                .map_err(|_| error::bad_param("nodes"))?;
+                for node in nodes {
+                    forward.push(match node {
+                        NodeEnum::Node(n) => n.to_forward_message(target, group, cli, wqdb).await?,
+                    })
+                }
             }
             _ => warn!("unsupported custom type: {}", ty),
         },
