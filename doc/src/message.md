@@ -96,9 +96,9 @@
 
 > 无法单独发送，请使用 forward 消息段包含 node 发送
 
-| 字段      | 类型                  | 说明    |
-| --------- | --------------------- | ------- |
-| user_id   | String                | 用户 ID |
-| time      | f64                   | 时间    |
-| user_name | String                | 用户名  |
-| message   | Vec\<MessageSegment\> | 消息    |
+| 字段      | 类型                                 | 说明    |
+| --------- | ------------------------------------ | ------- |
+| user_id   | String                               | 用户 ID |
+| time      | f64                                  | 时间    |
+| user_name | String                               | 用户名  |
+| message   | Vec\<MessageSegment\> \| Vec\<Node\> | 消息    |
