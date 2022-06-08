@@ -147,14 +147,14 @@
 
 | 字段     | 类型   | 说明  |
 | -------- | ------ | ----- |
-| group_id | string | 群 ID |
+| group_id | String | 群 ID |
 
 动作响应：
 
 | 字段名     | 数据类型 | 说明   |
 | ---------- | -------- | ------ |
-| group_id   | string   | 群 ID  |
-| group_name | string   | 群名称 |
+| group_id   | String   | 群 ID  |
+| group_name | String   | 群名称 |
 
 ## 获取群列表 get_group_list
 
@@ -168,15 +168,15 @@
 
 | 字段     | 类型   | 说明    |
 | -------- | ------ | ------- |
-| group_id | string | 群 ID   |
-| user_id  | string | 用户 ID |
+| group_id | String | 群 ID   |
+| user_id  | String | 用户 ID |
 
 动作响应：
 
 | 字段名   | 数据类型 | 说明          |
 | -------- | -------- | ------------- |
-| user_id  | string   | 用户 ID       |
-| nickname | string   | 用户名称/昵称 |
+| user_id  | String   | 用户 ID       |
+| nickname | String   | 用户名称/昵称 |
 
 ## 获取群成员列表 get_group_member_list
 
@@ -184,7 +184,7 @@
 
 | 字段     | 类型   | 说明  |
 | -------- | ------ | ----- |
-| group_id | string | 群 ID |
+| group_id | String | 群 ID |
 
 群信息列表，每一个元素的字段同 `get_group_member_info` 的响应数据。
 
@@ -194,8 +194,8 @@
 
 | 字段       | 类型   | 说明   |
 | ---------- | ------ | ------ |
-| group_id   | string | 群 ID  |
-| group_name | string | 群名称 |
+| group_id   | String | 群 ID  |
+| group_name | String | 群名称 |
 
 无动作响应数据
 
@@ -205,7 +205,7 @@
 
 | 字段     | 类型   | 说明  |
 | -------- | ------ | ----- |
-| group_id | string | 群 ID |
+| group_id | String | 群 ID |
 
 无动作响应数据
 
@@ -215,8 +215,8 @@
 
 | 字段     | 类型   | 说明    |
 | -------- | ------ | ------- |
-| group_id | string | 群 ID   |
-| user_id  | string | 用户 ID |
+| group_id | String | 群 ID   |
+| user_id  | String | 用户 ID |
 
 无动作响应数据
 
@@ -226,8 +226,8 @@
 
 | 字段     | 类型   | 说明           |
 | -------- | ------ | -------------- |
-| group_id | string | 群 ID          |
-| user_id  | string | 用户 ID        |
+| group_id | String | 群 ID          |
+| user_id  | String | 用户 ID        |
 | duration | i64    | 时长，单位：秒 |
 
 无动作响应数据
@@ -238,8 +238,8 @@
 
 | 字段     | 类型   | 说明    |
 | -------- | ------ | ------- |
-| group_id | string | 群 ID   |
-| user_id  | string | 用户 ID |
+| group_id | String | 群 ID   |
+| user_id  | String | 用户 ID |
 
 无动作响应数据
 
@@ -249,8 +249,8 @@
 
 | 字段     | 类型   | 说明    |
 | -------- | ------ | ------- |
-| group_id | string | 群 ID   |
-| user_id  | string | 用户 ID |
+| group_id | String | 群 ID   |
+| user_id  | String | 用户 ID |
 
 无动作响应数据
 
@@ -260,10 +260,61 @@
 
 | 字段     | 类型   | 说明    |
 | -------- | ------ | ------- |
-| group_id | string | 群 ID   |
-| user_id  | string | 用户 ID |
+| group_id | String | 群 ID   |
+| user_id  | String | 用户 ID |
 
 无动作响应数据
+
+## 上传文件 upload_file
+
+动作请求：
+
+| 字段      | 类型                            | 说明                             |
+| --------- | ------------------------------- | -------------------------------- |
+| type      | String                          | 上传方式：url \| path \| data    |
+| name      | String                          | 文件名称                         |
+| url       | Option\<String\>                | 上传方式为 url 时需要提供的 url  |
+| data      | Option\<Map\<String, String\>\> | url 可选 headers                 |
+| path      | Option\<String\>                | 上传方式为 path 时需要提供的路径 |
+| data      | Option\<String\>                | 上传方式为 data 时需要提供的数据 |
+| sha256    | Option\<String\>                | 文件的 sha256 值                 |
+| file_type | Option\<String\>                | 文件类型，缺省值为 image         |
+
+动作响应：
+
+| 字段    | 类型   | 说明    |
+| ------- | ------ | ------- |
+| file_id | String | 文件 ID |
+
+## 获取文件 get_file
+
+动作请求：
+
+| 字段      | 类型             | 说明                          |
+| --------- | ---------------- | ----------------------------- |
+| file_id   | String           | 文件 ID                       |
+| type      | String           | 上传方式：url \| path \| data |
+| file_type | Option\<String\> | 文件类型，缺省值为 image      |
+
+动作响应：
+
+| 字段   | 类型                            | 说明                             |
+| ------ | ------------------------------- | -------------------------------- |
+| type   | String                          | 上传方式：url \| path \| data    |
+| name   | String                          | 文件名称                         |
+| url    | Option\<String\>                | 上传方式为 url 时需要提供的 url  |
+| data   | Option\<Map\<String, String\>\> | url 可选 headers                 |
+| path   | Option\<String\>                | 上传方式为 path 时需要提供的路径 |
+| data   | Option\<String\>                | 上传方式为 data 时需要提供的数据 |
+| sha256 | Option\<String\>                | 文件的 sha256 值                 |
+
+## 分片上传文件 upload_file_fragmented
+
+> 累了，看 Onebot12 文档吧，一样的 ╯︿╰
+
+## 分片获取文件 get_file_fragmented
+
+> 累了，看 Onebot12 文档吧，一样的 ╯︿╰
 
 # 错误代码 Error Code
 

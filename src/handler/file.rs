@@ -6,7 +6,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::{fs::File, io::AsyncReadExt};
 use walle_core::action::{GetFile, GetFileFragmented, UploadFile, UploadFileFragmented};
 use walle_core::resp::{FileFragmentedHead, FileIdContent, RespError};
-use walle_core::{extended_map, ExtendedMap, ExtendedValue, Resps};
+use walle_core::{extended_map, ExtendedMap, ExtendedMapExt, ExtendedValue, Resps};
 
 use crate::database::{save_image, Database, Images, SImage};
 use crate::error;
@@ -37,14 +37,11 @@ impl super::Handler {
         }
     }
 
-    pub async fn upload_file(&self, c: UploadFile, ob: &OneBot) -> WQRespResult {
+    pub async fn upload_file(&self, mut c: UploadFile, ob: &OneBot) -> WQRespResult {
         let file_type = c
             .extra
-            .get("file_type")
-            .ok_or_else(|| error::bad_param("file_type"))?
-            .clone()
-            .downcast_str()
-            .map_err(|_| error::bad_param("file_type"))?;
+            .try_remove("file_type")
+            .unwrap_or("image".to_string());
         let data = Self::get_file_data(c).await?;
         match file_type.as_str() {
             "image" => self.upload_image(data, ob).await,
@@ -58,14 +55,11 @@ impl super::Handler {
         Ok(Resps::success(info.as_file_id_content().into()))
     }
 
-    pub async fn get_file(&self, c: GetFile, ob: &OneBot) -> WQRespResult {
+    pub async fn get_file(&self, mut c: GetFile, ob: &OneBot) -> WQRespResult {
         let file_type = c
             .extra
-            .get("file_type")
-            .ok_or_else(|| error::bad_param("file_type"))?
-            .clone()
-            .downcast_str()
-            .map_err(|_| error::bad_param("file_type"))?;
+            .try_remove("file_type")
+            .unwrap_or("image".to_string());
         match file_type.as_str() {
             "image" => self.get_image(&c, ob).await,
             ty => Err(error::unsupported_param(ty)),
@@ -149,8 +143,9 @@ impl super::Handler {
     ) -> WQRespResult {
         match c {
             UploadFileFragmented::Prepare { name, total_size } => {
+                let file_id = format!("{}-{}", name, total_size);
                 self.uploading_fragment.lock().await.cache_set(
-                    format!("{}-{}", name, total_size),
+                    file_id.clone(),
                     FragmentFile {
                         total_size,
                         files: vec![],
@@ -158,7 +153,7 @@ impl super::Handler {
                 );
                 Ok(Resps::success(
                     FileIdContent {
-                        file_id: name,
+                        file_id,
                         extra: extended_map!(),
                     }
                     .into(),
@@ -198,12 +193,14 @@ impl super::Handler {
                 for (offset, size) in fragment.files {
                     let mut file_path = std::path::PathBuf::from(crate::FILE_CACHE_DIR);
                     file_path.push(format!("{}-{}", file_id, offset));
-                    let mut file = tokio::fs::File::open(file_path)
+                    let mut file = tokio::fs::File::open(&file_path)
                         .await
                         .map_err(error::file_open_error)?;
                     file.read_buf(&mut data)
                         .await
                         .map_err(error::file_read_error)?;
+                    drop(file);
+                    tokio::fs::remove_file(file_path).await.ok();
                     total_size += size;
                 }
                 if total_size != fragment.total_size {

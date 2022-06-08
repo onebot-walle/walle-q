@@ -2,7 +2,6 @@ use ricq::msg::elem::{self, FlashImage, RQElem};
 use ricq::msg::MessageChain;
 use ricq::structs::ForwardMessage;
 use ricq::Client;
-use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 use walle_core::resp::RespError;
 use walle_core::{
@@ -248,6 +247,7 @@ async fn push_msg_seg(
                     chain.push(face);
                 } else {
                     warn!("invalid face id");
+                    return Err(error::bad_param("face"));
                 }
             }
             "xml" => {
@@ -278,7 +278,10 @@ async fn push_msg_seg(
                     })
                 }
             }
-            _ => warn!("unsupported custom type: {}", ty),
+            _ => {
+                warn!("unsupported custom type: {}", ty);
+                return Err(walle_core::resp::error_builder::unsupported_segment());
+            }
         },
         MessageSegment::Image { file_id, mut extra } => {
             let flash = extra.try_remove("flash").unwrap_or(false);
@@ -299,25 +302,34 @@ async fn push_msg_seg(
                         if group {
                             match cli.upload_group_image(target, data).await {
                                 Ok(image) => maybe_flash!(chain, flash, image),
-                                Err(e) => warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e),
+                                Err(e) => {
+                                    warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e);
+                                    return Err(error::rq_error(e));
+                                }
                             }
                         } else {
                             match cli.upload_friend_image(target, data).await {
                                 Ok(image) => maybe_flash!(chain, flash, image),
-                                Err(e) => warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e),
+                                Err(e) => {
+                                    warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e);
+                                    return Err(error::rq_error(e));
+                                }
                             }
                         }
                     }
                     Err(e) => {
                         warn!("uri get failed: {}", e);
+                        return Err(error::bad_param(&format!("url:{}", e)));
                     }
                 }
             } else {
                 warn!("image not found: {}", file_id);
+                return Err(error::file_not_found());
             }
         }
         seg => {
             warn!("unsupported MessageSegment: {:?}", seg);
+            return Err(walle_core::resp::error_builder::unsupported_segment());
         }
     }
     Ok(None)
@@ -339,11 +351,3 @@ impl SendAble for MessageSegment {
         }
     }
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum MaybeNode {
-    Node(),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Forward {}
