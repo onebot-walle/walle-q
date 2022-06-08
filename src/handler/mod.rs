@@ -156,6 +156,10 @@ impl Handler {
             "upload_file_fragmented".into(),
             "get_file".into(),
             "get_file_fragmented".into(),
+            // ext
+            "set_new_friend".into(),
+            "delete_friend".into(),
+            "get_new_friend_request".into(),
         ])))
     }
     fn get_version() -> WQRespResult {

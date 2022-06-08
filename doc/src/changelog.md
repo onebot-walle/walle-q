@@ -1,4 +1,4 @@
-## 0.1.3 (unrelease)
+## 0.1.3
 
 ### Features
 
@@ -6,6 +6,8 @@
 - 添加 set_new_friend 动作
 - 添加 delete_friend 动作
 - 添加 get_new_friend_request 动作
+- 添加 upload_file_fragmented 动作支持
+- 添加 get_file_fragmented 动作支持
 - 支持收发 Reply MessageSegment
 - 添加 forward 消息段
 
