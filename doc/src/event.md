@@ -62,6 +62,12 @@
 | user_id     | String | 好友 ID  |
 | *user_name* | String | 好友昵称 |
 
+### 好友减少 notice.friend_decrease
+
+| 字段    | 类型   | 说明    |
+| ------- | ------ | ------- |
+| user_id | String | 好友 ID |
+
 ### 群成员增加 notice.group_member_increase
 
 | 字段        | 类型   | 说明             |
@@ -73,12 +79,12 @@
 
 ### 群成员减少 notice.group_member_decrease
 
-| 字段        | 类型   | 说明      |
-| ----------- | ------ | --------- |
-| sub_type    | String | 退群类型  |
-| user_id     | String | 成员 ID   |
-| group_id    | String | 群 ID     |
-| operator_id | String | 操作者 ID |
+| 字段        | 类型   | 说明                              |
+| ----------- | ------ | --------------------------------- |
+| sub_type    | String | 退群类型 leave \| kick \| disband |
+| user_id     | String | 成员 ID                           |
+| group_id    | String | 群 ID                             |
+| operator_id | String | 操作者 ID                         |
 
 ### 群成员禁言 notice.group_member_ban
 
@@ -139,3 +145,13 @@
 | suspicious   | bool             | 是否可疑      |
 | invitor_id   | Option\<String\> | 邀请人ID      |
 | invitor_name | Option\<String\> | 邀请人名称    |
+
+### 群邀请 request.group_invited
+
+| 字段         | 类型             | 说明       |
+| ------------ | ---------------- | ---------- |
+| request_id   | i64              | 请求 ID    |
+| group_id     | String           | 群 ID      |
+| group_name   | String           | 群名称     |
+| invitor_id   | Option\<String\> | 邀请人ID   |
+| invitor_name | Option\<String\> | 邀请人名称 |

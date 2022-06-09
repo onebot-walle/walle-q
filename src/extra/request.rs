@@ -23,6 +23,14 @@ pub enum WQRequestContent {
         invitor_id: Option<String>,
         invitor_name: Option<String>,
     },
+    GroupInvited {
+        sub_type: String,
+        request_id: i64,
+        group_id: String,
+        group_name: String,
+        invitor_id: String,
+        invitor_name: String,
+    },
 }
 
 impl EventType for WQRequestContent {
@@ -33,12 +41,14 @@ impl EventType for WQRequestContent {
         match self {
             WQRequestContent::NewFriend { .. } => "new_friend",
             WQRequestContent::JoinGroup { .. } => "join_group_request",
+            WQRequestContent::GroupInvited { .. } => "group_invited",
         }
     }
     fn sub_type(&self) -> &str {
         match self {
             WQRequestContent::NewFriend { sub_type, .. } => sub_type,
             WQRequestContent::JoinGroup { sub_type, .. } => sub_type,
+            WQRequestContent::GroupInvited { sub_type, .. } => sub_type,
         }
     }
 }

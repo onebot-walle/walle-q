@@ -36,6 +36,7 @@ A qq platform OneBot Implementation
 
 - [x] 私聊消息撤回 notice.private_message_delete
 - [x] 好友增加 notice.friend_increase
+- [x] 好友减少 notice.friend_decrease
 - [x] 群成员增加 notice.group_member_increase
 - [x] 群成员减少 notice.group_member_decrease
 - [x] 群成员禁言 notice.group_member_ban
@@ -47,6 +48,7 @@ A qq platform OneBot Implementation
 
 - [x] 好友添加请求 request.new_friend
 - [x] 新成员加群申请 request.join_group
+- [x] 群邀请 request.group_invited
 
 ## 已支持消息段
 
@@ -108,6 +110,8 @@ A qq platform OneBot Implementation
 - [x] 取消群管理员 unset_group_admin
 - [x] 处理加群请求 set_join_group
 - [x] 获取加群申请 get_join_group_requests
+- [x] 处理群邀请 set_group_invited
+- [x] 获取群邀请 get_group_inviteds
 
 ### 文件动作
 

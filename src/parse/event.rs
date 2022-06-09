@@ -2,21 +2,13 @@ use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
 use crate::extra::{WQEvent, WQRequestContent};
 use crate::OneBot;
 
-use cached::Cached;
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
 use walle_core::{extended_map, MessageAlt, MessageEventDetail};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent};
 
-pub(crate) async fn qevent2event(
-    ob: &OneBot,
-    event: QEvent,
-    wqdb: &WQDatabase,
-    join_group_request_cache: &std::sync::Arc<
-        tokio::sync::Mutex<cached::SizedCache<i64, (bool, bool)>>,
-    >,
-) -> Option<WQEvent> {
+pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) -> Option<WQEvent> {
     match event {
         // meta
         QEvent::Login(uin) => {
@@ -248,30 +240,79 @@ pub(crate) async fn qevent2event(
             )
             .await,
         ),
-        QEvent::GroupRequest(gre) => {
-            join_group_request_cache.lock().await.cache_set(
-                gre.request.msg_seq,
-                (gre.request.suspicious, gre.request.invitor_uin.is_some()),
-            );
-            Some(
-                ob.new_event(
-                    WQRequestContent::JoinGroup {
-                        sub_type: "".to_string(),
-                        request_id: gre.request.msg_seq,
-                        user_id: gre.request.req_uin.to_string(),
-                        user_name: gre.request.req_nick,
-                        group_id: gre.request.group_code.to_string(),
-                        group_name: gre.request.group_name,
-                        message: gre.request.message,
-                        suspicious: gre.request.suspicious,
-                        invitor_id: gre.request.invitor_uin.map(|i| i.to_string()),
-                        invitor_name: gre.request.invitor_nick,
-                    }
-                    .into(),
-                    gre.request.msg_time as f64,
-                )
-                .await,
+        QEvent::GroupRequest(gre) => Some(
+            ob.new_event(
+                WQRequestContent::JoinGroup {
+                    sub_type: "".to_string(),
+                    request_id: gre.request.msg_seq,
+                    user_id: gre.request.req_uin.to_string(),
+                    user_name: gre.request.req_nick,
+                    group_id: gre.request.group_code.to_string(),
+                    group_name: gre.request.group_name,
+                    message: gre.request.message,
+                    suspicious: gre.request.suspicious,
+                    invitor_id: gre.request.invitor_uin.map(|i| i.to_string()),
+                    invitor_name: gre.request.invitor_nick,
+                }
+                .into(),
+                gre.request.msg_time as f64,
             )
+            .await,
+        ),
+        // QEvent::GroupAudioMessage(_) => todo!(),
+        // QEvent::FriendAudioMessage(_) => todo!(),
+        QEvent::SelfInvited(i) => Some(
+            ob.new_event(
+                WQRequestContent::GroupInvited {
+                    sub_type: "".to_string(),
+                    request_id: i.request.msg_seq,
+                    group_id: i.request.group_code.to_string(),
+                    group_name: i.request.group_name,
+                    invitor_id: i.request.invitor_uin.to_string(),
+                    invitor_name: i.request.invitor_nick,
+                }
+                .into(),
+                i.request.msg_time as f64,
+            )
+            .await,
+        ),
+        QEvent::GroupDisband(d) => Some(
+            ob.new_event(
+                NoticeContent::GroupMemberDecrease {
+                    sub_type: "disband".to_string(),
+                    group_id: d.disband.group_code.to_string(),
+                    user_id: ob.self_id().await,
+                    operator_id: d.disband.operator_uin.to_string(),
+                    extra: extended_map! {},
+                }
+                .into(),
+                walle_core::timestamp_nano_f64(),
+            )
+            .await,
+        ),
+        // QEvent::FriendPoke(_) => todo!(),
+        // QEvent::GroupNameUpdate(_) => todo!(),
+        QEvent::DeleteFriend(d) => Some(
+            ob.new_event(
+                NoticeContent::FriendDecrease {
+                    sub_type: "".to_string(),
+                    user_id: d.delete.uin.to_string(),
+                    extra: extended_map! {},
+                }
+                .into(),
+                walle_core::timestamp_nano_f64(),
+            )
+            .await,
+        ),
+        QEvent::KickedOffline(_) => {
+            warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
+            ob.shutdown().await;
+            None
+        }
+        QEvent::MSFOffline(_) => {
+            warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
+            ob.shutdown().await; // 求测试2333
+            None
         }
 
         event => {

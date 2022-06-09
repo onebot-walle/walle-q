@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cached::{Cached, SizedCache, TimedCache};
+use cached::{SizedCache, TimedCache};
 use tokio::sync::Mutex;
 use walle_core::{action::*, extended_map, ExtendedMapExt, ExtendedValue, MessageAlt};
 use walle_core::{extended_value, resp::*};
@@ -27,7 +27,6 @@ pub(crate) struct Handler {
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, WQEvent>>>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) uploading_fragment: Mutex<TimedCache<String, FragmentFile>>,
-    pub(crate) join_group_request_cache: Arc<Mutex<SizedCache<i64, (bool, bool)>>>,
 }
 
 impl ActionHandler<WQAction, WQResp, OneBot> for Handler {
@@ -59,6 +58,8 @@ impl ActionHandler<WQExtraAction, WQResp, OneBot> for Handler {
             WQExtraAction::GetNewFriendRequests(_) => self.get_new_friend_requests().await,
             WQExtraAction::SetJoinGroup(c) => self.set_join_group_request(c).await,
             WQExtraAction::GetJoinGroupRequests(_) => self.get_join_group_requests(ob).await,
+            WQExtraAction::SetGroupInvited(c) => self.set_group_invite(c).await,
+            WQExtraAction::GetGroupInviteds(_) => self.get_group_invites().await,
         }
     }
 }
@@ -635,15 +636,6 @@ impl Handler {
         ))
     }
     async fn set_join_group_request(&self, c: SetJoinGroup) -> WQRespResult {
-        let (suspicious, is_invite) = match self
-            .join_group_request_cache
-            .lock()
-            .await
-            .cache_remove(&c.request_id)
-        {
-            Some(v) => v,
-            None => todo!(),
-        };
         self.client
             .solve_group_system_message(
                 c.request_id,
@@ -651,8 +643,8 @@ impl Handler {
                 c.group_id
                     .parse()
                     .map_err(|_| error::bad_param("group_id"))?,
-                suspicious,
-                is_invite,
+                false,
+                false,
                 c.accept,
                 c.block.unwrap_or_default(),
                 c.message.unwrap_or_default(),
@@ -691,5 +683,46 @@ impl Handler {
             )
         }
         Ok(Resps::success(RespContent::LatestEvents(v)))
+    }
+    async fn set_group_invite(&self, c: SetGroupInvited) -> WQRespResult {
+        self.client
+            .solve_group_system_message(
+                c.request_id,
+                self.client.uin().await,
+                c.group_id
+                    .parse()
+                    .map_err(|_| error::bad_param("group_id"))?,
+                false,
+                true,
+                c.accept,
+                false,
+                String::default(),
+            )
+            .await
+            .map_err(|e| error::rq_error(e))?;
+        Ok(Resps::empty_success())
+    }
+    async fn get_group_invites(&self) -> WQRespResult {
+        Ok(Resps::success(
+            ExtendedValue::List(
+                self.client
+                    .get_all_group_system_messages()
+                    .await
+                    .map_err(error::rq_error)?
+                    .self_invited
+                    .into_iter()
+                    .map(|i| {
+                        extended_value!({
+                            "request_id": i.msg_seq,
+                            "group_id": i.group_code.to_string(),
+                            "group_name": i.group_name,
+                            "invitor_id": i.invitor_uin.to_string(),
+                            "invitor_name": i.invitor_nick
+                        })
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .into(),
+        ))
     }
 }

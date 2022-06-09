@@ -53,7 +53,6 @@ async fn main() {
     let cache = Arc::new(Mutex::new(cached::SizedCache::with_size(
         comm.event_cache_size.unwrap_or(100),
     )));
-    let join_group_request_cache = Arc::new(Mutex::new(cached::SizedCache::with_size(10)));
     let ob = OneBot::new(
         WALLE_Q,
         "qq",
@@ -64,7 +63,6 @@ async fn main() {
             event_cache: cache.clone(),
             database: wqdb.clone(),
             uploading_fragment: Mutex::new(cached::TimedCache::with_lifespan(60)),
-            join_group_request_cache: join_group_request_cache.clone(),
         },
     )
     .arc();
@@ -74,9 +72,7 @@ async fn main() {
         // if !comm.v11 {
         ob.run().await.unwrap();
         while let Some(msg) = rx.recv().await {
-            if let Some(event) =
-                crate::parse::qevent2event(&ob, msg, &wqdb, &join_group_request_cache).await
-            {
+            if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
                 if let Some(alt) = event.colored_alt() {
                     tracing::info!(target: WALLE_Q, "{}", alt);
                 }

@@ -23,6 +23,13 @@ pub struct SetJoinGroup {
     pub message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetGroupInvited {
+    pub request_id: i64,
+    pub group_id: String,
+    pub accept: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "action", content = "params", rename_all = "snake_case")]
 pub enum WQExtraAction {
@@ -31,6 +38,8 @@ pub enum WQExtraAction {
     GetNewFriendRequests(ExtendedValue),
     SetJoinGroup(SetJoinGroup),
     GetJoinGroupRequests(ExtendedValue),
+    SetGroupInvited(SetGroupInvited),
+    GetGroupInviteds(ExtendedValue),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

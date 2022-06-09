@@ -289,11 +289,31 @@
 | block      | Option\<bool\>   | 是否禁止再次申请 |
 | message    | Option\<String\> | 拒绝理由         |
 
+无动作响应数据
+
 ### 获取加群申请 get_join_group_requests
 
 无动作请求数据
 
 动作响应为 Vec\<event.request.join_group\>
+
+### 处理群邀请 set_group_invited
+
+动作请求：
+
+| 字段       | 类型   | 说明     |
+| ---------- | ------ | -------- |
+| request_id | i64    | 请求 ID  |
+| group_id   | String | 群 ID    |
+| accept     | bool   | 是否接受 |
+
+无动作响应数据
+
+### 获取群邀请 get_group_inviteds
+
+无动作请求数据
+
+动作响应为 Vec\<event.request.group_invited\>
 
 ## 文件动作
 
