@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cached::{SizedCache, TimedCache};
 use tokio::sync::Mutex;
-use walle_core::{action::*, ExtendedValue};
+use walle_core::{action::*, extended_map, ExtendedMapExt, ExtendedValue, MessageAlt};
 use walle_core::{extended_value, resp::*};
 use walle_core::{
     ActionHandler, ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction,
@@ -188,16 +188,27 @@ impl Handler {
         ))
     }
 
-    async fn send_message(&self, c: SendMessage, ob: &OneBot) -> WQRespResult {
-        if &c.detail_type == "group" {
-            let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
-            let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
-            if let Some(s) =
-                MsgChainBuilder::group_chain_builder(&self.client, group_code, c.message.clone())
-                    .build(&self.database)
-                    .await?
-            {
-                let receipt = match s {
+    async fn send_message(&self, mut c: SendMessage, ob: &OneBot) -> WQRespResult {
+        let temp = c.extra.try_remove("sub_type").map_or(false, |s: String| {
+            if s.as_str() == "group_temp" {
+                true
+            } else {
+                false
+            }
+        });
+        match c.detail_type.as_str() {
+            "group" => {
+                let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
+                let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
+                let receipt = match MsgChainBuilder::group_chain_builder(
+                    &self.client,
+                    group_code,
+                    c.message.clone(),
+                )
+                .build(&self.database)
+                .await?
+                .ok_or_else(|| error::empty_message())?
+                {
                     RQSendable::Chain(chain) => self
                         .client
                         .send_group_message(group_code, chain)
@@ -233,18 +244,71 @@ impl Handler {
                 );
                 self.database.insert_group_message(&s_group);
                 Ok(Resps::success(respc.into()))
-            } else {
-                Err(error::empty_message())
             }
-        } else if &c.detail_type == "private" {
-            let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
-            let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
-            if let Some(s) =
-                MsgChainBuilder::private_chain_builder(&self.client, target, c.message.clone())
-                    .build(&self.database)
-                    .await?
-            {
-                let receipt = match s {
+            "private" if temp => {
+                let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
+                let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
+                let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
+                let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
+                let receipt = match MsgChainBuilder::private_chain_builder(
+                    &self.client,
+                    target,
+                    c.message.clone(),
+                )
+                .build(&self.database)
+                .await?
+                .ok_or_else(|| error::empty_message())?
+                {
+                    RQSendable::Chain(chain) => self
+                        .client
+                        .send_group_temp_message(group_code, target, chain)
+                        .await
+                        .map_err(error::rq_error)?,
+                    RQSendable::Forward(_) => {
+                        return Err(walle_core::resp::error_builder::unsupported_param())
+                    }
+                };
+                let message_id = receipt.seqs[0].to_string();
+                let respc = SendMessageRespContent {
+                    message_id: message_id.clone(),
+                    time: receipt.time as f64,
+                    extra: ExtendedMap::default(),
+                };
+                let s_private = SPrivateMessage::receipt(
+                    receipt.clone(),
+                    target,
+                    ob.new_event(
+                        MessageContent {
+                            alt_message: c.message.alt(),
+                            message: c.message,
+                            message_id: receipt.seqs[0].to_string(),
+                            user_id: ob.self_id().await,
+                            detail: walle_core::MessageEventDetail::Group {
+                                sub_type: "temp".to_string(),
+                                group_id,
+                                extra: extended_map! {},
+                            },
+                        }
+                        .into(),
+                        receipt.time as f64,
+                    )
+                    .await,
+                );
+                self.database.insert_private_message(&s_private);
+                Ok(Resps::success(respc.into()))
+            }
+            "private" => {
+                let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
+                let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
+                let receipt = match MsgChainBuilder::private_chain_builder(
+                    &self.client,
+                    target,
+                    c.message.clone(),
+                )
+                .build(&self.database)
+                .await?
+                .ok_or_else(|| error::empty_message())?
+                {
                     RQSendable::Chain(chain) => self
                         .client
                         .send_friend_message(target, chain)
@@ -275,11 +339,8 @@ impl Handler {
                 );
                 self.database.insert_private_message(&s_private);
                 Ok(Resps::success(respc.into()))
-            } else {
-                Err(error::empty_message())
             }
-        } else {
-            Err(error_builder::unsupported_action())
+            _ => Err(error_builder::unsupported_action()),
         }
     }
 

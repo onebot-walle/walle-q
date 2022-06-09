@@ -10,7 +10,6 @@
 | self_id  | String | Bot ID               |
 | time     | f64    | 事件戳，单位：秒     |
 
-> *斜体为扩展字段*
 
 ## 消息事件 message
 
@@ -22,7 +21,18 @@
 | message     | Message | 消息对象        |
 | alt_message | String  | 消息文本        |
 | user_id     | String  | 发送者 ID       |
-| *user_name* | String  | 发送者 nickname |
+| user_name   | String  | 发送者 nickname |
+
+### 群临时消息 message.private.group_temp
+
+| 字段        | 类型    | 说明            |
+| ----------- | ------- | --------------- |
+| message_id  | String  | 消息 ID         |
+| message     | Message | 消息对象        |
+| alt_message | String  | 消息文本        |
+| user_id     | String  | 发送者 ID       |
+| group_id    | String  | 群 ID           |
+| user_name   | String  | 发送者 nickname |
 
 ### 群用户消息事件 message.group
 

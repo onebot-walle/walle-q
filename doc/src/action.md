@@ -45,12 +45,13 @@
 
 动作请求：
 
-| 字段        | 类型                 | 说明                   |
-| ----------- | -------------------- | ---------------------- |
-| detail_type | String               | `private` 或者 `group` |
-| group_id    | Option&lt;String&gt; | 群 ID                  |
-| user_id     | Option&lt;String&gt; | 用户 ID                |
-| message     | Message              | 消息内容               |
+| 字段        | 类型                 | 说明                      |
+| ----------- | -------------------- | ------------------------- |
+| detail_type | String               | private 或者 group        |
+| group_id    | Option&lt;String&gt; | 群 ID                     |
+| user_id     | Option&lt;String&gt; | 用户 ID                   |
+| message     | Message              | 消息内容                  |
+| sub_type    | Option\<String\>     | group_temp 发送群临时消息 |
 
 动作响应：
 
@@ -131,6 +132,8 @@
 | 字段    | 类型   | 说明    |
 | ------- | ------ | ------- |
 | user_id | String | 用户 ID |
+
+> **注意**：如果目标用户不是好友，不会返回错误信息
 
 
 无动作响应数据

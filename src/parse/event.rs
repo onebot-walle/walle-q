@@ -4,7 +4,7 @@ use crate::OneBot;
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
-use walle_core::{extended_map, RequestContent};
+use walle_core::{extended_map, MessageAlt, MessageEventDetail, RequestContent};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent, StandardEvent};
 
 pub(crate) async fn qevent2event(
@@ -65,6 +65,31 @@ pub(crate) async fn qevent2event(
                 .await;
             let s_group = SGroupMessage::new(gme.message, event.clone());
             wqdb.insert_group_message(&s_group);
+            Some(event)
+        }
+        QEvent::GroupTempMessage(gtme) => {
+            let message = super::msg_chain2msg_seg_vec(gtme.message.elements.clone(), wqdb);
+            let event = ob
+                .new_event(
+                    MessageContent {
+                        alt_message: message.alt(),
+                        message,
+                        message_id: gtme.message.seqs[0].to_string(),
+                        user_id: gtme.message.from_uin.to_string(),
+                        detail: MessageEventDetail::Private {
+                            sub_type: "group_temp".to_owned(),
+                            extra: extended_map! {
+                                "group_id": gtme.message.group_code.to_string(),
+                                "user_name": gtme.message.from_nick,
+                            },
+                        },
+                    }
+                    .into(),
+                    gtme.message.time as f64,
+                )
+                .await;
+            let s_private = SPrivateMessage::from_temp(gtme.message, event.clone());
+            wqdb.insert_private_message(&s_private);
             Some(event)
         }
 
@@ -143,7 +168,7 @@ pub(crate) async fn qevent2event(
                     user_id: e.group_mute.target_uin.to_string(),
                     operator_id: e.group_mute.operator_uin.to_string(),
                     extra: extended_map! {
-                        "duration": e.group_mute.time,
+                        "duration": e.group_mute.duration.as_secs() as i64,
                     },
                 }
                 .into(),

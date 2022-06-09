@@ -1,4 +1,4 @@
-use ricq::structs::{FriendMessage, GroupMessage, MessageReceipt};
+use ricq::structs::{FriendMessage, GroupMessage, GroupTempMessage, MessageReceipt};
 use serde::{Deserialize, Serialize};
 use walle_core::StandardEvent;
 
@@ -77,6 +77,16 @@ impl SPrivateMessage {
             seqs: m.seqs,
             rands: m.rands,
             target_id: m.target,
+            time: m.time as i64,
+            event,
+        }
+    }
+
+    pub fn from_temp(m: GroupTempMessage, event: StandardEvent) -> Self {
+        Self {
+            seqs: m.seqs,
+            rands: m.rands,
+            target_id: m.from_uin,
             time: m.time as i64,
             event,
         }

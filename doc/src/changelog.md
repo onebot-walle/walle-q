@@ -1,3 +1,9 @@
+## 0.1.4
+
+### Features
+
+- 支持群临时消息
+
 ## 0.1.3
 
 ### Features
@@ -8,8 +14,8 @@
 - 添加 get_new_friend_request 动作
 - 添加 upload_file_fragmented 动作支持
 - 添加 get_file_fragmented 动作支持
-- 支持收发 Reply MessageSegment
-- 添加 forward 消息段
+- 支持收发 Reply 消息段
+- 支持发送 forward 消息段
 
 ## 0.1.2
 

@@ -12,7 +12,7 @@
 
 A qq platform OneBot Implementation
 
-本项目使用 [rs-qq](https://github.com/lz1998/rs-qq) 协议库与 [Walle-core](https://GitHub.com/abrahum/walle-core) LibOnebot 构建。
+本项目使用 [ricq](https://github.com/lz1998/ricq) 协议库与 [Walle-core](https://GitHub.com/abrahum/walle-core) LibOnebot 构建。
 
 在线文档地址：[Walle-Mk.Q 使用手册](https://walle-q.abrahum.link)
 
@@ -28,6 +28,7 @@ A qq platform OneBot Implementation
 
 - [x] 私聊消息
 - [x] 群消息
+- [x] 群临时消息
 - [x] 私聊消息撤回
 - [x] 好友增加
 - [x] 群成员增加
@@ -42,11 +43,12 @@ A qq platform OneBot Implementation
 
 ### 接收与发送
 
-- [x] 文本消息
+- [x] text消息
 - [x] at消息
 - [x] face消息
 - [x] image消息
 - [x] reply消息
+- [x] xml消息
 - [ ] ...
 
 ### 仅接收
@@ -55,6 +57,10 @@ A qq platform OneBot Implementation
 - [x] rps消息
 - [x] json消息
 - [ ] ...
+
+### 仅发送
+
+- [x] forward消息
 
 ## 已支持 API
 

@@ -230,7 +230,6 @@ async fn push_msg_seg(
             return Ok(Some(elem::Reply {
                 reply_seq,
                 sender: event.user_id().parse().unwrap(),
-                group_id: 0,
                 time: event.time as i32,
                 elements: sub_chain,
             }));
