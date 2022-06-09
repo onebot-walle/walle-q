@@ -144,7 +144,7 @@
 
 无动作响应数据
 
-### 获取好友请求列表 get_new_friend_request
+### 获取好友请求列表 get_new_friend_requests
 
 无动作请求数据
 
@@ -275,6 +275,25 @@
 | user_id  | String | 用户 ID |
 
 无动作响应数据
+
+### 处理加群请求 set_join_group
+
+动作请求：
+
+| 字段       | 类型             | 说明             |
+| ---------- | ---------------- | ---------------- |
+| request_id | i64              | 请求 ID          |
+| user_id    | String           | 用户 ID          |
+| group_id   | String           | 群 ID            |
+| accept     | bool             | 是否接受         |
+| block      | Option\<bool\>   | 是否禁止再次申请 |
+| message    | Option\<String\> | 拒绝理由         |
+
+### 获取加群申请 get_join_group_requests
+
+无动作请求数据
+
+动作响应为 Vec\<event.request.join_group\>
 
 ## 文件动作
 

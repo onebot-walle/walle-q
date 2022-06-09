@@ -11,6 +11,7 @@ use walle_core::{
 use crate::database::{Database, SImage, WQDatabase};
 use crate::error;
 use crate::extra::segment::NodeEnum;
+use crate::extra::ToMessageEvent;
 
 pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
@@ -218,7 +219,7 @@ async fn push_msg_seg(
                 .get_message(reply_seq)
                 .ok_or_else(error::message_not_exist)?
                 .event()
-                .try_into()
+                .to_message_event()
                 .unwrap();
             let sub_chain = {
                 let mut chain = MessageChain::default();

@@ -2658,6 +2658,7 @@ dependencies = [
  "bytes",
  "cached 0.34.0",
  "clap",
+ "colored",
  "hex",
  "image 0.24.2",
  "md5",

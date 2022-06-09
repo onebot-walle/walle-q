@@ -5,7 +5,8 @@ use std::sync::Arc;
 use cached::Cached;
 use clap::Parser;
 use ricq::client::Client;
-use walle_core::{ColoredAlt, Resps, StandardEvent};
+use tokio::sync::Mutex;
+use walle_core::ColoredAlt;
 
 mod command;
 mod config;
@@ -22,14 +23,9 @@ const LOG_PATH: &str = "./log";
 const IMAGE_CACHE_DIR: &str = "./data/image";
 const FILE_CACHE_DIR: &str = "./data/file";
 
-type WQResp = walle_core::Resps<walle_core::StandardEvent>;
-type OneBot = walle_core::impls::CustomOneBot<
-    StandardEvent,
-    extra::WQAction,
-    Resps<StandardEvent>,
-    handler::Handler,
-    12,
->;
+type WQResp = walle_core::Resps<extra::WQEvent>;
+type OneBot =
+    walle_core::impls::CustomOneBot<extra::WQEvent, extra::WQAction, WQResp, handler::Handler, 12>;
 
 #[tokio::main]
 async fn main() {
@@ -54,9 +50,10 @@ async fn main() {
     tokio::task::yield_now().await;
     login::login(&qclient, &config.qq).await.unwrap();
 
-    let cache = Arc::new(tokio::sync::Mutex::new(cached::SizedCache::with_size(
+    let cache = Arc::new(Mutex::new(cached::SizedCache::with_size(
         comm.event_cache_size.unwrap_or(100),
     )));
+    let join_group_request_cache = Arc::new(Mutex::new(cached::SizedCache::with_size(10)));
     let ob = OneBot::new(
         WALLE_Q,
         "qq",
@@ -66,53 +63,56 @@ async fn main() {
             client: qclient.clone(),
             event_cache: cache.clone(),
             database: wqdb.clone(),
-            uploading_fragment: tokio::sync::Mutex::new(cached::TimedCache::with_lifespan(60)),
+            uploading_fragment: Mutex::new(cached::TimedCache::with_lifespan(60)),
+            join_group_request_cache: join_group_request_cache.clone(),
         },
     )
     .arc();
 
     // start onebot task
     tokio::spawn(async move {
-        if !comm.v11 {
-            ob.run().await.unwrap();
-            while let Some(msg) = rx.recv().await {
-                if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
-                    if let Some(alt) = event.colored_alt() {
-                        tracing::info!(target: WALLE_Q, "{}", alt);
-                    }
-                    cache
-                        .lock()
-                        .await
-                        .cache_set(event.id.clone(), event.clone());
-                    ob.send_event(event).unwrap();
+        // if !comm.v11 {
+        ob.run().await.unwrap();
+        while let Some(msg) = rx.recv().await {
+            if let Some(event) =
+                crate::parse::qevent2event(&ob, msg, &wqdb, &join_group_request_cache).await
+            {
+                if let Some(alt) = event.colored_alt() {
+                    tracing::info!(target: WALLE_Q, "{}", alt);
                 }
-            }
-        } else {
-            tracing::warn!(target: WALLE_Q, "Using Onebot v11 standard");
-            let ob11 = walle_v11::impls::OneBot11::new(
-                WALLE_Q,
-                "qq",
-                &self_id.to_string(),
-                config.onebot,
-                handler::v11::V11Handler(ob.clone()),
-            )
-            .arc();
-            ob11.run().await.unwrap();
-            while let Some(msg) = rx.recv().await {
-                parse::v11::meta_event_process(&ob11, &msg).await;
-                if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
-                    cache
-                        .lock()
-                        .await
-                        .cache_set(event.id.clone(), event.clone());
-                    if let Some(alt) = event.colored_alt() {
-                        tracing::info!(target: WALLE_Q, "{}", alt);
-                    }
-                    let e: walle_v11::Event = event.try_into().unwrap();
-                    ob11.send_event(e).unwrap();
-                }
+                cache
+                    .lock()
+                    .await
+                    .cache_set(event.id.clone(), event.clone());
+                ob.send_event(event).unwrap();
             }
         }
+        // } else {
+        //     tracing::warn!(target: WALLE_Q, "Using Onebot v11 standard");
+        //     let ob11 = walle_v11::impls::OneBot11::new(
+        //         WALLE_Q,
+        //         "qq",
+        //         &self_id.to_string(),
+        //         config.onebot,
+        //         handler::v11::V11Handler(ob.clone()),
+        //     )
+        //     .arc();
+        //     ob11.run().await.unwrap();
+        //     while let Some(msg) = rx.recv().await {
+        //         parse::v11::meta_event_process(&ob11, &msg).await;
+        //         if let Some(event) = crate::parse::qevent2event(&ob, msg, &wqdb).await {
+        //             cache
+        //                 .lock()
+        //                 .await
+        //                 .cache_set(event.id.clone(), event.clone());
+        //             if let Some(alt) = event.colored_alt() {
+        //                 tracing::info!(target: WALLE_Q, "{}", alt);
+        //             }
+        //             let e: walle_v11::Event = event.try_into().unwrap();
+        //             ob11.send_event(e).unwrap();
+        //         }
+        //     }
+        // }
     });
 
     // 网络断开后自动重连

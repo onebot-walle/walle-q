@@ -1,7 +1,6 @@
+use crate::extra::WQEvent;
 use ricq::structs::{FriendMessage, GroupMessage, GroupTempMessage, MessageReceipt};
 use serde::{Deserialize, Serialize};
-use walle_core::StandardEvent;
-
 pub trait MessageId {
     fn seq(&self) -> i32;
 }
@@ -14,7 +13,7 @@ pub enum SMessage {
 }
 
 impl SMessage {
-    pub fn event(self) -> StandardEvent {
+    pub fn event(self) -> WQEvent {
         match self {
             SMessage::Group(group) => group.event,
             SMessage::Private(private) => private.event,
@@ -27,7 +26,7 @@ pub struct SGroupMessage {
     pub seqs: Vec<i32>,
     pub rands: Vec<i32>,
     pub group_code: i64,
-    pub event: StandardEvent,
+    pub event: WQEvent,
 }
 
 impl MessageId for SGroupMessage {
@@ -37,7 +36,7 @@ impl MessageId for SGroupMessage {
 }
 
 impl SGroupMessage {
-    pub fn new(m: GroupMessage, event: StandardEvent) -> Self {
+    pub fn new(m: GroupMessage, event: WQEvent) -> Self {
         Self {
             seqs: m.seqs,
             rands: m.rands,
@@ -46,7 +45,7 @@ impl SGroupMessage {
         }
     }
 
-    pub fn receipt(receipt: MessageReceipt, group_code: i64, event: StandardEvent) -> Self {
+    pub fn receipt(receipt: MessageReceipt, group_code: i64, event: WQEvent) -> Self {
         Self {
             seqs: receipt.seqs,
             rands: receipt.rands,
@@ -62,7 +61,7 @@ pub struct SPrivateMessage {
     pub rands: Vec<i32>,
     pub target_id: i64,
     pub time: i64,
-    pub event: StandardEvent,
+    pub event: WQEvent,
 }
 
 impl MessageId for SPrivateMessage {
@@ -72,7 +71,7 @@ impl MessageId for SPrivateMessage {
 }
 
 impl SPrivateMessage {
-    pub fn new(m: FriendMessage, event: StandardEvent) -> Self {
+    pub fn new(m: FriendMessage, event: WQEvent) -> Self {
         Self {
             seqs: m.seqs,
             rands: m.rands,
@@ -82,7 +81,7 @@ impl SPrivateMessage {
         }
     }
 
-    pub fn from_temp(m: GroupTempMessage, event: StandardEvent) -> Self {
+    pub fn from_temp(m: GroupTempMessage, event: WQEvent) -> Self {
         Self {
             seqs: m.seqs,
             rands: m.rands,
@@ -92,7 +91,7 @@ impl SPrivateMessage {
         }
     }
 
-    pub fn receipt(receipt: MessageReceipt, target_id: i64, event: StandardEvent) -> Self {
+    pub fn receipt(receipt: MessageReceipt, target_id: i64, event: WQEvent) -> Self {
         Self {
             seqs: receipt.seqs,
             rands: receipt.rands,

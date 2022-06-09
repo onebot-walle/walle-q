@@ -46,6 +46,7 @@ A qq platform OneBot Implementation
 ### 请求事件 request
 
 - [x] 好友添加请求 request.new_friend
+- [x] 新成员加群申请 request.join_group
 
 ## 已支持消息段
 
@@ -90,7 +91,7 @@ A qq platform OneBot Implementation
 - [x] 获取好友列表 get_friend_list
 - [x] 处理好友请求 set_new_friend
 - [x] 删除好友 delete_friend
-- [x] 获取好友请求列表 get_new_friend_request
+- [x] 获取好友请求列表 get_new_friend_requests
 
 ### 单级群组动作
 
@@ -105,6 +106,8 @@ A qq platform OneBot Implementation
 - [x] 解禁群成员 unban_group_member
 - [x] 设置群管理员 set_group_admin
 - [x] 取消群管理员 unset_group_admin
+- [x] 处理加群请求 set_join_group
+- [x] 获取加群申请 get_join_group_requests
 
 ### 文件动作
 
@@ -116,6 +119,8 @@ A qq platform OneBot Implementation
 ## OneBot-v11 协议支持
 
 基本功能已支持
+
+**v0.1.4 起不再支持v11协议，恢复支持时间未定，咕咕咕**
 
 ## 已知问题
 

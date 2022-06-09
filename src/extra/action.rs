@@ -14,11 +14,23 @@ pub struct DeleteFriend {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SetJoinGroup {
+    pub request_id: i64,
+    pub user_id: String,
+    pub group_id: String,
+    pub accept: bool,
+    pub block: Option<bool>,
+    pub message: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "action", content = "params", rename_all = "snake_case")]
 pub enum WQExtraAction {
     SetNewFriend(SetNewFriend),
     DeleteFriend(DeleteFriend),
-    GetNewFriendRequest(ExtendedValue),
+    GetNewFriendRequests(ExtendedValue),
+    SetJoinGroup(SetJoinGroup),
+    GetJoinGroupRequests(ExtendedValue),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

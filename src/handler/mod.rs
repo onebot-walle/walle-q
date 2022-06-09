@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use cached::{SizedCache, TimedCache};
+use cached::{Cached, SizedCache, TimedCache};
 use tokio::sync::Mutex;
 use walle_core::{action::*, extended_map, ExtendedMapExt, ExtendedValue, MessageAlt};
 use walle_core::{extended_value, resp::*};
 use walle_core::{
     ActionHandler, ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction,
-    StandardEvent,
 };
 
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
@@ -21,13 +20,14 @@ use self::file::FragmentFile;
 type WQRespResult = Result<WQResp, RespError>;
 
 mod file;
-pub(crate) mod v11;
+// pub(crate) mod v11;
 
 pub(crate) struct Handler {
     pub(crate) client: Arc<ricq::Client>,
-    pub(crate) event_cache: Arc<Mutex<SizedCache<String, StandardEvent>>>,
+    pub(crate) event_cache: Arc<Mutex<SizedCache<String, WQEvent>>>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) uploading_fragment: Mutex<TimedCache<String, FragmentFile>>,
+    pub(crate) join_group_request_cache: Arc<Mutex<SizedCache<i64, (bool, bool)>>>,
 }
 
 impl ActionHandler<WQAction, WQResp, OneBot> for Handler {
@@ -52,11 +52,13 @@ impl ActionHandler<WQAction, WQResp, OneBot> for Handler {
 #[async_trait]
 impl ActionHandler<WQExtraAction, WQResp, OneBot> for Handler {
     type Error = RespError;
-    async fn handle(&self, action: WQExtraAction, _ob: &OneBot) -> WQRespResult {
+    async fn handle(&self, action: WQExtraAction, ob: &OneBot) -> WQRespResult {
         match action {
             WQExtraAction::SetNewFriend(c) => self.set_new_friend(c).await,
             WQExtraAction::DeleteFriend(c) => self.delete_friend(c).await,
-            WQExtraAction::GetNewFriendRequest(_) => self.get_new_friend_request().await,
+            WQExtraAction::GetNewFriendRequests(_) => self.get_new_friend_requests().await,
+            WQExtraAction::SetJoinGroup(c) => self.set_join_group_request(c).await,
+            WQExtraAction::GetJoinGroupRequests(_) => self.get_join_group_requests(ob).await,
         }
     }
 }
@@ -610,7 +612,7 @@ impl Handler {
             .map_err(error::rq_error)?;
         Ok(Resps::empty_success())
     }
-    async fn get_new_friend_request(&self) -> WQRespResult {
+    async fn get_new_friend_requests(&self) -> WQRespResult {
         Ok(Resps::success(
             ExtendedValue::List(
                 self.client
@@ -631,5 +633,63 @@ impl Handler {
             )
             .into(),
         ))
+    }
+    async fn set_join_group_request(&self, c: SetJoinGroup) -> WQRespResult {
+        let (suspicious, is_invite) = match self
+            .join_group_request_cache
+            .lock()
+            .await
+            .cache_remove(&c.request_id)
+        {
+            Some(v) => v,
+            None => todo!(),
+        };
+        self.client
+            .solve_group_system_message(
+                c.request_id,
+                c.user_id.parse().map_err(|_| error::bad_param("user_id"))?,
+                c.group_id
+                    .parse()
+                    .map_err(|_| error::bad_param("group_id"))?,
+                suspicious,
+                is_invite,
+                c.accept,
+                c.block.unwrap_or_default(),
+                c.message.unwrap_or_default(),
+            )
+            .await
+            .map_err(|e| error::rq_error(e))?;
+        Ok(Resps::empty_success())
+    }
+    async fn get_join_group_requests(&self, ob: &OneBot) -> WQRespResult {
+        let joins = self
+            .client
+            .get_all_group_system_messages()
+            .await
+            .map_err(error::rq_error)?
+            .join_group_requests;
+        let mut v = vec![];
+        for join in joins {
+            v.push(
+                ob.new_event(
+                    WQRequestContent::JoinGroup {
+                        sub_type: "".to_string(),
+                        request_id: join.msg_seq,
+                        user_id: join.req_uin.to_string(),
+                        user_name: join.req_nick,
+                        group_id: join.group_code.to_string(),
+                        group_name: join.group_name,
+                        message: join.message,
+                        suspicious: join.suspicious,
+                        invitor_id: join.invitor_uin.map(|i| i.to_string()),
+                        invitor_name: join.invitor_nick,
+                    }
+                    .into(),
+                    join.msg_time as f64,
+                )
+                .await,
+            )
+        }
+        Ok(Resps::success(RespContent::LatestEvents(v)))
     }
 }
