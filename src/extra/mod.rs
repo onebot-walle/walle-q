@@ -1,14 +1,15 @@
 mod action;
+mod notice;
 mod request;
 pub mod segment;
 
 pub use action::*;
+pub use notice::*;
 pub use request::*;
 
 use serde::{Deserialize, Serialize};
 use walle_core::{
     BaseEvent, ColoredAlt, MessageContent, MessageEvent, MessageEventDetail, MetaContent,
-    NoticeContent,
 };
 
 pub type WQEvent = BaseEvent<WQEventContent>;
@@ -18,7 +19,7 @@ pub type WQEvent = BaseEvent<WQEventContent>;
 pub enum WQEventContent {
     Meta(MetaContent),
     Message(MessageContent<MessageEventDetail>),
-    Notice(NoticeContent),
+    Notice(WQNoticeContent),
     Request(WQRequestContent),
 }
 
@@ -34,8 +35,8 @@ impl From<MessageContent<MessageEventDetail>> for WQEventContent {
     }
 }
 
-impl From<NoticeContent> for WQEventContent {
-    fn from(notice: NoticeContent) -> Self {
+impl From<WQNoticeContent> for WQEventContent {
+    fn from(notice: WQNoticeContent) -> Self {
         WQEventContent::Notice(notice)
     }
 }

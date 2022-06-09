@@ -68,6 +68,13 @@
 | ------- | ------ | ------- |
 | user_id | String | 好友 ID |
 
+### 好友戳一戳 notice.friend_poke
+
+| 字段        | 类型   | 说明      |
+| ----------- | ------ | --------- |
+| user_id     | String | 发送者 ID |
+| receiver_id | String | 接收者 ID |
+
 ### 群成员增加 notice.group_member_increase
 
 | 字段        | 类型   | 说明             |
@@ -119,6 +126,14 @@
 | ----------- | ------ | --------- |
 | user_id     | String | 成员 ID   |
 | group_id    | String | 群 ID     |
+| operator_id | String | 操作者 ID |
+
+### 群名称更新 notice.group_name_update
+
+| 字段        | 类型   | 说明      |
+| ----------- | ------ | --------- |
+| group_id    | String | 群 ID     |
+| group_name  | String | 群名称    |
 | operator_id | String | 操作者 ID |
 
 ## 请求事件 request

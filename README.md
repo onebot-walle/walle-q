@@ -37,12 +37,14 @@ A qq platform OneBot Implementation
 - [x] 私聊消息撤回 notice.private_message_delete
 - [x] 好友增加 notice.friend_increase
 - [x] 好友减少 notice.friend_decrease
+- [x] 好友戳一戳 notice.friend_poke
 - [x] 群成员增加 notice.group_member_increase
 - [x] 群成员减少 notice.group_member_decrease
 - [x] 群成员禁言 notice.group_member_ban
 - [x] 群消息撤回 notice.group_message_delete
 - [x] 群管理员设置 notice.group_admin_set
 - [x] 群管理取消设置 notice.group_admin_unset
+- [x] 群名称更新 notice.group_name_update
 
 ### 请求事件 request
 

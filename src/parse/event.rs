@@ -1,5 +1,5 @@
 use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
-use crate::extra::{WQEvent, WQRequestContent};
+use crate::extra::{WQEvent, WQExtraNoticeContent, WQRequestContent};
 use crate::OneBot;
 
 use ricq::client::handler::QEvent;
@@ -259,8 +259,6 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             )
             .await,
         ),
-        // QEvent::GroupAudioMessage(_) => todo!(),
-        // QEvent::FriendAudioMessage(_) => todo!(),
         QEvent::SelfInvited(i) => Some(
             ob.new_event(
                 WQRequestContent::GroupInvited {
@@ -290,8 +288,33 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             )
             .await,
         ),
-        // QEvent::FriendPoke(_) => todo!(),
-        // QEvent::GroupNameUpdate(_) => todo!(),
+        // QEvent::GroupAudioMessage(_) => todo!(),
+        // QEvent::FriendAudioMessage(_) => todo!(),
+        QEvent::FriendPoke(p) => Some(
+            ob.new_event(
+                WQExtraNoticeContent::FriendPock {
+                    sub_type: "".to_string(),
+                    user_id: p.poke.sender.to_string(),
+                    receiver_id: p.poke.receiver.to_string(),
+                }
+                .into(),
+                walle_core::timestamp_nano_f64(),
+            )
+            .await,
+        ),
+        QEvent::GroupNameUpdate(g) => Some(
+            ob.new_event(
+                WQExtraNoticeContent::GroupNameUpdate {
+                    sub_type: "".to_string(),
+                    group_id: g.update.group_code.to_string(),
+                    group_name: g.update.group_name,
+                    operator_id: g.update.operator_uin.to_string(),
+                }
+                .into(),
+                walle_core::timestamp_nano_f64(),
+            )
+            .await,
+        ),
         QEvent::DeleteFriend(d) => Some(
             ob.new_event(
                 NoticeContent::FriendDecrease {
