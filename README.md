@@ -24,20 +24,28 @@ A qq platform OneBot Implementation
 - [x] 扫码登录
 - [x] Token 登录
 
-## 已支持 Event
+## 已支持事件 Event
 
-- [x] 私聊消息
-- [x] 群消息
-- [x] 群临时消息
-- [x] 私聊消息撤回
-- [x] 好友增加
-- [x] 群成员增加
-- [x] 群成员减少
-- [x] 群成员禁言
-- [x] 群管理员设置
-- [x] 群管理取消设置
-- [x] 好友添加请求
-- [ ] ...
+### 消息事件 message
+
+- [x] 私聊消息 message.private
+- [x] 群临时消息 message.private.group_temp
+- [x] 群消息 message.group
+
+### 通知消息 notice
+
+- [x] 私聊消息撤回 notice.private_message_delete
+- [x] 好友增加 notice.friend_increase
+- [x] 群成员增加 notice.group_member_increase
+- [x] 群成员减少 notice.group_member_decrease
+- [x] 群成员禁言 notice.group_member_ban
+- [x] 群消息撤回 notice.group_message_delete
+- [x] 群管理员设置 notice.group_admin_set
+- [x] 群管理取消设置 notice.group_admin_unset
+
+### 请求事件 request
+
+- [x] 好友添加请求 request.new_friend
 
 ## 已支持消息段
 
@@ -49,14 +57,12 @@ A qq platform OneBot Implementation
 - [x] image消息
 - [x] reply消息
 - [x] xml消息
-- [ ] ...
 
 ### 仅接收
 
 - [x] dice消息
 - [x] rps消息
 - [x] json消息
-- [ ] ...
 
 ### 仅发送
 
@@ -64,19 +70,30 @@ A qq platform OneBot Implementation
 
 ## 已支持 API
 
+### 元动作
+
 - [x] 获取近期事件 get_latest_events
 - [x] 获取支持的动作列表 get_supported_actions
 - [x] 获取运行状态 get_status
 - [x] 获取版本信息 get_version
+
+### 消息动作
+
 - [x] 发送消息 send_message
 - [x] 删除消息 delete_message
 - [x] 获取消息 get_message
+
+### 单用户动作
+
 - [x] 获取机器人自身信息 get_self_info
 - [x] 获取用户信息 get_user_info
 - [x] 获取好友列表 get_friend_list
 - [x] 处理好友请求 set_new_friend
 - [x] 删除好友 delete_friend
 - [x] 获取好友请求列表 get_new_friend_request
+
+### 单级群组动作
+
 - [x] 获取群信息 get_group_info
 - [x] 获取群列表 get_group_list
 - [x] 获取群成员信息 get_group_member_info
@@ -88,7 +105,13 @@ A qq platform OneBot Implementation
 - [x] 解禁群成员 unban_group_member
 - [x] 设置群管理员 set_group_admin
 - [x] 取消群管理员 unset_group_admin
-- [ ] ...
+
+### 文件动作
+
+- [x] 上传文件 upload_file
+- [x] 获取文件 get_file
+- [x] 分片上传文件 upload_file_fragmented
+- [x] 分片获取文件 get_file_fragmented
 
 ## OneBot-v11 协议支持
 

@@ -1,6 +1,8 @@
 # 动作 Action
 
-## 获取近期事件 get_latest_events
+## 元动作
+
+### 获取近期事件 get_latest_events
 
 动作请求：
 
@@ -11,13 +13,13 @@
 
 动作响应为 Vec&lt;Event&gt; 
 
-## 获取支持的动作列表 get_supported_actions
+### 获取支持的动作列表 get_supported_actions
 
 无动作请求数据
 
 动作响应为 Vec&lt;String&gt; 
 
-## 获取运行状态 get_status
+### 获取运行状态 get_status
 
 无动作请求数据
 
@@ -28,7 +30,7 @@
 | good   | bool | 是否各项状态都符合预期，OneBot 实现各模块均正常 |
 | online | bool | 是否在线                                        |
 
-## 获取版本信息 get_version
+### 获取版本信息 get_version
 
 无动作请求数据
 
@@ -41,7 +43,9 @@
 | version        | String | Walle-Q 版本号 |
 | onebot_version | String | `12`           |
 
-## 发送消息 send_message
+## 消息动作
+
+### 发送消息 send_message
 
 动作请求：
 
@@ -60,7 +64,7 @@
 | message_id | String | 消息 ID          |
 | time       | f64    | 时间戳，单位：秒 |
 
-## 删除消息 delete_message
+### 删除消息 delete_message
 
 动作请求：
 
@@ -70,7 +74,7 @@
 
 无动作响应数据
 
-## 获取消息 get_message
+### 获取消息 get_message
 
 动作请求：
 
@@ -82,7 +86,9 @@
 
 同消息事件 MessageEvent
 
-## 获取机器人自身信息 get_self_info
+## 单用户动作
+
+### 获取机器人自身信息 get_self_info
 
 无动作请求数据
 
@@ -93,7 +99,7 @@
 | user_id  | String | 机器人用户 ID   |
 | nickname | String | 机器人名称/昵称 |
 
-## 获取用户信息 get_user_info
+### 获取用户信息 get_user_info
 
 动作请求:
 
@@ -108,13 +114,13 @@
 | user_id  | String | 用户 ID   |
 | nickname | String | 名称/昵称 |
 
-## 获取好友列表 get_friend_list
+### 获取好友列表 get_friend_list
 
 无动作请求数据
 
 好友信息列表，每一个元素的字段同 `get_user_info` 的响应数据。
 
-## 处理好友请求 set_new_friend
+### 处理好友请求 set_new_friend
 
 动作请求：
 
@@ -127,7 +133,7 @@
 无动作响应数据
 
 
-## 删除好友 delete_friend
+### 删除好友 delete_friend
 
 | 字段    | 类型   | 说明    |
 | ------- | ------ | ------- |
@@ -138,13 +144,15 @@
 
 无动作响应数据
 
-## 获取好友请求列表 get_new_friend_request
+### 获取好友请求列表 get_new_friend_request
 
 无动作请求数据
 
 动作响应为 Vec\<event.request.new_friend\>
 
-## 获取群信息 get_group_info
+## 单级群组动作
+
+### 获取群信息 get_group_info
 
 动作请求:
 
@@ -159,13 +167,13 @@
 | group_id   | String   | 群 ID  |
 | group_name | String   | 群名称 |
 
-## 获取群列表 get_group_list
+### 获取群列表 get_group_list
 
 无动作请求数据
 
 群信息列表，每一个元素的字段同 `get_group_info` 的响应数据。
 
-## 获取群成员信息 get_group_member_info
+### 获取群成员信息 get_group_member_info
 
 动作请求:
 
@@ -181,7 +189,7 @@
 | user_id  | String   | 用户 ID       |
 | nickname | String   | 用户名称/昵称 |
 
-## 获取群成员列表 get_group_member_list
+### 获取群成员列表 get_group_member_list
 
 动作请求:
 
@@ -191,7 +199,7 @@
 
 群信息列表，每一个元素的字段同 `get_group_member_info` 的响应数据。
 
-## 设置群名称 set_group_name
+### 设置群名称 set_group_name
 
 动作请求:
 
@@ -202,7 +210,7 @@
 
 无动作响应数据
 
-## 退出群 leave_group
+### 退出群 leave_group
 
 动作请求:
 
@@ -212,7 +220,7 @@
 
 无动作响应数据
 
-## 踢出群成员 kick_group_member
+### 踢出群成员 kick_group_member
 
 动作请求:
 
@@ -223,7 +231,7 @@
 
 无动作响应数据
 
-## 禁言群成员 ban_group_member
+### 禁言群成员 ban_group_member
 
 动作请求:
 
@@ -235,7 +243,7 @@
 
 无动作响应数据
 
-## 解禁群成员 unban_group_member
+### 解禁群成员 unban_group_member
 
 动作请求:
 
@@ -246,7 +254,7 @@
 
 无动作响应数据
 
-## 设置群管理员 set_group_admin
+### 设置群管理员 set_group_admin
 
 动作请求:
 
@@ -257,7 +265,7 @@
 
 无动作响应数据
 
-## 取消群管理员 unset_group_admin
+### 取消群管理员 unset_group_admin
 
 动作请求:
 
@@ -268,7 +276,9 @@
 
 无动作响应数据
 
-## 上传文件 upload_file
+## 文件动作
+
+### 上传文件 upload_file
 
 动作请求：
 
@@ -289,7 +299,7 @@
 | ------- | ------ | ------- |
 | file_id | String | 文件 ID |
 
-## 获取文件 get_file
+### 获取文件 get_file
 
 动作请求：
 
@@ -311,11 +321,11 @@
 | data   | Option\<String\>                | 上传方式为 data 时需要提供的数据 |
 | sha256 | Option\<String\>                | 文件的 sha256 值                 |
 
-## 分片上传文件 upload_file_fragmented
+### 分片上传文件 upload_file_fragmented
 
 > 累了，看 Onebot12 文档吧，一样的 ╯︿╰
 
-## 分片获取文件 get_file_fragmented
+### 分片获取文件 get_file_fragmented
 
 > 累了，看 Onebot12 文档吧，一样的 ╯︿╰
 
