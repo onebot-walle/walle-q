@@ -13,7 +13,7 @@
 
 ## 消息事件 message
 
-### 单用户消息事件 message.private
+### [标准]单用户消息事件 message.private
 
 | 字段        | 类型    | 说明            |
 | ----------- | ------- | --------------- |
@@ -23,7 +23,7 @@
 | user_id     | String  | 发送者 ID       |
 | user_name   | String  | 发送者 nickname |
 
-### 群临时消息 message.private.group_temp
+### [扩展]群临时消息 message.private.group_temp
 
 | 字段        | 类型    | 说明            |
 | ----------- | ------- | --------------- |
@@ -34,7 +34,7 @@
 | group_id    | String  | 群 ID           |
 | user_name   | String  | 发送者 nickname |
 
-### 群用户消息事件 message.group
+### [标准]群用户消息事件 message.group
 
 | 字段         | 类型    | 说明       |
 | ------------ | ------- | ---------- |
@@ -48,34 +48,34 @@
 
 ## 通知事件 notice
 
-### 好友消息撤回 notice.private_message_delete
+### [标准]好友消息撤回 notice.private_message_delete
 
 | 字段       | 类型   | 说明      |
 | ---------- | ------ | --------- |
 | message_id | String | 消息 ID   |
 | user_id    | String | 发送者 ID |
 
-### 好友增加 notice.friend_increase
+### [标准]好友增加 notice.friend_increase
 
 | 字段        | 类型   | 说明     |
 | ----------- | ------ | -------- |
 | user_id     | String | 好友 ID  |
 | *user_name* | String | 好友昵称 |
 
-### 好友减少 notice.friend_decrease
+### [标准]好友减少 notice.friend_decrease
 
 | 字段    | 类型   | 说明    |
 | ------- | ------ | ------- |
 | user_id | String | 好友 ID |
 
-### 好友戳一戳 notice.friend_poke
+### ~!好友戳一戳 notice.friend_poke
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
 | user_id     | String | 发送者 ID |
 | receiver_id | String | 接收者 ID |
 
-### 群成员增加 notice.group_member_increase
+### [标准]群成员增加 notice.group_member_increase
 
 | 字段        | 类型   | 说明             |
 | ----------- | ------ | ---------------- |
@@ -84,7 +84,7 @@
 | group_id    | String | 群 ID            |
 | operator_id | String | 操作者 ID (暂缺) |
 
-### 群成员减少 notice.group_member_decrease
+### [标准]群成员减少 notice.group_member_decrease
 
 | 字段        | 类型   | 说明                              |
 | ----------- | ------ | --------------------------------- |
@@ -93,7 +93,7 @@
 | group_id    | String | 群 ID                             |
 | operator_id | String | 操作者 ID                         |
 
-### 群成员禁言 notice.group_member_ban
+### [标准]群成员禁言 notice.group_member_ban
 
 | 字段        | 类型   | 说明               |
 | ----------- | ------ | ------------------ |
@@ -102,7 +102,7 @@
 | operator_id | String | 操作者 ID          |
 | *duration*  | i64    | 禁言时长，单位：秒 |
 
-### 群消息撤回 notice.group_message_delete
+### [标准]群消息撤回 notice.group_message_delete
 
 | 字段        | 类型   | 说明                      |
 | ----------- | ------ | ------------------------- |
@@ -112,7 +112,7 @@
 | group_id    | String | 群 ID                     |
 | operator_id | String | 操作者 ID                 |
 
-### 群管理员设置 notice.group_admin_set
+### [标准]群管理员设置 notice.group_admin_set
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
@@ -120,7 +120,7 @@
 | group_id    | String | 群 ID     |
 | operator_id | String | 操作者 ID |
 
-### 群管理员取消 notice.group_admin_unset
+### [标准]群管理员取消 notice.group_admin_unset
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
@@ -128,7 +128,7 @@
 | group_id    | String | 群 ID     |
 | operator_id | String | 操作者 ID |
 
-### 群名称更新 notice.group_name_update
+### [扩展]群名称更新 notice.group_name_update
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
@@ -138,7 +138,7 @@
 
 ## 请求事件 request
 
-### 好友添加请求 request.new_friend
+### [扩展]好友添加请求 request.new_friend
 
 | 字段       | 类型   | 说明          |
 | ---------- | ------ | ------------- |
@@ -147,7 +147,7 @@
 | user_name  | String | 用户名称/昵称 |
 | message    | String | 请求信息      |
 
-### 新成员加群申请 request.join_group
+### [扩展]新成员加群申请 request.join_group
 
 | 字段         | 类型             | 说明          |
 | ------------ | ---------------- | ------------- |
@@ -161,7 +161,7 @@
 | invitor_id   | Option\<String\> | 邀请人ID      |
 | invitor_name | Option\<String\> | 邀请人名称    |
 
-### 群邀请 request.group_invited
+### [扩展]群邀请 request.group_invited
 
 | 字段         | 类型             | 说明       |
 | ------------ | ---------------- | ---------- |
