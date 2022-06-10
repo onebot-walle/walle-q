@@ -4,12 +4,11 @@
 
 | 字段     | 类型   | 说明                 |
 | -------- | ------ | -------------------- |
-| id       | String | 事件ID               |
+| id       | String | 事件 ID              |
 | impl     | String | 实现名，即 `Walle-Q` |
 | platform | String | 平台名，即 `qq`      |
 | self_id  | String | Bot ID               |
 | time     | f64    | 事件戳，单位：秒     |
-
 
 ## 消息事件 message
 
@@ -43,8 +42,8 @@
 | alt_message  | String  | 消息文本   |
 | user_id      | String  | 发送者 ID  |
 | group_id     | String  | 群 ID      |
-| *user_card*  | String  | 发送者名片 |
-| *group_name* | String  | 群名称     |
+| _user_card_  | String  | 发送者名片 |
+| _group_name_ | String  | 群名称     |
 
 ## 通知事件 notice
 
@@ -60,7 +59,7 @@
 | 字段        | 类型   | 说明     |
 | ----------- | ------ | -------- |
 | user_id     | String | 好友 ID  |
-| *user_name* | String | 好友昵称 |
+| _user_name_ | String | 好友昵称 |
 
 ### [标准]好友减少 notice.friend_decrease
 
@@ -68,7 +67,7 @@
 | ------- | ------ | ------- |
 | user_id | String | 好友 ID |
 
-### ~!好友戳一戳 notice.friend_poke
+### [扩展]好友戳一戳 notice.friend_poke
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
@@ -100,7 +99,7 @@
 | user_id     | String | 成员 ID            |
 | group_id    | String | 群 ID              |
 | operator_id | String | 操作者 ID          |
-| *duration*  | i64    | 禁言时长，单位：秒 |
+| _duration_  | i64    | 禁言时长，单位：秒 |
 
 ### [标准]群消息撤回 notice.group_message_delete
 
@@ -158,7 +157,7 @@
 | group_name   | String           | 群名称        |
 | message      | String           | 请求信息      |
 | suspicious   | bool             | 是否可疑      |
-| invitor_id   | Option\<String\> | 邀请人ID      |
+| invitor_id   | Option\<String\> | 邀请人 ID     |
 | invitor_name | Option\<String\> | 邀请人名称    |
 
 ### [扩展]群邀请 request.group_invited
@@ -168,5 +167,5 @@
 | request_id   | i64              | 请求 ID    |
 | group_id     | String           | 群 ID      |
 | group_name   | String           | 群名称     |
-| invitor_id   | Option\<String\> | 邀请人ID   |
+| invitor_id   | Option\<String\> | 邀请人 ID  |
 | invitor_name | Option\<String\> | 邀请人名称 |
