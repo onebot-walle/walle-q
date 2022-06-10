@@ -108,8 +108,8 @@ impl ActionHandler<StandardAction, WQResp, OneBot> for Handler {
                 self.set_group_admin(c.group_id, c.user_id, true).await
             }
 
-            StandardAction::UploadFile(c) => self.upload_file(c, ob).await,
-            StandardAction::UploadFileFragmented(c) => self.upload_file_fragmented(c, ob).await,
+            StandardAction::UploadFile(c) => self.upload_file(c).await,
+            StandardAction::UploadFileFragmented(c) => self.upload_file_fragmented(c).await,
             StandardAction::GetFile(c) => self.get_file(c, ob).await,
             StandardAction::GetFileFragmented(c) => self.get_file_fragmented(c, ob).await,
             _ => Err(error_builder::unsupported_action()),
@@ -271,14 +271,7 @@ impl Handler {
                         .send_group_temp_message(group_code, target, chain)
                         .await
                         .map_err(error::rq_error)?,
-                    RQSendItem::Voice(ptt) => self
-                        .client
-                        .send_friend_audio(target, FriendAudio(ptt))
-                        .await
-                        .map_err(error::rq_error)?,
-                    RQSendItem::Forward(_) => {
-                        return Err(walle_core::resp::error_builder::unsupported_param())
-                    }
+                    _ => return Err(walle_core::resp::error_builder::unsupported_param()),
                 };
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
@@ -323,6 +316,11 @@ impl Handler {
                     RQSendItem::Chain(chain) => self
                         .client
                         .send_friend_message(target, chain)
+                        .await
+                        .map_err(error::rq_error)?,
+                    RQSendItem::Voice(ptt) => self
+                        .client
+                        .send_friend_audio(target, FriendAudio(ptt))
                         .await
                         .map_err(error::rq_error)?,
                     _ => return Err(walle_core::resp::error_builder::unsupported_segment()),

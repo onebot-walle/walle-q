@@ -9,10 +9,12 @@ use walle_core::{
     extended_map, ExtendedMapExt, ExtendedValue, Message, MessageEvent, MessageSegment,
 };
 
-use crate::database::{Database, SImage, WQDatabase};
+use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
 use crate::extra::segment::NodeEnum;
 use crate::extra::ToMessageEvent;
+
+use super::audio::encode_to_silk;
 
 pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
@@ -120,14 +122,14 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
             data: extended_map! {"data": l.content},
         }),
         RQElem::FriendImage(i) => {
-            wqdb._insert_image(&i);
+            wqdb.insert_image(&i);
             Some(MessageSegment::Image {
                 extra: extended_map! {"url": i.url(), "flash": false},
                 file_id: i.hex_image_id(),
             })
         }
         RQElem::GroupImage(i) => {
-            wqdb._insert_image(&i);
+            wqdb.insert_image(&i);
             Some(MessageSegment::Image {
                 extra: extended_map! {"url": i.url(), "flash": false},
                 file_id: i.hex_image_id(),
@@ -135,14 +137,14 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         }
         RQElem::FlashImage(fi) => match fi {
             FlashImage::FriendImage(fi) => {
-                wqdb._insert_image(&fi);
+                wqdb.insert_image(&fi);
                 Some(MessageSegment::Image {
                     extra: extended_map! {"url": fi.url(), "flash": true},
                     file_id: fi.hex_image_id(),
                 })
             }
             FlashImage::GroupImage(gi) => {
-                wqdb._insert_image(&gi);
+                wqdb.insert_image(&gi);
                 Some(MessageSegment::Image {
                     extra: extended_map! {"url": gi.url(), "flash": true},
                     file_id: gi.hex_image_id(),
@@ -293,10 +295,9 @@ async fn push_msg_seg(
         },
         MessageSegment::Image { file_id, mut extra } => {
             let flash = extra.try_remove("flash").unwrap_or(false);
-            if let Some(info) = hex::decode(&file_id)
-                .ok()
-                .and_then(|id| wqdb.get_image(&id))
-            {
+            if let Some(info) = wqdb.get_image::<Images>(
+                &hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?,
+            )? {
                 if group {
                     if let Some(image) = info.try_into_group_elem(cli, target).await {
                         maybe_flash!(items.chain, flash, image);
@@ -336,13 +337,36 @@ async fn push_msg_seg(
             }
         }
         MessageSegment::Voice { file_id, .. } => {
-            if let Some(voice) = wqdb
-                ._get_voice::<Ptt>(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)
+            match wqdb
+                .get_voice(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
             {
-                items.voice = Some(voice);
-            } else {
-                warn!("audio not found: {}", file_id);
-                return Err(error::file_not_found()); //todo
+                Some(Voices::Ptt(ptt)) => items.voice = Some(ptt),
+                Some(Voices::Local(local)) if group => {
+                    let group_audio = cli
+                        .upload_group_audio(
+                            target,
+                            encode_to_silk(local.path().to_str().unwrap()).await?,
+                            1,
+                        )
+                        .await
+                        .map_err(|e| error::rq_error(e))?;
+                    items.voice = Some(group_audio.0);
+                }
+                Some(Voices::Local(local)) => {
+                    let friend_audio = cli
+                        .upload_friend_audio(
+                            target,
+                            encode_to_silk(local.path().to_str().unwrap()).await?,
+                            std::time::Duration::from_secs(10), //just a number tired
+                        )
+                        .await
+                        .map_err(|e| error::rq_error(e))?;
+                    items.voice = Some(friend_audio.0);
+                }
+                None => {
+                    warn!("audio not found: {}", file_id);
+                    return Err(error::file_not_found());
+                }
             }
         }
         seg => {

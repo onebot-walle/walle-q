@@ -306,7 +306,7 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
                     gam.message.time as f64,
                 )
                 .await;
-            wqdb._insert_voice(&gam.message.audio.0);
+            wqdb.insert_voice(&gam.message.audio.0);
             let s_group = SGroupMessage::from_audio_event(gam.message, event.clone());
             wqdb.insert_group_message(&s_group);
             Some(event)
@@ -327,7 +327,7 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
                     fam.message.time as f64,
                 )
                 .await;
-            wqdb._insert_voice(&fam.message.audio.0);
+            wqdb.insert_voice(&fam.message.audio.0);
             let s_private = SPrivateMessage::from_audio_event(fam.message, event.clone());
             wqdb.insert_private_message(&s_private);
             Some(event)

@@ -7,6 +7,7 @@ pub(crate) mod voice;
 pub use message::*;
 pub use simage::*;
 pub use voice::*;
+use walle_core::resp::RespError;
 
 pub(crate) trait DatabaseInit {
     fn init() -> Self;
@@ -15,10 +16,13 @@ pub(crate) trait DatabaseInit {
 pub(crate) trait Database {
     fn _get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: i32) -> Option<T>;
     fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
-    fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &[u8]) -> Option<T>;
-    fn _insert_image<T: serde::Serialize + SImage>(&self, value: &T);
-    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T>;
-    fn _insert_voice<T: SVoice>(&self, value: &T);
+    fn get_image<T: for<'de> serde::Deserialize<'de>>(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<T>, RespError>;
+    fn insert_image<T: serde::Serialize + SImage>(&self, value: &T);
+    fn get_voice<T: SVoice>(&self, key: &[u8]) -> Result<Option<T>, RespError>;
+    fn insert_voice<T: SVoice>(&self, value: &T);
     fn get_message(&self, key: i32) -> Option<SMessage> {
         self._get_message(key)
     }
@@ -33,12 +37,6 @@ pub(crate) trait Database {
     }
     fn insert_private_message(&self, value: &SPrivateMessage) {
         self._insert_message(value)
-    }
-    fn get_image(&self, key: &[u8]) -> Option<Images> {
-        self._get_image(key)
-    }
-    fn insert_image(&self, value: &Images) {
-        self._insert_image(value)
     }
 }
 
@@ -60,28 +58,31 @@ impl Database for WQDatabaseInner {
             Self::LevelDb(db) => db._insert_message(value),
         }
     }
-    fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &[u8]) -> Option<T> {
+    fn get_image<T: for<'de> serde::Deserialize<'de>>(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<T>, RespError> {
         match self {
-            Self::SledDb(db) => db._get_image(key),
-            Self::LevelDb(db) => db._get_image(key),
+            Self::SledDb(db) => db.get_image(key),
+            Self::LevelDb(db) => db.get_image(key),
         }
     }
-    fn _insert_image<T: serde::Serialize + SImage>(&self, value: &T) {
+    fn insert_image<T: serde::Serialize + SImage>(&self, value: &T) {
         match self {
-            Self::SledDb(db) => db._insert_image(value),
-            Self::LevelDb(db) => db._insert_image(value),
+            Self::SledDb(db) => db.insert_image(value),
+            Self::LevelDb(db) => db.insert_image(value),
         }
     }
-    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+    fn get_voice<T: SVoice>(&self, key: &[u8]) -> Result<Option<T>, RespError> {
         match self {
-            Self::SledDb(db) => db._get_voice(key),
-            Self::LevelDb(db) => db._get_voice(key),
+            Self::SledDb(db) => db.get_voice(key),
+            Self::LevelDb(db) => db.get_voice(key),
         }
     }
-    fn _insert_voice<T: SVoice>(&self, value: &T) {
+    fn insert_voice<T: SVoice>(&self, value: &T) {
         match self {
-            Self::SledDb(db) => db._insert_voice(value),
-            Self::LevelDb(db) => db._insert_voice(value),
+            Self::SledDb(db) => db.insert_voice(value),
+            Self::LevelDb(db) => db.insert_voice(value),
         }
     }
 }
@@ -117,32 +118,35 @@ impl Database for WQDatabase {
         }
         None
     }
-    fn _insert_image<T: serde::Serialize + SImage>(&self, value: &T) {
+    fn insert_image<T: serde::Serialize + SImage>(&self, value: &T) {
         for db in &self.0 {
-            db._insert_image(value)
+            db.insert_image(value)
         }
     }
-    fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &[u8]) -> Option<T> {
+    fn get_image<T: for<'de> serde::Deserialize<'de>>(
+        &self,
+        key: &[u8],
+    ) -> Result<Option<T>, RespError> {
         for db in &self.0 {
-            match db._get_image(key) {
-                Some(v) => return Some(v),
+            match db.get_image(key)? {
+                Some(v) => return Ok(Some(v)),
                 None => continue,
             }
         }
-        None
+        Ok(None)
     }
-    fn _insert_voice<T: SVoice>(&self, value: &T) {
+    fn insert_voice<T: SVoice>(&self, value: &T) {
         for db in &self.0 {
-            db._insert_voice(value)
+            db.insert_voice(value)
         }
     }
-    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+    fn get_voice<T: SVoice>(&self, key: &[u8]) -> Result<Option<T>, RespError> {
         for db in &self.0 {
-            match db._get_voice(key) {
-                Some(v) => return Some(v),
+            match db.get_voice(key)? {
+                Some(v) => return Ok(Some(v)),
                 None => continue,
             }
         }
-        None
+        Ok(None)
     }
 }

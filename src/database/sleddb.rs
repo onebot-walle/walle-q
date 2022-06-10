@@ -1,3 +1,5 @@
+use crate::error;
+
 use super::*;
 use sled::Tree;
 
@@ -38,17 +40,18 @@ impl Database for SledDb {
             .unwrap();
     }
 
-    fn _get_image<T>(&self, key: &[u8]) -> Option<T>
+    fn get_image<T>(&self, key: &[u8]) -> Result<Option<T>, RespError>
     where
         T: for<'de> serde::Deserialize<'de>,
     {
         self.image_tree
             .get(key)
             .unwrap()
-            .map(|v| rmp_serde::from_slice(&v).unwrap())
+            .map(|v| rmp_serde::from_slice(&v).map_err(|_| error::file_type_not_match()))
+            .transpose()
     }
 
-    fn _insert_image<T>(&self, value: &T)
+    fn insert_image<T>(&self, value: &T)
     where
         T: serde::Serialize + SImage,
     {
@@ -56,13 +59,14 @@ impl Database for SledDb {
             .insert(value.image_id(), rmp_serde::to_vec(value).unwrap())
             .unwrap();
     }
-    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+    fn get_voice<T: SVoice>(&self, key: &[u8]) -> Result<Option<T>, RespError> {
         self.audio_tree
             .get(key)
             .unwrap()
-            .map(|v| SVoice::from_data(v.to_vec()))
+            .map(|v| SVoice::from_data(&v.to_vec()).ok_or_else(error::file_type_not_match))
+            .transpose()
     }
-    fn _insert_voice<T: SVoice>(&self, value: &T) {
+    fn insert_voice<T: SVoice>(&self, value: &T) {
         self.audio_tree
             .insert(value.voice_id(), value.to_data())
             .unwrap();

@@ -8,7 +8,7 @@ use walle_core::action::{GetFile, GetFileFragmented, UploadFile, UploadFileFragm
 use walle_core::resp::{FileFragmentedHead, FileIdContent, RespError};
 use walle_core::{extended_map, ExtendedMap, ExtendedMapExt, ExtendedValue, Resps};
 
-use crate::database::{save_image, Database, Images, SImage};
+use crate::database::{save_image, save_voice, Database, Images, SImage, SVoice};
 use crate::error;
 
 use super::{OneBot, WQRespResult};
@@ -37,22 +37,29 @@ impl super::Handler {
         }
     }
 
-    pub async fn upload_file(&self, mut c: UploadFile, ob: &OneBot) -> WQRespResult {
+    pub async fn upload_file(&self, mut c: UploadFile) -> WQRespResult {
         let file_type = c
             .extra
             .try_remove("file_type")
             .unwrap_or("image".to_string());
         let data = Self::get_file_data(c).await?;
         match file_type.as_str() {
-            "image" => self.upload_image(data, ob).await,
+            "image" => self.upload_image(data).await,
+            "voice" => self.upload_voice(data).await,
             ty => Err(error::unsupported_param(ty)),
         }
     }
 
-    pub async fn upload_image(&self, data: Vec<u8>, _ob: &OneBot) -> WQRespResult {
+    pub async fn upload_image(&self, data: Vec<u8>) -> WQRespResult {
         let info = save_image(&data).await?;
-        self.database._insert_image(&info);
+        self.database.insert_image(&info);
         Ok(Resps::success(info.as_file_id_content().into()))
+    }
+
+    pub async fn upload_voice(&self, data: Vec<u8>) -> WQRespResult {
+        let local = save_voice(&data).await?;
+        self.database.insert_voice(&local);
+        Ok(Resps::success(local.as_file_id_content().into()))
     }
 
     pub async fn get_file(&self, mut c: GetFile, ob: &OneBot) -> WQRespResult {
@@ -67,10 +74,9 @@ impl super::Handler {
     }
 
     pub async fn get_image(&self, c: &GetFile, _ob: &OneBot) -> WQRespResult {
-        if let Some(image) = hex::decode(&c.file_id)
-            .ok()
-            .and_then(|id| self.database.get_image(&id))
-        {
+        if let Some(image) = self.database.get_image::<Images>(
+            &hex::decode(&c.file_id).map_err(|_| error::bad_param("file_id"))?,
+        )? {
             match c.r#type.as_str() {
                 "url" => {
                     if let Some(url) = image.get_url() {
@@ -136,11 +142,7 @@ impl super::Handler {
         }
     }
 
-    pub async fn upload_file_fragmented(
-        &self,
-        c: UploadFileFragmented,
-        ob: &OneBot,
-    ) -> WQRespResult {
+    pub async fn upload_file_fragmented(&self, c: UploadFileFragmented) -> WQRespResult {
         match c {
             UploadFileFragmented::Prepare { name, total_size } => {
                 let file_id = format!("{}-{}", name, total_size);
@@ -211,7 +213,7 @@ impl super::Handler {
                 if sha256.finalize().to_vec() != sha {
                     return Err(error::file_sha256_not_match());
                 }
-                self.upload_image(data, ob).await
+                self.upload_image(data).await
             }
         }
     }
@@ -230,14 +232,14 @@ impl super::Handler {
                 hex::encode(&s.finalize())
             };
             let info = save_image(&data).await?;
-            h.database._insert_image(&info);
+            h.database.insert_image(&info);
             Ok((info, sha256))
         }
         match c {
             GetFileFragmented::Prepare { file_id } => {
                 let (info, sha256) = match self
                     .database
-                    .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)
+                    .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
                     .ok_or_else(error::file_not_found)?
                 {
                     Images::Friend(f) => to_info(self, f).await?,
@@ -269,7 +271,7 @@ impl super::Handler {
             } => {
                 let info: ImageInfo = self
                     .database
-                    ._get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)
+                    .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
                     .ok_or_else(error::file_not_found)?;
                 let mut file = tokio::fs::File::open(info.path())
                     .await

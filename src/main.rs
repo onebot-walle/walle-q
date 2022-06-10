@@ -21,6 +21,7 @@ const WALLE_Q: &str = "Walle-Q";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const LOG_PATH: &str = "./log";
 const IMAGE_CACHE_DIR: &str = "./data/image";
+const VOICE_CACHE_DIR: &str = "./data/voice";
 const FILE_CACHE_DIR: &str = "./data/file";
 
 type WQResp = walle_core::Resps<extra::WQEvent>;
@@ -119,5 +120,6 @@ async fn main() {
 async fn init() {
     tokio::fs::create_dir_all(crate::IMAGE_CACHE_DIR).await.ok();
     tokio::fs::create_dir_all(crate::FILE_CACHE_DIR).await.ok();
+    tokio::fs::create_dir_all(crate::VOICE_CACHE_DIR).await.ok();
     tokio::fs::create_dir(crate::LOG_PATH).await.ok();
 }

@@ -1,8 +1,10 @@
+use crate::error;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use walle_core::resp::RespError;
 
 use rusty_leveldb::{Options, DB};
 
-use super::{Database, DatabaseInit, MessageId, SVoice, SImage};
+use super::{Database, DatabaseInit, MessageId, SImage, SVoice};
 
 const MEM_CACHE_LIMIT: usize = 10;
 
@@ -53,7 +55,7 @@ impl Database for LevelDb {
         .unwrap();
         self.flush(db);
     }
-    fn _get_image<T>(&self, key: &[u8]) -> Option<T>
+    fn get_image<T>(&self, key: &[u8]) -> Result<Option<T>, RespError>
     where
         T: for<'de> serde::Deserialize<'de>,
     {
@@ -61,9 +63,10 @@ impl Database for LevelDb {
             .lock()
             .unwrap()
             .get(key)
-            .and_then(|v| rmp_serde::from_slice(&v).unwrap())
+            .map(|v| rmp_serde::from_slice(&v).map_err(|_| error::file_type_not_match()))
+            .transpose()
     }
-    fn _insert_image<T>(&self, value: &T)
+    fn insert_image<T>(&self, value: &T)
     where
         T: serde::Serialize + SImage,
     {
@@ -72,14 +75,15 @@ impl Database for LevelDb {
             .unwrap();
         self.flush(db);
     }
-    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+    fn get_voice<T: SVoice>(&self, key: &[u8]) -> Result<Option<T>, RespError> {
         self.0
             .lock()
             .unwrap()
             .get(key)
-            .map(|v| SVoice::from_data(v))
+            .map(|v| SVoice::from_data(&v).ok_or_else(error::file_type_not_match))
+            .transpose()
     }
-    fn _insert_voice<T: SVoice>(&self, value: &T) {
+    fn insert_voice<T: SVoice>(&self, value: &T) {
         let mut db = self.0.lock().unwrap();
         db.put(&value.voice_id(), &value.to_data()).unwrap();
         self.flush(db);
