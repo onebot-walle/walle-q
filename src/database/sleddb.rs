@@ -4,6 +4,7 @@ use sled::Tree;
 pub(crate) struct SledDb {
     pub message_tree: Tree,
     pub image_tree: Tree,
+    pub audio_tree: Tree,
 }
 
 impl DatabaseInit for SledDb {
@@ -12,6 +13,7 @@ impl DatabaseInit for SledDb {
         Self {
             message_tree: s.open_tree("message").unwrap(),
             image_tree: s.open_tree("image").unwrap(),
+            audio_tree: s.open_tree("audio").unwrap(),
         }
     }
 }
@@ -52,6 +54,17 @@ impl Database for SledDb {
     {
         self.image_tree
             .insert(value.image_id(), rmp_serde::to_vec(value).unwrap())
+            .unwrap();
+    }
+    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+        self.audio_tree
+            .get(key)
+            .unwrap()
+            .map(|v| SVoice::from_data(v.to_vec()))
+    }
+    fn _insert_voice<T: SVoice>(&self, value: &T) {
+        self.audio_tree
+            .insert(value.voice_id(), value.to_data())
             .unwrap();
     }
 }

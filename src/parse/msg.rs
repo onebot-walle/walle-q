@@ -2,6 +2,7 @@ use ricq::msg::elem::{self, FlashImage, RQElem};
 use ricq::msg::MessageChain;
 use ricq::structs::ForwardMessage;
 use ricq::Client;
+use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
 use walle_core::resp::RespError;
 use walle_core::{
@@ -20,9 +21,32 @@ pub struct MsgChainBuilder<'a> {
     message: Message,
 }
 
-pub enum RQSendable {
+pub enum RQSendItem {
     Chain(MessageChain),
     Forward(Vec<ForwardMessage>),
+    Voice(Ptt),
+}
+
+#[derive(Default)]
+pub struct RQSends {
+    pub chain: MessageChain,
+    pub forward: Vec<ForwardMessage>,
+    pub voice: Option<Ptt>,
+}
+
+impl TryFrom<RQSends> for RQSendItem {
+    type Error = RespError;
+    fn try_from(s: RQSends) -> Result<Self, Self::Error> {
+        if !s.chain.0.is_empty() {
+            Ok(RQSendItem::Chain(s.chain))
+        } else if !s.forward.is_empty() {
+            Ok(RQSendItem::Forward(s.forward))
+        } else if let Some(voice) = s.voice {
+            Ok(RQSendItem::Voice(voice))
+        } else {
+            Err(error::empty_message())
+        }
+    }
 }
 
 impl<'a> MsgChainBuilder<'a> {
@@ -42,38 +66,23 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Result<Option<RQSendable>, RespError> {
-        let mut chain = MessageChain::default();
-        let mut forward = Vec::new();
+    pub(crate) async fn build(self, wqdb: &WQDatabase) -> Result<RQSendItem, RespError> {
+        let mut items = RQSends::default();
         let mut reply = None;
         for msg_seg in self.message {
-            if let Some(r) = push_msg_seg(
-                &mut chain,
-                msg_seg,
-                self.target,
-                self.group,
-                self.cli,
-                wqdb,
-                &mut forward,
-            )
-            .await?
+            if let Some(r) =
+                push_msg_seg(&mut items, msg_seg, self.target, self.group, self.cli, wqdb).await?
             {
                 reply = Some(r);
             }
         }
         if let Some(r) = reply {
-            chain.with_reply(r);
-            if chain.0.len() == 1 {
-                chain.push(elem::Text::new(" ".to_string()));
+            items.chain.with_reply(r);
+            if items.chain.0.len() == 1 {
+                items.chain.push(elem::Text::new(" ".to_string()));
             }
         }
-        if !chain.0.is_empty() {
-            Ok(Some(RQSendable::Chain(chain)))
-        } else if !forward.is_empty() {
-            Ok(Some(RQSendable::Forward(forward)))
-        } else {
-            Ok(None)
-        }
+        items.try_into()
     }
 }
 
@@ -174,7 +183,7 @@ pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> V
 }
 
 macro_rules! maybe_flash {
-    ($chain: ident, $flash: expr, $image: ident) => {
+    ($chain: expr, $flash: expr, $image: ident) => {
         if $flash {
             $chain.push(FlashImage::from($image));
         } else {
@@ -184,16 +193,15 @@ macro_rules! maybe_flash {
 }
 
 async fn push_msg_seg(
-    chain: &mut MessageChain,
+    items: &mut RQSends,
     seg: MessageSegment,
     target: i64,
     group: bool,
     cli: &Client,
     wqdb: &WQDatabase,
-    forward: &mut Vec<ForwardMessage>,
 ) -> Result<Option<elem::Reply>, RespError> {
     match seg {
-        MessageSegment::Text { text, .. } => chain.push(elem::Text { content: text }),
+        MessageSegment::Text { text, .. } => items.chain.push(elem::Text { content: text }),
         MessageSegment::Mention { user_id, .. } => {
             if let Ok(user_id) = user_id.parse() {
                 let display = cli
@@ -201,13 +209,13 @@ async fn push_msg_seg(
                     .await
                     .map(|info| info.nickname)
                     .unwrap_or_else(|_| user_id.to_string());
-                chain.push(elem::At {
+                items.chain.push(elem::At {
                     display,
                     target: user_id,
                 })
             }
         }
-        MessageSegment::MentionAll { .. } => chain.push(elem::At {
+        MessageSegment::MentionAll { .. } => items.chain.push(elem::At {
             display: "all".to_string(),
             target: 0,
         }),
@@ -238,13 +246,13 @@ async fn push_msg_seg(
         MessageSegment::Custom { ty, mut data } => match ty.as_str() {
             "face" => {
                 if let Some(id) = data.remove("id").and_then(|v| v.downcast_int().ok()) {
-                    chain.push(elem::Face::new(id as i32));
+                    items.chain.push(elem::Face::new(id as i32));
                 } else if let Some(face) = data
                     .remove("file")
                     .and_then(|v| v.downcast_str().ok())
                     .and_then(|name| elem::Face::new_from_name(&name))
                 {
-                    chain.push(face);
+                    items.chain.push(face);
                 } else {
                     warn!("invalid face id");
                     return Err(error::bad_param("face"));
@@ -257,7 +265,7 @@ async fn push_msg_seg(
                 let template1: String = data
                     .try_remove("data")
                     .map_err(|_| error::bad_param("data"))?;
-                chain.push(elem::RichMsg {
+                items.chain.push(elem::RichMsg {
                     service_id,
                     template1,
                 });
@@ -273,7 +281,7 @@ async fn push_msg_seg(
                 )
                 .map_err(|_| error::bad_param("nodes"))?;
                 for node in nodes {
-                    forward.push(match node {
+                    items.forward.push(match node {
                         NodeEnum::Node(n) => n.to_forward_message(target, group, cli, wqdb).await?,
                     })
                 }
@@ -291,17 +299,17 @@ async fn push_msg_seg(
             {
                 if group {
                     if let Some(image) = info.try_into_group_elem(cli, target).await {
-                        maybe_flash!(chain, flash, image);
+                        maybe_flash!(items.chain, flash, image);
                     }
                 } else if let Some(image) = info.try_into_friend_elem(cli, target).await {
-                    maybe_flash!(chain, flash, image);
+                    maybe_flash!(items.chain, flash, image);
                 }
             } else if let Some(uri) = extra.remove("url").and_then(|b64| b64.downcast_str().ok()) {
                 match uri_reader::uget(&uri).await {
                     Ok(data) => {
                         if group {
                             match cli.upload_group_image(target, data).await {
-                                Ok(image) => maybe_flash!(chain, flash, image),
+                                Ok(image) => maybe_flash!(items.chain, flash, image),
                                 Err(e) => {
                                     warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e);
                                     return Err(error::rq_error(e));
@@ -309,7 +317,7 @@ async fn push_msg_seg(
                             }
                         } else {
                             match cli.upload_friend_image(target, data).await {
-                                Ok(image) => maybe_flash!(chain, flash, image),
+                                Ok(image) => maybe_flash!(items.chain, flash, image),
                                 Err(e) => {
                                     warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e);
                                     return Err(error::rq_error(e));
@@ -325,6 +333,16 @@ async fn push_msg_seg(
             } else {
                 warn!("image not found: {}", file_id);
                 return Err(error::file_not_found());
+            }
+        }
+        MessageSegment::Voice { file_id, .. } => {
+            if let Some(voice) = wqdb
+                ._get_voice::<Ptt>(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)
+            {
+                items.voice = Some(voice);
+            } else {
+                warn!("audio not found: {}", file_id);
+                return Err(error::file_not_found()); //todo
             }
         }
         seg => {

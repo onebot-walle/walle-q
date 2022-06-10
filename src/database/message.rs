@@ -1,5 +1,8 @@
 use crate::extra::WQEvent;
-use ricq::structs::{FriendMessage, GroupMessage, GroupTempMessage, MessageReceipt};
+use ricq::structs::{
+    FriendAudioMessage, FriendMessage, GroupAudioMessage, GroupMessage, GroupTempMessage,
+    MessageReceipt,
+};
 use serde::{Deserialize, Serialize};
 pub trait MessageId {
     fn seq(&self) -> i32;
@@ -53,6 +56,15 @@ impl SGroupMessage {
             event,
         }
     }
+
+    pub fn from_audio_event(m: GroupAudioMessage, event: WQEvent) -> Self {
+        Self {
+            seqs: m.seqs,
+            rands: m.rands,
+            group_code: m.group_code,
+            event,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,6 +109,16 @@ impl SPrivateMessage {
             rands: receipt.rands,
             target_id,
             time: receipt.time,
+            event,
+        }
+    }
+
+    pub fn from_audio_event(m: FriendAudioMessage, event: WQEvent) -> Self {
+        Self {
+            seqs: m.seqs,
+            rands: m.rands,
+            target_id: m.target,
+            time: m.time as i64,
             event,
         }
     }

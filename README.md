@@ -56,22 +56,23 @@ A qq platform OneBot Implementation
 
 ### 接收与发送
 
-- [x] text消息
-- [x] at消息
-- [x] face消息
-- [x] image消息
-- [x] reply消息
-- [x] xml消息
+- [x] text 消息
+- [x] at 消息
+- [x] face 消息
+- [x] image 消息
+- [x] reply 消息
+- [x] xml 消息
+- [x] voice 消息（单独使用）
 
 ### 仅接收
 
-- [x] dice消息
-- [x] rps消息
-- [x] json消息
+- [x] dice 消息
+- [x] rps 消息
+- [x] json 消息
 
 ### 仅发送
 
-- [x] forward消息
+- [x] forward 消息（单独使用）
 
 ## 已支持 API
 

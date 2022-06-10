@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use cached::{SizedCache, TimedCache};
+use ricq::structs::{FriendAudio, GroupAudio};
 use tokio::sync::Mutex;
 use walle_core::{action::*, extended_map, ExtendedMapExt, ExtendedValue, MessageAlt};
 use walle_core::{extended_value, resp::*};
@@ -12,7 +13,7 @@ use walle_core::{
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
 use crate::error;
 use crate::extra::*;
-use crate::parse::{MsgChainBuilder, RQSendable};
+use crate::parse::{MsgChainBuilder, RQSendItem};
 use crate::{OneBot, WQResp};
 
 use self::file::FragmentFile;
@@ -210,16 +211,20 @@ impl Handler {
                 )
                 .build(&self.database)
                 .await?
-                .ok_or_else(|| error::empty_message())?
                 {
-                    RQSendable::Chain(chain) => self
+                    RQSendItem::Chain(chain) => self
                         .client
                         .send_group_message(group_code, chain)
                         .await
                         .map_err(error::rq_error)?,
-                    RQSendable::Forward(msgs) => self
+                    RQSendItem::Forward(msgs) => self
                         .client
                         .send_group_forward_message(group_code, msgs)
+                        .await
+                        .map_err(error::rq_error)?,
+                    RQSendItem::Voice(ptt) => self
+                        .client
+                        .send_group_audio(group_code, GroupAudio(ptt))
                         .await
                         .map_err(error::rq_error)?,
                 };
@@ -260,14 +265,18 @@ impl Handler {
                 )
                 .build(&self.database)
                 .await?
-                .ok_or_else(|| error::empty_message())?
                 {
-                    RQSendable::Chain(chain) => self
+                    RQSendItem::Chain(chain) => self
                         .client
                         .send_group_temp_message(group_code, target, chain)
                         .await
                         .map_err(error::rq_error)?,
-                    RQSendable::Forward(_) => {
+                    RQSendItem::Voice(ptt) => self
+                        .client
+                        .send_friend_audio(target, FriendAudio(ptt))
+                        .await
+                        .map_err(error::rq_error)?,
+                    RQSendItem::Forward(_) => {
                         return Err(walle_core::resp::error_builder::unsupported_param())
                     }
                 };
@@ -310,14 +319,13 @@ impl Handler {
                 )
                 .build(&self.database)
                 .await?
-                .ok_or_else(|| error::empty_message())?
                 {
-                    RQSendable::Chain(chain) => self
+                    RQSendItem::Chain(chain) => self
                         .client
                         .send_friend_message(target, chain)
                         .await
                         .map_err(error::rq_error)?,
-                    RQSendable::Forward(_) => return Err(error::unsupported_param("forward")),
+                    _ => return Err(walle_core::resp::error_builder::unsupported_segment()),
                 };
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {

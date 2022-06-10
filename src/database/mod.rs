@@ -2,9 +2,11 @@ pub(crate) mod leveldb;
 pub(crate) mod message;
 pub(crate) mod simage;
 pub(crate) mod sleddb;
+pub(crate) mod voice;
 
 pub use message::*;
 pub use simage::*;
+pub use voice::*;
 
 pub(crate) trait DatabaseInit {
     fn init() -> Self;
@@ -15,6 +17,8 @@ pub(crate) trait Database {
     fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
     fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &[u8]) -> Option<T>;
     fn _insert_image<T: serde::Serialize + SImage>(&self, value: &T);
+    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T>;
+    fn _insert_voice<T: SVoice>(&self, value: &T);
     fn get_message(&self, key: i32) -> Option<SMessage> {
         self._get_message(key)
     }
@@ -68,6 +72,18 @@ impl Database for WQDatabaseInner {
             Self::LevelDb(db) => db._insert_image(value),
         }
     }
+    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+        match self {
+            Self::SledDb(db) => db._get_voice(key),
+            Self::LevelDb(db) => db._get_voice(key),
+        }
+    }
+    fn _insert_voice<T: SVoice>(&self, value: &T) {
+        match self {
+            Self::SledDb(db) => db._insert_voice(value),
+            Self::LevelDb(db) => db._insert_voice(value),
+        }
+    }
 }
 
 // insert all but read the first
@@ -109,6 +125,20 @@ impl Database for WQDatabase {
     fn _get_image<T: for<'de> serde::Deserialize<'de>>(&self, key: &[u8]) -> Option<T> {
         for db in &self.0 {
             match db._get_image(key) {
+                Some(v) => return Some(v),
+                None => continue,
+            }
+        }
+        None
+    }
+    fn _insert_voice<T: SVoice>(&self, value: &T) {
+        for db in &self.0 {
+            db._insert_voice(value)
+        }
+    }
+    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+        for db in &self.0 {
+            match db._get_voice(key) {
                 Some(v) => return Some(v),
                 None => continue,
             }

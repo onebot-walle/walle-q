@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 walle-core = { version = "0.5.3", features = ["impl", "websocket", "http"] }
 walle-v11 = { version = "0.5.0" }
-ricq = "0.1.10"
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"
 async-recursion = "*"
@@ -39,6 +38,10 @@ rusty-leveldb = "0.3"
 uri-reader = { git = "https://github.com/abrahum/uri-reader", features = [
     "vendored",
 ] }
+
+ricq = "0.1.10"
+ricq-core = "0.1.10"
+prost = "0.9"
 
 [dev-dependencies]
 md5 = "*"

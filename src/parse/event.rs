@@ -1,11 +1,11 @@
-use crate::database::{Database, SGroupMessage, SPrivateMessage, WQDatabase};
+use crate::database::{Database, SVoice, SGroupMessage, SPrivateMessage, WQDatabase};
 use crate::extra::{WQEvent, WQExtraNoticeContent, WQRequestContent};
 use crate::OneBot;
 
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
-use walle_core::{extended_map, MessageAlt, MessageEventDetail};
+use walle_core::{extended_map, MessageAlt, MessageEventDetail, MessageSegment};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent};
 
 pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) -> Option<WQEvent> {
@@ -52,7 +52,7 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
                         gme.message.from_uin.to_string(),
                         gme.message.group_code.to_string(),
                         extended_map! {
-                            "user_card": gme.message.group_card,
+                            "user_name": gme.message.group_card,
                             "group_name": gme.message.group_name,
                         },
                     )
@@ -288,8 +288,50 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             )
             .await,
         ),
-        // QEvent::GroupAudioMessage(_) => todo!(),
-        // QEvent::FriendAudioMessage(_) => todo!(),
+        QEvent::GroupAudioMessage(gam) => {
+            let message = vec![MessageSegment::audio(gam.message.audio.0.hex_voice_id())];
+            let event = ob
+                .new_event(
+                    MessageContent::new_group_message_content(
+                        message,
+                        gam.message.seqs[0].to_string(),
+                        gam.message.from_uin.to_string(),
+                        gam.message.group_code.to_string(),
+                        extended_map! {
+                            "user_name": gam.message.group_card,
+                            "group_name": gam.message.group_name,
+                        },
+                    )
+                    .into(),
+                    gam.message.time as f64,
+                )
+                .await;
+            wqdb._insert_voice(&gam.message.audio.0);
+            let s_group = SGroupMessage::from_audio_event(gam.message, event.clone());
+            wqdb.insert_group_message(&s_group);
+            Some(event)
+        }
+        QEvent::FriendAudioMessage(fam) => {
+            let message = vec![MessageSegment::audio(fam.message.audio.0.hex_voice_id())];
+            let event = ob
+                .new_event(
+                    MessageContent::new_private_message_content(
+                        message,
+                        fam.message.seqs[0].to_string(),
+                        fam.message.from_uin.to_string(),
+                        extended_map! {
+                            "user_name": fam.message.from_nick,
+                        },
+                    )
+                    .into(),
+                    fam.message.time as f64,
+                )
+                .await;
+            wqdb._insert_voice(&fam.message.audio.0);
+            let s_private = SPrivateMessage::from_audio_event(fam.message, event.clone());
+            wqdb.insert_private_message(&s_private);
+            Some(event)
+        }
         QEvent::FriendPoke(p) => Some(
             ob.new_event(
                 WQExtraNoticeContent::FriendPock {
@@ -336,11 +378,9 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
             ob.shutdown().await; // 求测试2333
             None
-        }
-
-        event => {
-            warn!("unsupported event: {:?}", event);
-            None
-        }
+        } // event => {
+          //     warn!("unsupported event: {:?}", event);
+          //     None
+          // }
     }
 }

@@ -61,6 +61,12 @@
 > - file: `file:///path/to/image.png`
 > - base64: `base64://image_base64_str`
 
+## 语音消息 voice
+
+| 字段    | 类型   | 说明        |
+| ------- | ------ | ----------- |
+| file_id | String | 语音文件 ID |
+
 ## 富文本消息 json
 
 > *未支持发送该消息段*

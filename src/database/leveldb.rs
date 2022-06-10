@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rusty_leveldb::{Options, DB};
 
-use super::{Database, DatabaseInit, MessageId, SImage};
+use super::{Database, DatabaseInit, MessageId, SVoice, SImage};
 
 const MEM_CACHE_LIMIT: usize = 10;
 
@@ -70,6 +70,18 @@ impl Database for LevelDb {
         let mut db = self.0.lock().unwrap();
         db.put(&value.image_id(), &rmp_serde::to_vec(value).unwrap())
             .unwrap();
+        self.flush(db);
+    }
+    fn _get_voice<T: SVoice>(&self, key: &[u8]) -> Option<T> {
+        self.0
+            .lock()
+            .unwrap()
+            .get(key)
+            .map(|v| SVoice::from_data(v))
+    }
+    fn _insert_voice<T: SVoice>(&self, value: &T) {
+        let mut db = self.0.lock().unwrap();
+        db.put(&value.voice_id(), &value.to_data()).unwrap();
         self.flush(db);
     }
 }

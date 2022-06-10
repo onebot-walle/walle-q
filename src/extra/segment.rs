@@ -6,7 +6,7 @@ use walle_core::{resp::RespError, MessageSegment};
 
 use crate::database::WQDatabase;
 use crate::error;
-use crate::parse::{MsgChainBuilder, RQSendable};
+use crate::parse::{MsgChainBuilder, RQSendItem};
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Node {
@@ -70,11 +70,14 @@ impl Node {
                     MsgChainBuilder::private_chain_builder(cli, target, message)
                         .build(wqdb)
                         .await?
-                }
-                .ok_or_else(error::empty_message)?
-                {
-                    RQSendable::Chain(chain) => chain,
-                    RQSendable::Forward(_) => return Err(error::bad_param("node")),
+                } {
+                    RQSendItem::Chain(chain) => chain,
+                    RQSendItem::Forward(_) => return Err(error::bad_param("node")),
+                    RQSendItem::Voice(_) => {
+                        let mut chain = MessageChain::default();
+                        chain.push(ricq::msg::elem::Text::new("[语音]".to_string()));
+                        chain
+                    }
                 };
                 MessageNode {
                     sender_id: self
