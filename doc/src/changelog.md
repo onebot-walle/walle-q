@@ -2,7 +2,23 @@
 
 ### Features
 
-- 支持群临时消息
+- 添加 event.message.group_temp
+- 添加 event.notice.friend_poke
+- 添加 event.notice.group_name_update
+- 添加 event.request.join_group
+- 添加 event.request.group_invited
+- 添加 set_join_group 动作
+- 添加 get_join_group_requests 动作
+- 添加 set_group_invited 动作
+- 添加 get_group_inviteds 动作
+
+### Dependencies
+
+- walle-core: 0.5.4
+
+### Others
+
+- 暂时移除 Onebot V11 支持
 
 ## 0.1.3
 
@@ -11,7 +27,7 @@
 - 添加 event.request.new_friend
 - 添加 set_new_friend 动作
 - 添加 delete_friend 动作
-- 添加 get_new_friend_request 动作
+- 添加 get_new_friend_requests 动作
 - 添加 upload_file_fragmented 动作支持
 - 添加 get_file_fragmented 动作支持
 - 支持收发 Reply 消息段

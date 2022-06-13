@@ -29,7 +29,7 @@ A qq platform OneBot Implementation
 ### 消息事件 message
 
 - [x] 私聊消息 message.private
-- [x] 群临时消息 message.private.group_temp
+- [x] 群临时消息 message.group_temp
 - [x] 群消息 message.group
 
 ### 通知消息 notice

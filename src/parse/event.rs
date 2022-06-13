@@ -1,11 +1,11 @@
-use crate::database::{Database, SVoice, SGroupMessage, SPrivateMessage, WQDatabase};
-use crate::extra::{WQEvent, WQExtraNoticeContent, WQRequestContent};
+use crate::database::{Database, SGroupMessage, SPrivateMessage, SVoice, WQDatabase};
+use crate::extra::{WQEvent, WQExtraNoticeContent, WQMEDetail, WQRequestContent};
 use crate::OneBot;
 
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
-use walle_core::{extended_map, MessageAlt, MessageEventDetail, MessageSegment};
+use walle_core::{extended_map, MessageAlt, MessageSegment};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent};
 
 pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) -> Option<WQEvent> {
@@ -26,14 +26,16 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             let message = super::msg_chain2msg_seg_vec(pme.message.elements.clone(), wqdb);
             let event = ob
                 .new_event(
-                    MessageContent::new_private_message_content(
-                        message,
-                        pme.message.seqs[0].to_string(),
-                        pme.message.from_uin.to_string(),
-                        extended_map! {
-                            "user_name": pme.message.from_nick
+                    MessageContent::<WQMEDetail> {
+                        detail: WQMEDetail::Private {
+                            sub_type: "".to_string(),
+                            user_name: pme.message.from_nick.clone(),
                         },
-                    )
+                        alt_message: message.alt(),
+                        message,
+                        message_id: pme.message.seqs[0].to_string(),
+                        user_id: pme.message.from_uin.to_string(),
+                    }
                     .into(),
                     pme.message.time as f64,
                 )
@@ -46,16 +48,18 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             let message = super::msg_chain2msg_seg_vec(gme.message.elements.clone(), wqdb);
             let event = ob
                 .new_event(
-                    MessageContent::new_group_message_content(
-                        message,
-                        gme.message.seqs[0].to_string(),
-                        gme.message.from_uin.to_string(),
-                        gme.message.group_code.to_string(),
-                        extended_map! {
-                            "user_name": gme.message.group_card,
-                            "group_name": gme.message.group_name,
+                    MessageContent::<WQMEDetail> {
+                        detail: WQMEDetail::Group {
+                            sub_type: "".to_string(),
+                            group_id: gme.message.group_code.to_string(),
+                            group_name: gme.message.group_name.clone(),
+                            user_name: gme.message.group_card.clone(),
                         },
-                    )
+                        alt_message: message.alt(),
+                        message,
+                        message_id: gme.message.seqs[0].to_string(),
+                        user_id: gme.message.from_uin.to_string(),
+                    }
                     .into(),
                     gme.message.time as f64,
                 )
@@ -68,17 +72,15 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             let message = super::msg_chain2msg_seg_vec(gtme.message.elements.clone(), wqdb);
             let event = ob
                 .new_event(
-                    MessageContent {
+                    MessageContent::<WQMEDetail> {
                         alt_message: message.alt(),
                         message,
                         message_id: gtme.message.seqs[0].to_string(),
                         user_id: gtme.message.from_uin.to_string(),
-                        detail: MessageEventDetail::Private {
-                            sub_type: "group_temp".to_owned(),
-                            extra: extended_map! {
-                                "group_id": gtme.message.group_code.to_string(),
-                                "user_name": gtme.message.from_nick,
-                            },
+                        detail: WQMEDetail::GroupTemp {
+                            sub_type: "".to_owned(),
+                            group_id: gtme.message.group_code.to_string(),
+                            user_name: gtme.message.from_nick.clone(),
                         },
                     }
                     .into(),
@@ -292,16 +294,18 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             let message = vec![MessageSegment::audio(gam.message.audio.0.hex_voice_id())];
             let event = ob
                 .new_event(
-                    MessageContent::new_group_message_content(
-                        message,
-                        gam.message.seqs[0].to_string(),
-                        gam.message.from_uin.to_string(),
-                        gam.message.group_code.to_string(),
-                        extended_map! {
-                            "user_name": gam.message.group_card,
-                            "group_name": gam.message.group_name,
+                    MessageContent::<WQMEDetail> {
+                        detail: WQMEDetail::Group {
+                            sub_type: "".to_string(),
+                            group_id: gam.message.group_code.to_string(),
+                            group_name: gam.message.group_name.clone(),
+                            user_name: gam.message.group_card.clone(),
                         },
-                    )
+                        alt_message: message.alt(),
+                        message,
+                        message_id: gam.message.seqs[0].to_string(),
+                        user_id: gam.message.from_uin.to_string(),
+                    }
                     .into(),
                     gam.message.time as f64,
                 )
@@ -315,14 +319,16 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
             let message = vec![MessageSegment::audio(fam.message.audio.0.hex_voice_id())];
             let event = ob
                 .new_event(
-                    MessageContent::new_private_message_content(
-                        message,
-                        fam.message.seqs[0].to_string(),
-                        fam.message.from_uin.to_string(),
-                        extended_map! {
-                            "user_name": fam.message.from_nick,
+                    MessageContent::<WQMEDetail> {
+                        detail: WQMEDetail::Private {
+                            sub_type: "".to_string(),
+                            user_name: fam.message.from_nick.clone(),
                         },
-                    )
+                        alt_message: message.alt(),
+                        message,
+                        message_id: fam.message.seqs[0].to_string(),
+                        user_id: fam.message.from_uin.to_string(),
+                    }
                     .into(),
                     fam.message.time as f64,
                 )
