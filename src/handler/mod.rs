@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use cached::{SizedCache, TimedCache};
 use ricq::structs::{FriendAudio, GroupAudio};
 use tokio::sync::Mutex;
-use walle_core::{action::*, extended_map, ExtendedMapExt, ExtendedValue, MessageAlt};
+use walle_core::{action::*, ExtendedValue, MessageAlt};
 use walle_core::{extended_value, resp::*};
 use walle_core::{
     ActionHandler, ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction,
@@ -192,14 +192,7 @@ impl Handler {
         ))
     }
 
-    async fn send_message(&self, mut c: SendMessage, ob: &OneBot) -> WQRespResult {
-        let temp = c.extra.try_remove("sub_type").map_or(false, |s: String| {
-            if s.as_str() == "group_temp" {
-                true
-            } else {
-                false
-            }
-        });
+    async fn send_message(&self, c: SendMessage, ob: &OneBot) -> WQRespResult {
         match c.detail_type.as_str() {
             "group" => {
                 let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
@@ -238,13 +231,18 @@ impl Handler {
                     receipt.clone(),
                     group_code,
                     ob.new_event(
-                        MessageContent::new_group_message_content(
-                            c.message,
+                        MessageContent::<WQMEDetail> {
+                            detail: WQMEDetail::Group {
+                                sub_type: "".to_string(),
+                                group_id,
+                                group_name: "".to_string(),
+                                user_name: self.client.account_info.read().await.nickname.clone(),
+                            },
                             message_id,
-                            ob.self_id.read().await.clone(),
-                            group_id,
-                            [].into(),
-                        )
+                            alt_message: c.message.alt(),
+                            message: c.message,
+                            user_id: ob.self_id().await.clone(),
+                        }
                         .into(),
                         receipt.time as f64,
                     )
@@ -253,7 +251,7 @@ impl Handler {
                 self.database.insert_group_message(&s_group);
                 Ok(Resps::success(respc.into()))
             }
-            "private" if temp => {
+            "group_temp" => {
                 let group_id = c.group_id.ok_or_else(|| error::bad_param("group_id"))?;
                 let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
                 let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
@@ -288,10 +286,10 @@ impl Handler {
                             message: c.message,
                             message_id: receipt.seqs[0].to_string(),
                             user_id: ob.self_id().await,
-                            detail: walle_core::MessageEventDetail::Group {
-                                sub_type: "temp".to_string(),
+                            detail: WQMEDetail::GroupTemp {
+                                sub_type: "".to_string(),
+                                user_name: self.client.account_info.read().await.nickname.clone(),
                                 group_id,
-                                extra: extended_map! {},
                             },
                         }
                         .into(),
@@ -335,12 +333,16 @@ impl Handler {
                     receipt.clone(),
                     target,
                     ob.new_event(
-                        MessageContent::new_private_message_content(
-                            c.message,
+                        MessageContent::<WQMEDetail> {
+                            detail: WQMEDetail::Private {
+                                sub_type: "".to_string(),
+                                user_name: self.client.account_info.read().await.nickname.clone(),
+                            },
                             message_id,
-                            ob.self_id.read().await.clone(),
-                            [].into(),
-                        )
+                            alt_message: c.message.alt(),
+                            message: c.message,
+                            user_id: ob.self_id().await.clone(),
+                        }
                         .into(),
                         receipt.time as f64,
                     )

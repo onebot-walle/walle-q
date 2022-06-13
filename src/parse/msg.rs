@@ -5,14 +5,12 @@ use ricq::Client;
 use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
 use walle_core::resp::RespError;
-use walle_core::{
-    extended_map, ExtendedMapExt, ExtendedValue, Message, MessageEvent, MessageSegment,
-};
+use walle_core::{extended_map, ExtendedMapExt, ExtendedValue, Message, MessageSegment};
 
 use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
 use crate::extra::segment::NodeEnum;
-use crate::extra::ToMessageEvent;
+use crate::extra::{ToMessageEvent, WQMessageEvent};
 
 use super::audio::encode_to_silk;
 
@@ -225,7 +223,7 @@ async fn push_msg_seg(
             let reply_seq: i32 = message_id
                 .parse()
                 .map_err(|_| error::bad_param("message_id"))?;
-            let event: MessageEvent = wqdb
+            let event: WQMessageEvent = wqdb
                 .get_message(reply_seq)
                 .ok_or_else(error::message_not_exist)?
                 .event()
@@ -234,13 +232,13 @@ async fn push_msg_seg(
             let sub_chain = {
                 let mut chain = MessageChain::default();
                 chain.push(elem::Text {
-                    content: event.alt_message().to_string(),
+                    content: event.content.alt_message,
                 });
                 chain
             };
             return Ok(Some(elem::Reply {
                 reply_seq,
-                sender: event.user_id().parse().unwrap(),
+                sender: event.content.user_id.parse().unwrap(),
                 time: event.time as i32,
                 elements: sub_chain,
             }));

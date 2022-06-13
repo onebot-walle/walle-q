@@ -49,13 +49,12 @@
 
 动作请求：
 
-| 字段        | 类型                 | 说明                      |
-| ----------- | -------------------- | ------------------------- |
-| detail_type | String               | private 或者 group        |
-| group_id    | Option&lt;String&gt; | 群 ID                     |
-| user_id     | Option&lt;String&gt; | 用户 ID                   |
-| message     | Message              | 消息内容                  |
-| sub_type    | Option\<String\>     | group_temp 发送群临时消息 |
+| 字段        | 类型                 | 说明                           |
+| ----------- | -------------------- | ------------------------------ |
+| detail_type | String               | private \| group \| group_temp |
+| group_id    | Option&lt;String&gt; | 群 ID                          |
+| user_id     | Option&lt;String&gt; | 用户 ID                        |
+| message     | Message              | 消息内容                       |
 
 动作响应：
 
@@ -75,6 +74,8 @@
 无动作响应数据
 
 ### 获取消息 get_message
+
+> 此动作为扩展动作
 
 动作请求：
 
@@ -122,6 +123,8 @@
 
 ### 处理好友请求 set_new_friend
 
+> 此动作为扩展动作
+
 动作请求：
 
 | 字段       | 类型   | 说明         |
@@ -135,6 +138,8 @@
 
 ### 删除好友 delete_friend
 
+> 此动作为扩展动作
+
 | 字段    | 类型   | 说明    |
 | ------- | ------ | ------- |
 | user_id | String | 用户 ID |
@@ -145,6 +150,8 @@
 无动作响应数据
 
 ### 获取好友请求列表 get_new_friend_requests
+
+> 此动作为扩展动作
 
 无动作请求数据
 
@@ -278,6 +285,8 @@
 
 ### 处理加群请求 set_join_group
 
+> 此动作为扩展动作
+
 动作请求：
 
 | 字段       | 类型             | 说明             |
@@ -293,11 +302,15 @@
 
 ### 获取加群申请 get_join_group_requests
 
+> 此动作为扩展动作
+
 无动作请求数据
 
 动作响应为 Vec\<event.request.join_group\>
 
 ### 处理群邀请 set_group_invited
+
+> 此动作为扩展动作
 
 动作请求：
 
@@ -310,6 +323,8 @@
 无动作响应数据
 
 ### 获取群邀请 get_group_inviteds
+
+> 此动作为扩展动作
 
 无动作请求数据
 
