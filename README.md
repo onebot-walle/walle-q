@@ -133,3 +133,7 @@ A qq platform OneBot Implementation
 
 - 群管理设置 `operator_id` 缺失
 - 新成员入群 `operator_id` 缺失
+
+## 相关项目
+
+- [nonebot-walleq-extension](https://github.com/obwalle/nonebot-walleq-extension)：Nonebot2 OneBot-v12 协议适配器扩展
