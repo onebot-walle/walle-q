@@ -2847,6 +2847,7 @@ dependencies = [
  "md5",
  "prost",
  "qrcode",
+ "rand 0.8.5",
  "ricq",
  "ricq-core",
  "rmp-serde",
