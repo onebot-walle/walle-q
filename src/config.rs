@@ -1,11 +1,14 @@
-use crate::WALLE_Q;
+use std::io::Read;
+
+use rand::SeedableRng;
 use ricq::device::Device;
 use ricq::version::{get_version, Protocol};
 use ricq::Config as RsQQConfig;
 use serde::{Deserialize, Serialize};
-use std::io::Read;
 use tracing::{info, warn};
 use walle_core::config::ImplConfig;
+
+use crate::WALLE_Q;
 
 type IOResult<T> = Result<T, std::io::Error>;
 
@@ -124,7 +127,11 @@ impl Config {
 
 pub(crate) fn load_device(con: &QQConfig) -> IOResult<RsQQConfig> {
     Ok(RsQQConfig {
-        device: Device::load_or_new(DEVICE_PATH)?,
+        device: Device::load_or_new(DEVICE_PATH).unwrap_or_else(|_| {
+            Device::random_with_rng(&mut rand::prelude::StdRng::seed_from_u64(
+                con.uin.unwrap_or_default(),
+            ))
+        }),
         version: get_version(con.get_protocol()),
     })
 }
