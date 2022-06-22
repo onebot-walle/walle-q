@@ -11,7 +11,7 @@ use walle_core::{extended_map, ExtendedMap, ExtendedMapExt, ExtendedValue, Resps
 use crate::database::{save_image, save_voice, Database, Images, SImage, SVoice};
 use crate::error;
 
-use super::{OneBot, WQRespResult};
+use super::WQRespResult;
 
 impl super::Handler {
     async fn get_file_data(c: UploadFile) -> Result<Vec<u8>, RespError> {
@@ -19,7 +19,7 @@ impl super::Handler {
             "url" if let Some(url) = c.url => {
                 uri_reader::uget_with_headers(&url, c.headers.unwrap_or_default())
                     .await
-                    .map_err(|_|error::net_download_fail())
+                    .map_err(|e|error::net_download_fail(e))
             }
             "path" if let Some(path) = c.path => {
                 let input_path = PathBuf::from(path);
@@ -62,18 +62,18 @@ impl super::Handler {
         Ok(Resps::success(local.as_file_id_content().into()))
     }
 
-    pub async fn get_file(&self, mut c: GetFile, ob: &OneBot) -> WQRespResult {
+    pub async fn get_file(&self, mut c: GetFile) -> WQRespResult {
         let file_type = c
             .extra
             .try_remove("file_type")
             .unwrap_or("image".to_string());
         match file_type.as_str() {
-            "image" => self.get_image(&c, ob).await,
+            "image" => self.get_image(&c).await,
             ty => Err(error::unsupported_param(ty)),
         }
     }
 
-    pub async fn get_image(&self, c: &GetFile, _ob: &OneBot) -> WQRespResult {
+    pub async fn get_image(&self, c: &GetFile) -> WQRespResult {
         if let Some(image) = self.database.get_image::<Images>(
             &hex::decode(&c.file_id).map_err(|_| error::bad_param("file_id"))?,
         )? {
@@ -138,7 +138,7 @@ impl super::Handler {
                 ty => Err(error::unsupported_param(ty)),
             }
         } else {
-            Err(error::file_not_found())
+            Err(error::file_not_found(&c.file_id))
         }
     }
 
@@ -177,7 +177,7 @@ impl super::Handler {
                     .map_err(error::file_write_error)?;
                 match self.uploading_fragment.lock().await.cache_get_mut(&file_id) {
                     Some(f) => f.files.push((offset, size)),
-                    None => return Err(error::prepare_file_first()),
+                    None => return Err(error::prepare_file_first(&file_id)),
                 }
                 Ok(Resps::success(ExtendedValue::Null.into()))
             }
@@ -188,7 +188,7 @@ impl super::Handler {
                     .lock()
                     .await
                     .cache_remove(&file_id)
-                    .ok_or_else(error::prepare_file_first)?;
+                    .ok_or_else(|| error::prepare_file_first(&file_id))?;
                 fragment.files.sort();
                 let mut data = Vec::with_capacity(fragment.total_size as usize);
                 let mut total_size = 0;
@@ -206,19 +206,27 @@ impl super::Handler {
                     total_size += size;
                 }
                 if total_size != fragment.total_size {
-                    return Err(error::file_total_size_not_match());
+                    return Err(error::file_total_size_not_match(format!(
+                        "get {} of {}",
+                        total_size, fragment.total_size
+                    )));
                 }
                 let mut sha256 = sha2::Sha256::default();
                 sha256.update(&data);
-                if sha256.finalize().to_vec() != sha {
-                    return Err(error::file_sha256_not_match());
+                let sha256 = sha256.finalize().to_vec();
+                if sha256 != sha {
+                    return Err(error::file_sha256_not_match(format!(
+                        "get {} of {}",
+                        hex::encode(sha256),
+                        hex::encode(sha)
+                    )));
                 }
                 self.upload_image(data).await
             }
         }
     }
 
-    pub async fn get_file_fragmented(&self, c: GetFileFragmented, _ob: &OneBot) -> WQRespResult {
+    pub async fn get_file_fragmented(&self, c: GetFileFragmented) -> WQRespResult {
         use ricq::structs::ImageInfo;
         use tokio::io::{AsyncSeekExt, SeekFrom};
         async fn to_info(
@@ -240,7 +248,7 @@ impl super::Handler {
                 let (info, sha256) = match self
                     .database
                     .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
-                    .ok_or_else(error::file_not_found)?
+                    .ok_or_else(|| error::file_not_found(&file_id))?
                 {
                     Images::Friend(f) => to_info(self, f).await?,
                     Images::Group(g) => to_info(self, g).await?,
@@ -272,7 +280,7 @@ impl super::Handler {
                 let info: ImageInfo = self
                     .database
                     .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
-                    .ok_or_else(error::file_not_found)?;
+                    .ok_or_else(|| error::file_not_found(&file_id))?;
                 let mut file = tokio::fs::File::open(info.path())
                     .await
                     .map_err(error::file_open_error)?;

@@ -353,9 +353,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.5"
+version = "3.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53da17d37dba964b9b3ecb5c5a1f193a2762c700e6829201e645b9381c99dc7"
+checksum = "9f1fe12880bae935d142c8702d500c63a4e8634b6c3c57ad72bf978fc7b6249a"
 dependencies = [
  "atty",
  "bitflags",
@@ -370,9 +370,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "3.2.5"
+version = "3.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c11d40217d16aee8508cc8e5fde8b4ff24639758608e5374e731b53f85749fb9"
+checksum = "ed6db9e867166a43a53f7199b5e4d1f522a1e5bd626654be263c999ce59df39a"
 dependencies = [
  "heck 0.4.0",
  "proc-macro-error",
@@ -383,9 +383,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5538cd660450ebeb4234cfecf8f2284b844ffc4c50531e66d584ad5b91293613"
+checksum = "87eba3c8c7f42ef17f6c659fc7416d0f4758cd3e58861ee63c5fa4a4dde649e4"
 dependencies = [
  "os_str_bytes",
 ]
@@ -566,6 +566,18 @@ dependencies = [
  "darling_core",
  "quote 1.0.20",
  "syn 1.0.98",
+]
+
+[[package]]
+name = "dashmap"
+version = "5.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3495912c9c1ccf2e18976439f4443f3fee0fd61f424ff99fde6a66b15ecb448f"
+dependencies = [
+ "cfg-if 1.0.0",
+ "hashbrown 0.12.1",
+ "lock_api",
+ "parking_lot_core 0.9.3",
 ]
 
 [[package]]
@@ -1197,9 +1209,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "1.9.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c6392766afd7964e2531940894cffe4bd8d7d17dbc3c1c4857040fd4b33bdb3"
+checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
  "hashbrown 0.12.1",
@@ -1559,9 +1571,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-src"
-version = "111.20.0+1.1.1o"
+version = "111.21.0+1.1.1p"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92892c4f87d56e376e469ace79f1128fdaded07646ddf73aa0be4706ff712dec"
+checksum = "6d0a8313729211913936f1b95ca47a5fc7f2e04cd658c115388287f8a8361008"
 dependencies = [
  "cc",
 ]
@@ -2013,9 +2025,9 @@ dependencies = [
 
 [[package]]
 name = "ricq"
-version = "0.1.12"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8363f379dd729ed49f749632d09061b69e1bffb53b8de8964880f8be87c5e3a4"
+checksum = "55cd8184d3a9c498c777a246b7a1c421820aa5c80fad3187f3ce1a8747a373c2"
 dependencies = [
  "async-trait",
  "bytes",
@@ -2039,9 +2051,9 @@ dependencies = [
 
 [[package]]
 name = "ricq-core"
-version = "0.1.12"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "151146a85ac31e7f444c4f9e777d010d0a43ba8b6a13b5bca49fd8acf29e9157"
+checksum = "626fe0f78e2d67585c885f2479ee132377f15a03330a4b9fe10490b43c6ef1e9"
 dependencies = [
  "byteorder",
  "bytes",
@@ -2812,18 +2824,16 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "walle-core"
 version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50ce3ee495eafbe61e080a7d2db56ef7611b551a690f9f4d097b068b9655854f"
+source = "git+https://github.com/abrahum/Walle-core.git#a0474b5f12a546f7a110cdd30c4165d3169c5002"
 dependencies = [
  "async-trait",
  "colored",
+ "dashmap",
  "futures-util",
- "hex",
  "hyper",
  "rmp-serde",
  "serde",
  "serde_json",
- "sha2 0.10.2",
  "thiserror",
  "tokio",
  "tokio-tungstenite",
@@ -2840,11 +2850,12 @@ dependencies = [
  "base64",
  "bytes",
  "cached 0.34.1",
- "clap 3.2.5",
+ "clap 3.2.6",
  "colored",
  "hex",
  "image 0.24.2",
  "md5",
+ "once_cell",
  "prost",
  "qrcode",
  "rand 0.8.5",
@@ -2866,25 +2877,6 @@ dependencies = [
  "tracing-subscriber",
  "uri-reader",
  "uuid",
- "walle-core",
- "walle-v11",
-]
-
-[[package]]
-name = "walle-v11"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faaf59bcfbf36e0b6d1089aeceaa286cff76daebe123ec4f3895fefb395dff95"
-dependencies = [
- "async-trait",
- "colored",
- "futures-util",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tokio-tungstenite",
- "tracing",
  "walle-core",
 ]
 

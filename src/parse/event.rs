@@ -1,19 +1,28 @@
 use crate::database::{Database, SGroupMessage, SPrivateMessage, SVoice, WQDatabase};
-use crate::extra::{WQEvent, WQExtraNoticeContent, WQMEDetail, WQRequestContent};
-use crate::OneBot;
+use crate::extra::{WQEvent, WQEventContent, WQExtraNoticeContent, WQMEDetail, WQRequestContent};
 
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
+use ricq::Client;
 use tracing::{info, warn};
-use walle_core::{extended_map, MessageAlt, MessageSegment};
+use walle_core::{extended_map, timestamp_nano_f64, MessageAlt, MessageSegment};
 use walle_core::{ExtendedMap, MessageContent, NoticeContent};
 
-pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) -> Option<WQEvent> {
+pub(crate) async fn new_event(cli: &Client, time: Option<f64>, content: WQEventContent) -> WQEvent {
+    WQEvent {
+        id: "todo".to_string(), //todo
+        r#impl: crate::WALLE_Q.to_string(),
+        platform: crate::PLATFORM.to_string(),
+        self_id: cli.uin().await.to_string(),
+        time: time.unwrap_or_else(timestamp_nano_f64),
+        content,
+    }
+}
+
+pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<WQEvent> {
     match event {
         // meta
         QEvent::Login(uin) => {
-            *ob.self_id.write().await = uin.to_string();
-            ob.set_online(true);
             info!(
                 target: crate::WALLE_Q,
                 "Walle-Q Login success with uin: {}", uin
@@ -23,71 +32,71 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
 
         // message
         QEvent::FriendMessage(pme) => {
-            let message = super::msg_chain2msg_seg_vec(pme.message.elements.clone(), wqdb);
-            let event = ob
-                .new_event(
-                    MessageContent::<WQMEDetail> {
-                        detail: WQMEDetail::Private {
-                            sub_type: "".to_string(),
-                            user_name: pme.message.from_nick.clone(),
-                        },
-                        alt_message: message.alt(),
-                        message,
-                        message_id: pme.message.seqs[0].to_string(),
-                        user_id: pme.message.from_uin.to_string(),
-                    }
-                    .into(),
-                    pme.message.time as f64,
-                )
-                .await;
-            let s_private = SPrivateMessage::new(pme.message, event.clone());
+            let message = super::msg_chain2msg_seg_vec(pme.inner.elements.clone(), wqdb);
+            let event = new_event(
+                &pme.client,
+                Some(pme.inner.time as f64),
+                MessageContent::<WQMEDetail> {
+                    detail: WQMEDetail::Private {
+                        sub_type: "".to_string(),
+                        user_name: pme.inner.from_nick.clone(),
+                    },
+                    alt_message: message.alt(),
+                    message,
+                    message_id: pme.inner.seqs[0].to_string(),
+                    user_id: pme.inner.from_uin.to_string(),
+                }
+                .into(),
+            )
+            .await;
+            let s_private = SPrivateMessage::new(pme.inner, event.clone());
             wqdb.insert_private_message(&s_private);
             Some(event)
         }
         QEvent::GroupMessage(gme) => {
-            let message = super::msg_chain2msg_seg_vec(gme.message.elements.clone(), wqdb);
-            let event = ob
-                .new_event(
-                    MessageContent::<WQMEDetail> {
-                        detail: WQMEDetail::Group {
-                            sub_type: "".to_string(),
-                            group_id: gme.message.group_code.to_string(),
-                            group_name: gme.message.group_name.clone(),
-                            user_name: gme.message.group_card.clone(),
-                        },
-                        alt_message: message.alt(),
-                        message,
-                        message_id: gme.message.seqs[0].to_string(),
-                        user_id: gme.message.from_uin.to_string(),
-                    }
-                    .into(),
-                    gme.message.time as f64,
-                )
-                .await;
-            let s_group = SGroupMessage::new(gme.message, event.clone());
+            let message = super::msg_chain2msg_seg_vec(gme.inner.elements.clone(), wqdb);
+            let event = new_event(
+                &gme.client,
+                Some(gme.inner.time as f64),
+                MessageContent::<WQMEDetail> {
+                    detail: WQMEDetail::Group {
+                        sub_type: "".to_string(),
+                        group_id: gme.inner.group_code.to_string(),
+                        group_name: gme.inner.group_name.clone(),
+                        user_name: gme.inner.group_card.clone(),
+                    },
+                    alt_message: message.alt(),
+                    message,
+                    message_id: gme.inner.seqs[0].to_string(),
+                    user_id: gme.inner.from_uin.to_string(),
+                }
+                .into(),
+            )
+            .await;
+            let s_group = SGroupMessage::new(gme.inner, event.clone());
             wqdb.insert_group_message(&s_group);
             Some(event)
         }
         QEvent::GroupTempMessage(gtme) => {
-            let message = super::msg_chain2msg_seg_vec(gtme.message.elements.clone(), wqdb);
-            let event = ob
-                .new_event(
-                    MessageContent::<WQMEDetail> {
-                        alt_message: message.alt(),
-                        message,
-                        message_id: gtme.message.seqs[0].to_string(),
-                        user_id: gtme.message.from_uin.to_string(),
-                        detail: WQMEDetail::GroupTemp {
-                            sub_type: "".to_owned(),
-                            group_id: gtme.message.group_code.to_string(),
-                            user_name: gtme.message.from_nick.clone(),
-                        },
-                    }
-                    .into(),
-                    gtme.message.time as f64,
-                )
-                .await;
-            let s_private = SPrivateMessage::from_temp(gtme.message, event.clone());
+            let message = super::msg_chain2msg_seg_vec(gtme.inner.elements.clone(), wqdb);
+            let event = new_event(
+                &gtme.client,
+                Some(gtme.inner.time as f64),
+                MessageContent::<WQMEDetail> {
+                    alt_message: message.alt(),
+                    message,
+                    message_id: gtme.inner.seqs[0].to_string(),
+                    user_id: gtme.inner.from_uin.to_string(),
+                    detail: WQMEDetail::GroupTemp {
+                        sub_type: "".to_owned(),
+                        group_id: gtme.inner.group_code.to_string(),
+                        user_name: gtme.inner.from_nick.clone(),
+                    },
+                }
+                .into(),
+            )
+            .await;
+            let s_private = SPrivateMessage::from_temp(gtme.inner, event.clone());
             wqdb.insert_private_message(&s_private);
             Some(event)
         }
@@ -95,294 +104,306 @@ pub(crate) async fn qevent2event(ob: &OneBot, event: QEvent, wqdb: &WQDatabase) 
         // notice
         // friend
         QEvent::FriendMessageRecall(e) => Some(
-            ob.new_event(
+            new_event(
+                &e.client,
+                Some(e.inner.time as f64),
                 NoticeContent::PrivateMessageDelete {
                     sub_type: "".to_string(),
-                    message_id: e.recall.msg_seq.to_string(),
-                    user_id: e.recall.friend_uin.to_string(),
+                    message_id: e.inner.msg_seq.to_string(),
+                    user_id: e.inner.friend_uin.to_string(),
                     extra: ExtendedMap::default(),
                 }
                 .into(),
-                e.recall.time as f64,
             )
             .await,
         ),
         QEvent::NewFriend(e) => Some(
-            ob.new_event(
+            new_event(
+                &e.client,
+                None,
                 NoticeContent::FriendIncrease {
                     sub_type: "".to_string(),
-                    user_id: e.friend.uin.to_string(),
+                    user_id: e.inner.uin.to_string(),
                     extra: extended_map! {
-                        "user_name": e.friend.nick,
+                        "user_name": e.inner.nick,
                     },
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
 
         // group
         QEvent::NewMember(e) => Some(
-            ob.new_event(
+            new_event(
+                &e.client,
+                None,
                 NoticeContent::GroupMemberIncrease {
                     sub_type: "join".to_string(),
-                    group_id: e.new_member.group_code.to_string(),
-                    user_id: e.new_member.member_uin.to_string(),
+                    group_id: e.inner.group_code.to_string(),
+                    user_id: e.inner.member_uin.to_string(),
                     operator_id: "".to_string(),
                     extra: ExtendedMap::default(),
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::GroupLeave(e) => Some(
-            ob.new_event(
+            new_event(
+                &e.client,
+                None,
                 NoticeContent::GroupMemberDecrease {
-                    sub_type: if e.leave.operator_uin.is_none() {
+                    sub_type: if e.inner.operator_uin.is_none() {
                         "leave".to_string()
                     } else {
                         "kick".to_string()
                     },
-                    group_id: e.leave.group_code.to_string(),
-                    user_id: e.leave.member_uin.to_string(),
-                    operator_id: if let Some(op) = e.leave.operator_uin {
+                    group_id: e.inner.group_code.to_string(),
+                    user_id: e.inner.member_uin.to_string(),
+                    operator_id: if let Some(op) = e.inner.operator_uin {
                         op.to_string()
                     } else {
-                        e.leave.member_uin.to_string()
+                        e.inner.member_uin.to_string()
                     },
                     extra: ExtendedMap::default(),
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::GroupMute(e) => Some(
-            ob.new_event(
+            new_event(
+                &e.client,
+                None,
                 NoticeContent::GroupMemberBan {
                     sub_type: "".to_string(),
-                    group_id: e.group_mute.group_code.to_string(),
-                    user_id: e.group_mute.target_uin.to_string(),
-                    operator_id: e.group_mute.operator_uin.to_string(),
+                    group_id: e.inner.group_code.to_string(),
+                    user_id: e.inner.target_uin.to_string(),
+                    operator_id: e.inner.operator_uin.to_string(),
                     extra: extended_map! {
-                        "duration": e.group_mute.duration.as_secs() as i64,
+                        "duration": e.inner.duration.as_secs() as i64,
                     },
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::GroupMessageRecall(e) => Some(
-            ob.new_event(
+            new_event(
+                &e.client,
+                Some(e.inner.time as f64),
                 NoticeContent::GroupMessageDelete {
-                    sub_type: if e.recall.author_uin == e.recall.operator_uin {
+                    sub_type: if e.inner.author_uin == e.inner.operator_uin {
                         "recall".to_string()
                     } else {
                         "delete".to_string()
                     },
-                    message_id: e.recall.msg_seq.to_string(),
-                    group_id: e.recall.group_code.to_string(),
-                    user_id: e.recall.author_uin.to_string(),
-                    operator_id: e.recall.operator_uin.to_string(),
+                    message_id: e.inner.msg_seq.to_string(),
+                    group_id: e.inner.group_code.to_string(),
+                    user_id: e.inner.author_uin.to_string(),
+                    operator_id: e.inner.operator_uin.to_string(),
                     extra: ExtendedMap::default(),
                 }
                 .into(),
-                e.recall.time as f64,
             )
             .await,
         ),
         QEvent::MemberPermissionChange(e) => {
-            let e = &e.change;
-            match e.new_permission {
+            match e.inner.new_permission {
                 GroupMemberPermission::Administrator => Some(
-                    ob.new_event(
+                    new_event(
+                        &e.client,
+                        None,
                         NoticeContent::GroupAdminSet {
                             sub_type: "".to_string(),
-                            group_id: e.group_code.to_string(),
-                            user_id: e.member_uin.to_string(),
+                            group_id: e.inner.group_code.to_string(),
+                            user_id: e.inner.member_uin.to_string(),
                             operator_id: "".to_string(), //todo
                             extra: ExtendedMap::default(),
                         }
                         .into(),
-                        walle_core::timestamp_nano_f64(),
                     )
                     .await,
                 ),
                 GroupMemberPermission::Member => Some(
-                    ob.new_event(
+                    new_event(
+                        &e.client,
+                        None,
                         NoticeContent::GroupAdminUnset {
                             sub_type: "".to_string(),
-                            group_id: e.group_code.to_string(),
-                            user_id: e.member_uin.to_string(),
+                            group_id: e.inner.group_code.to_string(),
+                            user_id: e.inner.member_uin.to_string(),
                             operator_id: "".to_string(), //todo
                             extra: ExtendedMap::default(),
                         }
                         .into(),
-                        walle_core::timestamp_nano_f64(),
                     )
                     .await,
                 ),
                 _ => None,
             }
         }
-        QEvent::FriendRequest(fre) => Some(
-            ob.new_event(
+        QEvent::NewFriendRequest(fre) => Some(
+            new_event(
+                &fre.client,
+                None,
                 WQRequestContent::NewFriend {
                     sub_type: "".to_string(),
-                    request_id: fre.request.msg_seq,
-                    user_id: fre.request.req_uin.to_string(),
-                    user_name: fre.request.req_nick,
-                    message: fre.request.message,
+                    request_id: fre.inner.msg_seq,
+                    user_id: fre.inner.req_uin.to_string(),
+                    user_name: fre.inner.req_nick,
+                    message: fre.inner.message,
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::GroupRequest(gre) => Some(
-            ob.new_event(
+            new_event(
+                &gre.client,
+                Some(gre.inner.msg_time as f64),
                 WQRequestContent::JoinGroup {
                     sub_type: "".to_string(),
-                    request_id: gre.request.msg_seq,
-                    user_id: gre.request.req_uin.to_string(),
-                    user_name: gre.request.req_nick,
-                    group_id: gre.request.group_code.to_string(),
-                    group_name: gre.request.group_name,
-                    message: gre.request.message,
-                    suspicious: gre.request.suspicious,
-                    invitor_id: gre.request.invitor_uin.map(|i| i.to_string()),
-                    invitor_name: gre.request.invitor_nick,
+                    request_id: gre.inner.msg_seq,
+                    user_id: gre.inner.req_uin.to_string(),
+                    user_name: gre.inner.req_nick,
+                    group_id: gre.inner.group_code.to_string(),
+                    group_name: gre.inner.group_name,
+                    message: gre.inner.message,
+                    suspicious: gre.inner.suspicious,
+                    invitor_id: gre.inner.invitor_uin.map(|i| i.to_string()),
+                    invitor_name: gre.inner.invitor_nick,
                 }
                 .into(),
-                gre.request.msg_time as f64,
             )
             .await,
         ),
         QEvent::SelfInvited(i) => Some(
-            ob.new_event(
+            new_event(
+                &i.client,
+                Some(i.inner.msg_seq as f64),
                 WQRequestContent::GroupInvited {
                     sub_type: "".to_string(),
-                    request_id: i.request.msg_seq,
-                    group_id: i.request.group_code.to_string(),
-                    group_name: i.request.group_name,
-                    invitor_id: i.request.invitor_uin.to_string(),
-                    invitor_name: i.request.invitor_nick,
+                    request_id: i.inner.msg_seq,
+                    group_id: i.inner.group_code.to_string(),
+                    group_name: i.inner.group_name,
+                    invitor_id: i.inner.invitor_uin.to_string(),
+                    invitor_name: i.inner.invitor_nick,
                 }
                 .into(),
-                i.request.msg_time as f64,
             )
             .await,
         ),
         QEvent::GroupDisband(d) => Some(
-            ob.new_event(
+            new_event(
+                &d.client,
+                None,
                 NoticeContent::GroupMemberDecrease {
                     sub_type: "disband".to_string(),
-                    group_id: d.disband.group_code.to_string(),
-                    user_id: ob.self_id().await,
-                    operator_id: d.disband.operator_uin.to_string(),
+                    group_id: d.inner.group_code.to_string(),
+                    user_id: d.client.uin().await.to_string(),
+                    operator_id: d.inner.operator_uin.to_string(),
                     extra: extended_map! {},
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::GroupAudioMessage(gam) => {
-            let message = vec![MessageSegment::audio(gam.message.audio.0.hex_voice_id())];
-            let event = ob
-                .new_event(
-                    MessageContent::<WQMEDetail> {
-                        detail: WQMEDetail::Group {
-                            sub_type: "".to_string(),
-                            group_id: gam.message.group_code.to_string(),
-                            group_name: gam.message.group_name.clone(),
-                            user_name: gam.message.group_card.clone(),
-                        },
-                        alt_message: message.alt(),
-                        message,
-                        message_id: gam.message.seqs[0].to_string(),
-                        user_id: gam.message.from_uin.to_string(),
-                    }
-                    .into(),
-                    gam.message.time as f64,
-                )
-                .await;
-            wqdb.insert_voice(&gam.message.audio.0);
-            let s_group = SGroupMessage::from_audio_event(gam.message, event.clone());
+            let message = vec![MessageSegment::audio(gam.inner.audio.0.hex_voice_id())];
+            let event = new_event(
+                &gam.client,
+                Some(gam.inner.time as f64),
+                MessageContent::<WQMEDetail> {
+                    detail: WQMEDetail::Group {
+                        sub_type: "".to_string(),
+                        group_id: gam.inner.group_code.to_string(),
+                        group_name: gam.inner.group_name.clone(),
+                        user_name: gam.inner.group_card.clone(),
+                    },
+                    alt_message: message.alt(),
+                    message,
+                    message_id: gam.inner.seqs[0].to_string(),
+                    user_id: gam.inner.from_uin.to_string(),
+                }
+                .into(),
+            )
+            .await;
+            wqdb.insert_voice(&gam.inner.audio.0);
+            let s_group = SGroupMessage::from_audio_event(gam.inner, event.clone());
             wqdb.insert_group_message(&s_group);
             Some(event)
         }
         QEvent::FriendAudioMessage(fam) => {
-            let message = vec![MessageSegment::audio(fam.message.audio.0.hex_voice_id())];
-            let event = ob
-                .new_event(
-                    MessageContent::<WQMEDetail> {
-                        detail: WQMEDetail::Private {
-                            sub_type: "".to_string(),
-                            user_name: fam.message.from_nick.clone(),
-                        },
-                        alt_message: message.alt(),
-                        message,
-                        message_id: fam.message.seqs[0].to_string(),
-                        user_id: fam.message.from_uin.to_string(),
-                    }
-                    .into(),
-                    fam.message.time as f64,
-                )
-                .await;
-            wqdb.insert_voice(&fam.message.audio.0);
-            let s_private = SPrivateMessage::from_audio_event(fam.message, event.clone());
+            let message = vec![MessageSegment::audio(fam.inner.audio.0.hex_voice_id())];
+            let event = new_event(
+                &fam.client,
+                Some(fam.inner.time as f64),
+                MessageContent::<WQMEDetail> {
+                    detail: WQMEDetail::Private {
+                        sub_type: "".to_string(),
+                        user_name: fam.inner.from_nick.clone(),
+                    },
+                    alt_message: message.alt(),
+                    message,
+                    message_id: fam.inner.seqs[0].to_string(),
+                    user_id: fam.inner.from_uin.to_string(),
+                }
+                .into(),
+            )
+            .await;
+            wqdb.insert_voice(&fam.inner.audio.0);
+            let s_private = SPrivateMessage::from_audio_event(fam.inner, event.clone());
             wqdb.insert_private_message(&s_private);
             Some(event)
         }
         QEvent::FriendPoke(p) => Some(
-            ob.new_event(
+            new_event(
+                &p.client,
+                None,
                 WQExtraNoticeContent::FriendPock {
                     sub_type: "".to_string(),
-                    user_id: p.poke.sender.to_string(),
-                    receiver_id: p.poke.receiver.to_string(),
+                    user_id: p.inner.sender.to_string(),
+                    receiver_id: p.inner.receiver.to_string(),
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::GroupNameUpdate(g) => Some(
-            ob.new_event(
+            new_event(
+                &g.client,
+                None,
                 WQExtraNoticeContent::GroupNameUpdate {
                     sub_type: "".to_string(),
-                    group_id: g.update.group_code.to_string(),
-                    group_name: g.update.group_name,
-                    operator_id: g.update.operator_uin.to_string(),
+                    group_id: g.inner.group_code.to_string(),
+                    group_name: g.inner.group_name,
+                    operator_id: g.inner.operator_uin.to_string(),
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::DeleteFriend(d) => Some(
-            ob.new_event(
+            new_event(
+                &d.client,
+                None,
                 NoticeContent::FriendDecrease {
                     sub_type: "".to_string(),
-                    user_id: d.delete.uin.to_string(),
+                    user_id: d.inner.uin.to_string(),
                     extra: extended_map! {},
                 }
                 .into(),
-                walle_core::timestamp_nano_f64(),
             )
             .await,
         ),
         QEvent::KickedOffline(_) => {
             warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
-            ob.shutdown().await;
             None
         }
         QEvent::MSFOffline(_) => {
             warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
-            ob.shutdown().await; // 求测试2333
             None
         } // event => {
           //     warn!("unsupported event: {:?}", event);

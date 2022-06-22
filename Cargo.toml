@@ -5,9 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dependencies.walle-core]
+# version = "0.5.4"
+git = "https://github.com/abrahum/Walle-core.git"
+features = ["impl", "websocket", "http"]
+
 [dependencies]
-walle-core = { version = "0.5.4", features = ["impl", "websocket", "http"] }
-walle-v11 = { version = "0.5.0" }
+# walle-v11 = { version = "0.5.0" }
 tokio = { version = "1", features = ["full"] }
 async-trait = "*"
 async-recursion = "*"
@@ -28,6 +32,7 @@ base64 = "0.13"
 sha2 = "0.10"
 colored = "2"
 rand = "0.8"
+once_cell = "1"
 
 qrcode = "0.12"
 rqrr = "0.5"
@@ -38,11 +43,11 @@ sled = "0.34"
 rusty-leveldb = "0.3"
 
 uri-reader = { git = "https://github.com/abrahum/uri-reader", features = [
-    "vendored",
+  "vendored",
 ] }
 
-ricq = "0.1.10"
-ricq-core = "0.1.10"
+ricq = "0.1.12"
+ricq-core = "0.1.12"
 prost = "0.9"
 
 # [dev-dependencies]

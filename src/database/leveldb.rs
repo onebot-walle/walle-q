@@ -63,7 +63,7 @@ impl Database for LevelDb {
             .lock()
             .unwrap()
             .get(key)
-            .map(|v| rmp_serde::from_slice(&v).map_err(|_| error::file_type_not_match()))
+            .map(|v| rmp_serde::from_slice(&v).map_err(|e| error::file_type_not_match(e)))
             .transpose()
     }
     fn insert_image<T>(&self, value: &T)
@@ -80,7 +80,7 @@ impl Database for LevelDb {
             .lock()
             .unwrap()
             .get(key)
-            .map(|v| SVoice::from_data(&v).ok_or_else(error::file_type_not_match))
+            .map(|v| SVoice::from_data(&v).ok_or_else(|| error::file_type_not_match("")))
             .transpose()
     }
     fn insert_voice<T: SVoice>(&self, value: &T) {

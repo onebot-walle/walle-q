@@ -13,7 +13,7 @@ use crate::error;
 pub async fn save_image(data: &[u8]) -> Result<ImageInfo, RespError> {
     use tokio::io::AsyncWriteExt;
 
-    let info = ImageInfo::try_new(data).map_err(|_| error::image_info_decode_error())?;
+    let info = ImageInfo::try_new(data).map_err(|e| error::image_info_decode_error(e))?;
     let mut file = tokio::fs::File::create(&info.path())
         .await
         .map_err(error::file_create_error)?;

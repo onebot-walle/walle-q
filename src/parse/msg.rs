@@ -44,7 +44,7 @@ impl TryFrom<RQSends> for RQSendItem {
         } else if let Some(voice) = s.voice {
             Ok(RQSendItem::Voice(voice))
         } else {
-            Err(error::empty_message())
+            Err(error::empty_message(""))
         }
     }
 }
@@ -225,7 +225,7 @@ async fn push_msg_seg(
                 .map_err(|_| error::bad_param("message_id"))?;
             let event: WQMessageEvent = wqdb
                 .get_message(reply_seq)
-                .ok_or_else(error::message_not_exist)?
+                .ok_or_else(|| error::message_not_exist(reply_seq))?
                 .event()
                 .to_message_event()
                 .unwrap();
@@ -286,9 +286,9 @@ async fn push_msg_seg(
                     })
                 }
             }
-            _ => {
+            t => {
                 warn!("unsupported custom type: {}", ty);
-                return Err(walle_core::resp::error_builder::unsupported_segment());
+                return Err(walle_core::resp::error_builder::unsupported_segment(t));
             }
         },
         MessageSegment::Image { file_id, mut extra } => {
@@ -331,7 +331,7 @@ async fn push_msg_seg(
                 }
             } else {
                 warn!("image not found: {}", file_id);
-                return Err(error::file_not_found());
+                return Err(error::file_not_found(file_id));
             }
         }
         MessageSegment::Voice { file_id, .. } => {
@@ -363,13 +363,13 @@ async fn push_msg_seg(
                 }
                 None => {
                     warn!("audio not found: {}", file_id);
-                    return Err(error::file_not_found());
+                    return Err(error::file_not_found(file_id));
                 }
             }
         }
         seg => {
             warn!("unsupported MessageSegment: {:?}", seg);
-            return Err(walle_core::resp::error_builder::unsupported_segment());
+            return Err(walle_core::resp::error_builder::unsupported_segment(""));
         }
     }
     Ok(None)
