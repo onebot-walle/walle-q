@@ -7,6 +7,8 @@ use tracing_subscriber::{
     Layer,
 };
 
+use crate::WALLE_Q;
+
 #[derive(Parser, Serialize, Deserialize, Debug, Default)]
 #[clap(name = "Walle-Q",
        author = "AbrahumLink",
@@ -70,10 +72,14 @@ impl Comm {
                 "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
             ),
         );
+        let log_level = self.log.clone().unwrap_or_default();
         let filter = tracing_subscriber::filter::Targets::new()
-            .with_default(self.log.clone().unwrap_or_default())
-            .with_target("sled", LevelFilter::WARN)
-            .with_target("hyper", LevelFilter::INFO);
+            .with_default(LevelFilter::INFO)
+            .with_targets([
+                (WALLE_Q, log_level.clone()),
+                ("Walle-core", log_level.clone()),
+                ("Walle-OBC", log_level),
+            ]);
         let file_appender =
             tracing_appender::rolling::daily(crate::LOG_PATH, format!("{}.log", crate::WALLE_Q));
         tracing_subscriber::registry()

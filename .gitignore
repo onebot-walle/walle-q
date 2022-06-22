@@ -1,6 +1,7 @@
 /target
 device.json
 walle-q.yaml
+walle-q.toml
 qrcode.png
 /data
 session.token

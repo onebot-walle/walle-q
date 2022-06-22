@@ -89,7 +89,7 @@ impl Database for WQDatabaseInner {
 
 // insert all but read the first
 #[derive(Default)]
-pub(crate) struct WQDatabase(pub(crate) Vec<WQDatabaseInner>);
+pub struct WQDatabase(pub(crate) Vec<WQDatabaseInner>);
 
 impl WQDatabase {
     pub(crate) fn sled(mut self) -> Self {

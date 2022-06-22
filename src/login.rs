@@ -18,8 +18,10 @@ const TOKEN_PATH: &str = "session.token";
 /// if passwords is empty use qrcode login else use password login
 ///
 /// if login success, start client heartbeat
-pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -> RQResult<()> {
-    let token_login: bool = match fs::read(TOKEN_PATH).map(|s| rmp_serde::from_slice(&s)) {
+pub(crate) async fn login(cli: &Arc<Client>, uin: &str, password: Option<String>) -> RQResult<()> {
+    let token_login: bool = match fs::read(format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH))
+        .map(|s| rmp_serde::from_slice(&s))
+    {
         Ok(Ok(token)) => {
             info!(
                 target: crate::WALLE_Q,
@@ -39,9 +41,9 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
         _ => false,
     };
     if !token_login {
-        if let (Some(uin), Some(password)) = (config.uin, &config.password) {
+        if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
             info!(target: crate::WALLE_Q, "login with password");
-            handle_login_resp(cli, cli.password_login(uin as i64, password).await?).await?;
+            handle_login_resp(cli, cli.password_login(uin, password).await?).await?;
         } else {
             info!(target: crate::WALLE_Q, "login with qrcode");
             qrcode_login(cli).await?;
@@ -54,9 +56,9 @@ pub(crate) async fn login(cli: &Arc<Client>, config: &crate::config::QQConfig) -
     Ok(())
 }
 
-pub(crate) async fn start_reconnect(cli: &Arc<Client>, config: &crate::config::QQConfig) {
+pub(crate) async fn start_reconnect(cli: &Arc<Client>, uin: Option<u64>, password: Option<String>) {
     let token = cli.gen_token().await;
-    let credential = if let (Some(uin), Some(password)) = (config.uin, &config.password) {
+    let credential = if let (Some(uin), Some(ref password)) = (uin, password) {
         Credential::Password(Password {
             uin: uin as i64,
             password: password.to_owned(),

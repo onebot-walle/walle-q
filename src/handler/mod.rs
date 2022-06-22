@@ -11,7 +11,6 @@ use walle_core::{action::*, ExtendedValue, MessageAlt};
 use walle_core::{extended_value, resp::*};
 use walle_core::{ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction};
 
-use crate::config::QQConfig;
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
 use crate::error;
 use crate::extra::*;
@@ -25,7 +24,7 @@ type WQRespResult = Result<WQResp, RespError>;
 mod file;
 // pub(crate) mod v11;
 
-pub(crate) struct Handler {
+pub struct Handler {
     pub(crate) client: OnceCell<Arc<ricq::Client>>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, WQEvent>>>,
     pub(crate) database: Arc<WQDatabase>,
@@ -34,7 +33,7 @@ pub(crate) struct Handler {
 
 #[async_trait]
 impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
-    type Config = QQConfig;
+    type Config = (String, Option<String>, u8); // (uin, password, protcol)
     async fn start<AH, EH>(
         &self,
         ob: &Arc<OneBot<AH, EH, 12>>,
@@ -46,7 +45,7 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
     {
         let (qevent_tx, mut qevent_rx) = tokio::sync::mpsc::unbounded_channel();
         let qclient = Arc::new(Client::new_with_config(
-            crate::config::load_device(&config).unwrap(),
+            crate::config::load_device(&config.0, config.2).unwrap(),
             qevent_tx,
         ));
         let stream = tokio::net::TcpStream::connect(qclient.get_address())
@@ -54,11 +53,14 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
             .unwrap();
         let _qcli = qclient.clone();
         let _net = tokio::spawn(async move { _qcli.start(stream).await });
+        self.client.set(qclient.clone()).ok();
         let event_cache = self.event_cache.clone();
         let database = self.database.clone();
         let ob = ob.clone();
         tokio::task::yield_now().await;
-        crate::login::login(&qclient, &config).await.unwrap();
+        crate::login::login(&qclient, &config.0, config.1)
+            .await
+            .unwrap();
         let mut tasks = vec![];
         tasks.push(tokio::spawn(async move {
             while let Some(qevent) = qevent_rx.recv().await {
@@ -151,7 +153,7 @@ impl Handler {
 }
 
 impl Handler {
-    fn get_client(&self) -> Result<&Arc<Client>, RespError> {
+    pub fn get_client(&self) -> Result<&Arc<Client>, RespError> {
         self.client.get().ok_or(error::client_not_initialized(""))
     }
     async fn get_latest_events(&self, c: GetLatestEvents) -> WQRespResult {

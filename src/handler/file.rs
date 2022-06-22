@@ -144,7 +144,9 @@ impl super::Handler {
 
     pub async fn upload_file_fragmented(&self, c: UploadFileFragmented) -> WQRespResult {
         match c {
-            UploadFileFragmented::Prepare { name, total_size } => {
+            UploadFileFragmented::Prepare {
+                name, total_size, ..
+            } => {
                 let file_id = format!("{}-{}", name, total_size);
                 self.uploading_fragment.lock().await.cache_set(
                     file_id.clone(),
@@ -166,6 +168,7 @@ impl super::Handler {
                 offset,
                 size,
                 data,
+                ..
             } => {
                 let mut file_path = std::path::PathBuf::from(crate::FILE_CACHE_DIR);
                 file_path.push(format!("{}-{}", file_id, offset));
@@ -181,7 +184,9 @@ impl super::Handler {
                 }
                 Ok(Resps::success(ExtendedValue::Null.into()))
             }
-            UploadFileFragmented::Finish { file_id, sha256 } => {
+            UploadFileFragmented::Finish {
+                file_id, sha256, ..
+            } => {
                 let sha = hex::decode(sha256).map_err(|_| error::bad_param("sha256"))?;
                 let mut fragment = self
                     .uploading_fragment
@@ -244,7 +249,7 @@ impl super::Handler {
             Ok((info, sha256))
         }
         match c {
-            GetFileFragmented::Prepare { file_id } => {
+            GetFileFragmented::Prepare { file_id, .. } => {
                 let (info, sha256) = match self
                     .database
                     .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
@@ -276,6 +281,7 @@ impl super::Handler {
                 file_id,
                 offset,
                 size,
+                ..
             } => {
                 let info: ImageInfo = self
                     .database
