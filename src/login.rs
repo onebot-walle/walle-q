@@ -2,6 +2,7 @@ use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures_util::StreamExt;
 use ricq::client::Client;
 use ricq::ext::common::after_login;
 use ricq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password};
@@ -19,9 +20,8 @@ const TOKEN_PATH: &str = "session.token";
 ///
 /// if login success, start client heartbeat
 pub(crate) async fn login(cli: &Arc<Client>, uin: &str, password: Option<String>) -> RQResult<()> {
-    let token_login: bool = match fs::read(format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH))
-        .map(|s| rmp_serde::from_slice(&s))
-    {
+    let token_path = format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH);
+    let token_login: bool = match fs::read(&token_path).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
                 target: crate::WALLE_Q,
@@ -49,18 +49,18 @@ pub(crate) async fn login(cli: &Arc<Client>, uin: &str, password: Option<String>
             qrcode_login(cli).await?;
         }
         let token = cli.gen_token().await;
-        fs::write(TOKEN_PATH, rmp_serde::to_vec(&token).unwrap()).unwrap();
+        fs::write(token_path, rmp_serde::to_vec(&token).unwrap()).unwrap();
         cli.register_client().await?;
     }
     after_login(cli).await;
     Ok(())
 }
 
-pub(crate) async fn start_reconnect(cli: &Arc<Client>, uin: Option<u64>, password: Option<String>) {
+pub(crate) async fn start_reconnect(cli: &Arc<Client>, uin: &str, password: Option<String>) {
     let token = cli.gen_token().await;
-    let credential = if let (Some(uin), Some(ref password)) = (uin, password) {
+    let credential = if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
         Credential::Password(Password {
-            uin: uin as i64,
+            uin: uin,
             password: password.to_owned(),
         })
     } else {
@@ -79,13 +79,7 @@ pub(crate) async fn start_reconnect(cli: &Arc<Client>, uin: Option<u64>, passwor
 async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
     let resp = cli.fetch_qrcode().await?;
     if let QRCodeState::ImageFetch(f) = resp {
-        let mut image = rqrr::PreparedImage::prepare(
-            image::load_from_memory(&f.image_data).unwrap().into_luma8(),
-        );
-        let grids = image.detect_grids();
-        let (_, content) = grids[0].decode().unwrap();
-        let code = qrcode::QrCode::new(&content).unwrap();
-        let rended = code.render::<qrcode::render::unicode::Dense1x2>().build();
+        let rended = crate::util::qrcode2str(&f.image_data);
         info!(target: crate::WALLE_Q, "扫描二维码登录:");
         println!("{}", rended);
         loop {
@@ -106,6 +100,7 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
                 }
                 QRCodeState::Canceled => {
                     warn!(target: crate::WALLE_Q, "二维码已取消");
+                    warn!(target: crate::WALLE_Q, "请使用手表或 MacOS 协议扫码登录");
                     return Err(RQError::Other("二维码已取消".to_owned()));
                 }
                 QRCodeState::ImageFetch(_) => unreachable!(),
@@ -130,7 +125,7 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
                 warn!(target: crate::WALLE_Q, "{}", l.sms_phone.unwrap());
                 warn!(
                     target: crate::WALLE_Q,
-                    "手机打开url，处理完成后重启程序: {}",
+                    "手机打开url, 处理完成后重启程序: {}",
                     l.verify_url.unwrap()
                 );
                 return Err(RQError::Other("password login failure".to_string()));
@@ -142,8 +137,20 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
                 warn!(target: crate::WALLE_Q, "账号被冻结");
                 return Err(RQError::Other("账号被冻结".to_string()));
             }
-            LoginResponse::NeedCaptcha(_) => {
-                unimplemented!();
+            LoginResponse::NeedCaptcha(ref captcha) => {
+                if let Some(url) = &captcha.verify_url {
+                    info!(target: crate::WALLE_Q, "滑块Url: {}", url);
+                    info!(target: crate::WALLE_Q, "输入ticket: ");
+                    let mut reader = tokio_util::codec::FramedRead::new(
+                        tokio::io::stdin(),
+                        tokio_util::codec::LinesCodec::new(),
+                    );
+                    while let Some(Ok(ticket)) = reader.next().await {
+                        resp = cli.submit_ticket(&ticket).await?;
+                    }
+                } else {
+                    return Err(RQError::Other("NeedCaptcha without url".to_string()));
+                }
             }
             LoginResponse::TooManySMSRequest => {
                 warn!(target: crate::WALLE_Q, "短信验证码请求过于频繁");

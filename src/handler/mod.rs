@@ -7,7 +7,7 @@ use ricq::structs::{FriendAudio, GroupAudio};
 use ricq::Client;
 use tokio::sync::Mutex;
 use walle_core::onebot::{ActionHandler, EventHandler, OneBot};
-use walle_core::{action::*, ExtendedValue, MessageAlt};
+use walle_core::{action::*, ExtendedValue, MessageAlt, WalleError};
 use walle_core::{extended_value, resp::*};
 use walle_core::{ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction};
 
@@ -52,16 +52,17 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
             .await
             .unwrap();
         let _qcli = qclient.clone();
-        let _net = tokio::spawn(async move { _qcli.start(stream).await });
+        let net = tokio::spawn(async move { _qcli.start(stream).await });
         self.client.set(qclient.clone()).ok();
         let event_cache = self.event_cache.clone();
         let database = self.database.clone();
         let ob = ob.clone();
         tokio::task::yield_now().await;
-        crate::login::login(&qclient, &config.0, config.1)
+        crate::login::login(&qclient, &config.0, config.1.clone())
             .await
-            .unwrap();
+            .map_err(|e| WalleError::Other(e.to_string()))?;
         let mut tasks = vec![];
+        let mut rx = ob.get_signal_rx()?;
         tasks.push(tokio::spawn(async move {
             while let Some(qevent) = qevent_rx.recv().await {
                 if let Some(event) = crate::parse::qevent2event(qevent, &database).await {
@@ -75,6 +76,15 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
                     ob.event_handler.call(event, &ob).await
                 }
             }
+        }));
+        let _qcli = qclient.clone();
+        tasks.push(tokio::spawn(async move {
+            net.await.ok();
+            crate::login::start_reconnect(&_qcli, &config.0, config.1).await;
+        }));
+        tasks.push(tokio::spawn(async move {
+            rx.recv().await.ok();
+            qclient.stop(ricq::client::NetworkStatus::NetworkOffline);
         }));
         Ok(tasks)
     }

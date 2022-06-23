@@ -11,41 +11,46 @@
 
 ## 配置列表
 
-```yaml
-onebot: # Onebot 协议相关配置
-  heartbeat:
-    enabled: true           # 是否启用心跳
-    interval: 4             # 心跳间隔，单位秒
-  http:                     # http 配置
-    - host: "your.host"
-      port: 6700
-      access_token: ~       # 可选，默认为空
-      event_enable: true    # 是否推送事件
-      event_buffer_size: 16 # 事件推送缓存区大小
-  http_webhook: []          # http webhook 配置
-    - url: "webhook.url"
-      access_token: ~       # 可选，默认为空
-      timeout: 4           # 超时时间，单位秒
-  websocket:                # websocket 配置
-    - host: "your.host"
-      port: 8844
-      access_token: ~       # 可选，默认为空
-  websocket_rev:            # websocket 反向配置
-    - url: "your.url"       
-      access_token: ~       # 可选，默认为空
-      reconnect_interval: 4 # 重连间隔，单位秒
+```toml
+[qq.name]                     # name在密码登录时必须与 QQ 号一致
+password = "your password"    # password
+protocol = 0                  # 0..=5，默认为0
 
-uin: ~                      # 为空则使用扫码登陆
-password: ~                 # 为空则使用扫码登陆
-protocol: ~                 # 0..5，默认为0
-str_protocol: ~             # 默认 IPad，优先级低于protcol
+[qq.other]                    # 缺失密码时默认使用扫码登录，扫码登录仅手表或MacOS可用
 
-log: ~                      # 日志级别，可选：Trace, Debug, Info, Warn, Error
-v11: false                  # 是否使用 Onebot v11 版本协议
-event_cache_size: 16        # 事件缓存区大小
-time_zone: +8               # 时区，默认为+8
-disable_leveldb: false      # 禁用 leveldb 数据库
-sled: false                 # 启用 sled 数据库 (内存占用较大)
+[meta]
+log = "Info"                  # 日志级别，可选：Trace, Debug, Info, Warn, Error
+event_cache_size = 16         # 事件缓存区大小
+v11 = false                   # v11 协议模式（暂时失效）
+time_zone = +8                # log 时区，默认为+8
+sled = false                  # 启用 sled 数据库
+disable_leveldb = false       # 禁用 level_db 数据库
+
+[[onebot.http]]
+host = "127.0.0.1"
+port = 6700
+access_token = "token"        # 默认为空
+event_enable =  true          # 是否推送事件
+event_buffer_size = 16        # 事件推送缓存区大小
+
+[[onebot.http_webhook]]
+url = "http://127.0.0.1:6700" 
+access_token = "token"        # 默认为空
+timeout = 4                   # 超时时间，单位秒
+
+[[onebot.websocket]]
+host = "127.0.0.1"
+port = 8844
+access_token = "token"        # 默认为空
+
+[[onebot.websocket_rev]]
+url = "ws://127.0.0.1:8844"
+access_token = "token"        # 默认为空
+reconnect_interval = 4
+
+[onebot.heartbeat]
+enabled = true
+interval = 4
 ```
 
 已支持协议设备：

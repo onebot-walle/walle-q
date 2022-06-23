@@ -1,3 +1,17 @@
+## 0.2.0
+
+### Features
+
+- 支持多 Bot 登录
+
+### Dependencies
+
+- walle-core: 0.6.0(unrelease)
+
+### Others
+
+- 配置文件切换为 toml 格式
+
 ## 0.1.4
 
 ### Features

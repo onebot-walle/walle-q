@@ -15,6 +15,7 @@ mod handler;
 mod login;
 mod multi;
 pub(crate) mod parse;
+mod util;
 
 const WALLE_Q: &str = "Walle-Q";
 const PLATFORM: &str = "qq";
@@ -31,7 +32,13 @@ type WQResp = walle_core::Resps<extra::WQEvent>;
 #[tokio::main]
 async fn main() {
     let mut comm = command::Comm::parse();
-    let config = config::Config::load().unwrap();
+    let config = match config::Config::load() {
+        Ok(config) => config,
+        Err(e) => {
+            println!("load config failed: {e}");
+            std::process::exit(1)
+        }
+    };
     comm.merge(config.meta);
     comm.subscribe();
     let wqdb = comm.db();
@@ -48,10 +55,6 @@ async fn main() {
     for join in joins {
         join.await.unwrap();
     }
-
-    // 网络断开后自动重连
-    // net.await.ok();
-    // login::start_reconnect(&qclient, &config.qq).await;
 }
 
 async fn init() {

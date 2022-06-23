@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use once_cell::sync::OnceCell;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+use tracing::warn;
 use walle_core::{
     onebot::{ActionHandler, EventHandler, OneBot},
     resp::error_builder,
@@ -16,7 +17,7 @@ use crate::{
     database::WQDatabase,
     extra::{WQAction, WQEvent},
     handler::Handler,
-    WQResp,
+    WQResp, WALLE_Q,
 };
 
 pub struct MultiAH {
@@ -63,13 +64,21 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
                 database: self.database.clone(),
                 uploading_fragment: Mutex::new(TimedCache::with_lifespan(60)),
             };
-            let tasks = ah
+            match ah
                 .start(ob, (id, cs.password, cs.protocol.unwrap_or_default()))
-                .await?;
-            self.ahs.insert(
-                ah.get_client().unwrap().uin().await.to_string(),
-                (ah, tasks),
-            );
+                .await
+            {
+                Ok(tasks) => {
+                    self.ahs.insert(
+                        ah.get_client().unwrap().uin().await.to_string(),
+                        (ah, tasks),
+                    );
+                }
+                Err(e) => warn!(target: WALLE_Q, "{}", e),
+            }
+        }
+        if self.ahs.is_empty() {
+            std::process::exit(1)
         }
         Ok(vec![])
     }

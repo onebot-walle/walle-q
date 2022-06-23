@@ -1,9 +1,9 @@
 use std::{collections::HashMap, io::Read};
 
 use rand::SeedableRng;
-use ricq::device::Device;
 use ricq::version::get_version;
 use ricq::Config as RsQQConfig;
+use ricq::{device::Device, version::Protocol};
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 use walle_core::config::ImplConfig;
@@ -126,6 +126,6 @@ pub(crate) fn load_device(uin: &str, protocol: u8) -> IOResult<RsQQConfig> {
                     .as_secs(),
             ))
         }),
-        version: get_version(protocol.try_into().unwrap_or_default()),
+        version: get_version(Protocol::try_from(protocol).unwrap_or_default()),
     })
 }
