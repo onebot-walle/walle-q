@@ -410,7 +410,7 @@
 | 35002 | Friend Not Exist         | 好友不存在            | 好友不存在               |
 | 35003 | Group Not Exist          | 群不存在              | 群不存在                 |
 | 35004 | Group Member Not Exist   | 群成员不存在          | 群成员不存在             |
-| 41001 | ImageInfo Decode Error   | 图片信息解码错误      | 图片信息解码错误         |
-| 41002 | Image Url Error          | 图片URL错误           | 图片URL不存在或解析错误  |
-| 41003 | Image Path Error         | 图片路径错误          | 图片路径不存在或解析错误 |
-| 41004 | Image Data Error         | 图片内容错误          | 图片文件下载或读取失败   |
+| 61001 | ImageInfo Decode Error   | 图片信息解码错误      | 图片信息解码错误         |
+| 61002 | Image Url Error          | 图片URL错误           | 图片URL不存在或解析错误  |
+| 61003 | Image Path Error         | 图片路径错误          | 图片路径不存在或解析错误 |
+| 61004 | Image Data Error         | 图片内容错误          | 图片文件下载或读取失败   |
