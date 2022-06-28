@@ -14,8 +14,8 @@ pub(crate) trait DatabaseInit {
 }
 
 pub(crate) trait Database {
-    fn _get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: i32) -> Option<T>;
-    fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
+    fn get_message<T: for<'de> serde::Deserialize<'de>>(&self, message_id: &str) -> Option<T>;
+    fn insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
     fn get_image<T: for<'de> serde::Deserialize<'de>>(
         &self,
         key: &[u8],
@@ -23,21 +23,6 @@ pub(crate) trait Database {
     fn insert_image<T: serde::Serialize + SImage>(&self, value: &T);
     fn get_voice<T: SVoice>(&self, key: &[u8]) -> Result<Option<T>, RespError>;
     fn insert_voice<T: SVoice>(&self, value: &T);
-    fn get_message(&self, key: i32) -> Option<SMessage> {
-        self._get_message(key)
-    }
-    fn get_group_message(&self, key: i32) -> Option<SGroupMessage> {
-        self._get_message(key)
-    }
-    fn insert_group_message(&self, value: &SGroupMessage) {
-        self._insert_message(value)
-    }
-    fn get_private_message(&self, key: i32) -> Option<SPrivateMessage> {
-        self._get_message(key)
-    }
-    fn insert_private_message(&self, value: &SPrivateMessage) {
-        self._insert_message(value)
-    }
 }
 
 pub(crate) enum WQDatabaseInner {
@@ -46,16 +31,16 @@ pub(crate) enum WQDatabaseInner {
 }
 
 impl Database for WQDatabaseInner {
-    fn _get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: i32) -> Option<T> {
+    fn get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: &str) -> Option<T> {
         match self {
-            Self::SledDb(db) => db._get_message(key),
-            Self::LevelDb(db) => db._get_message(key),
+            Self::SledDb(db) => db.get_message(key),
+            Self::LevelDb(db) => db.get_message(key),
         }
     }
-    fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T) {
+    fn insert_message<T: serde::Serialize + MessageId>(&self, value: &T) {
         match self {
-            Self::SledDb(db) => db._insert_message(value),
-            Self::LevelDb(db) => db._insert_message(value),
+            Self::SledDb(db) => db.insert_message(value),
+            Self::LevelDb(db) => db.insert_message(value),
         }
     }
     fn get_image<T: for<'de> serde::Deserialize<'de>>(
@@ -104,14 +89,14 @@ impl WQDatabase {
 }
 
 impl Database for WQDatabase {
-    fn _insert_message<T: serde::Serialize + MessageId>(&self, value: &T) {
+    fn insert_message<T: serde::Serialize + MessageId>(&self, value: &T) {
         for db in &self.0 {
-            db._insert_message(value)
+            db.insert_message(value)
         }
     }
-    fn _get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: i32) -> Option<T> {
+    fn get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: &str) -> Option<T> {
         for db in &self.0 {
-            match db._get_message(key) {
+            match db.get_message(key) {
                 Some(v) => return Some(v),
                 None => continue,
             }

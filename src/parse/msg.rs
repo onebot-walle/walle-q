@@ -10,9 +10,10 @@ use walle_core::resp::RespError;
 use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
 use crate::extra::segment::NodeEnum;
-use crate::extra::{ToMessageEvent, WQMessageEvent};
+use crate::extra::{WQEvent, WQEventContent};
 
 use super::audio::encode_to_silk;
+use super::util::decode_message_id;
 
 pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
@@ -220,25 +221,25 @@ async fn push_msg_seg(
             target: 0,
         }),
         MessageSegment::Reply { message_id, .. } => {
-            let reply_seq: i32 = message_id
-                .parse()
-                .map_err(|_| error::bad_param("message_id"))?;
-            let event: WQMessageEvent = wqdb
-                .get_message(reply_seq)
-                .ok_or_else(|| error::message_not_exist(reply_seq))?
-                .event()
-                .to_message_event()
-                .unwrap();
+            let event = wqdb
+                .get_message::<WQEvent>(&message_id)
+                .ok_or_else(|| error::message_not_exist(&message_id))?;
+            let content = if let WQEventContent::Message(c) = event.content {
+                c
+            } else {
+                unreachable!()
+            };
+            let decoded = decode_message_id(&message_id)?;
             let sub_chain = {
                 let mut chain = MessageChain::default();
                 chain.push(elem::Text {
-                    content: event.content.alt_message,
+                    content: content.alt_message,
                 });
                 chain
             };
             return Ok(Some(elem::Reply {
-                reply_seq,
-                sender: event.content.user_id.parse().unwrap(),
+                reply_seq: *decoded.1.first().unwrap(),
+                sender: content.user_id.parse().unwrap(),
                 time: event.time as i32,
                 elements: sub_chain,
             }));

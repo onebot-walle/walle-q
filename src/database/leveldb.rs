@@ -33,23 +33,23 @@ impl LevelDb {
 }
 
 impl Database for LevelDb {
-    fn _get_message<T>(&self, key: i32) -> Option<T>
+    fn get_message<T>(&self, key: &str) -> Option<T>
     where
         T: for<'de> serde::Deserialize<'de>,
     {
         self.0
             .lock()
             .unwrap()
-            .get(&key.to_be_bytes())
+            .get(key.as_bytes())
             .and_then(|v| rmp_serde::from_slice(&v).unwrap())
     }
-    fn _insert_message<T>(&self, value: &T)
+    fn insert_message<T>(&self, value: &T)
     where
         T: serde::Serialize + MessageId,
     {
         let mut db = self.0.lock().unwrap();
         db.put(
-            &value.seq().to_be_bytes(),
+            value.message_id().as_bytes(),
             &rmp_serde::to_vec(value).unwrap(),
         )
         .unwrap();

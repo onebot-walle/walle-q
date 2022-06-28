@@ -12,10 +12,14 @@ use walle_core::resp::*;
 use walle_core::util::ColoredAlt;
 use walle_core::{ActionHandler, EventHandler, OneBot};
 
-use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
+use crate::database::{Database, MessageId, WQDatabase};
 use crate::error;
 use crate::extra::*;
-use crate::parse::{new_event, MsgChainBuilder, RQSendItem};
+use crate::parse::util::{
+    decode_message_id, new_group_receipt_content, new_group_temp_receipt_content,
+    new_private_receipt_content,
+};
+use crate::parse::{util::new_event, MsgChainBuilder, RQSendItem};
 use crate::WQResp;
 
 use self::file::FragmentFile;
@@ -266,41 +270,20 @@ impl Handler {
                         .await
                         .map_err(error::rq_error)?,
                 };
-                let message_id = receipt.seqs[0].to_string();
+                let time = receipt.time as f64;
+                let cli = self.get_client()?;
+                let event = new_event(
+                    cli,
+                    Some(time as f64),
+                    new_group_receipt_content(cli, receipt, group_code, c.message).await,
+                )
+                .await;
                 let respc = SendMessageRespContent {
-                    message_id: message_id.clone(),
-                    time: receipt.time as f64,
+                    message_id: event.message_id(),
+                    time,
                     extra: ExtendedMap::default(),
                 };
-                let s_group = SGroupMessage::receipt(
-                    receipt.clone(),
-                    group_code,
-                    new_event(
-                        self.get_client()?,
-                        Some(receipt.time as f64),
-                        MessageContent::<WQMEDetail> {
-                            detail: WQMEDetail::Group {
-                                sub_type: "".to_string(),
-                                group_id,
-                                group_name: "".to_string(),
-                                user_name: self
-                                    .get_client()?
-                                    .account_info
-                                    .read()
-                                    .await
-                                    .nickname
-                                    .clone(),
-                            },
-                            message_id,
-                            alt_message: c.message.alt(),
-                            message: c.message,
-                            user_id: self.get_client()?.uin().await.to_string(),
-                        }
-                        .into(),
-                    )
-                    .await,
-                );
-                self.database.insert_group_message(&s_group);
+                self.database.insert_message(&event);
                 Ok(Resps::success(respc.into()))
             }
             "group_temp" => {
@@ -324,40 +307,21 @@ impl Handler {
                     RQSendItem::Forward(_) => return Err(resp_error::unsupported_param("forward")),
                     RQSendItem::Voice(_) => return Err(resp_error::unsupported_param("voice")),
                 };
-                let message_id = receipt.seqs[0].to_string();
+                let cli = self.get_client()?;
+                let time = receipt.time as f64;
+                let event = new_event(
+                    cli,
+                    Some(time),
+                    new_group_temp_receipt_content(receipt, c.message, cli, group_code, target)
+                        .await,
+                )
+                .await;
                 let respc = SendMessageRespContent {
-                    message_id: message_id.clone(),
-                    time: receipt.time as f64,
+                    message_id: event.message_id(),
+                    time,
                     extra: ExtendedMap::default(),
                 };
-                let s_private = SPrivateMessage::receipt(
-                    receipt.clone(),
-                    target,
-                    new_event(
-                        self.get_client()?,
-                        Some(receipt.time as f64),
-                        MessageContent {
-                            alt_message: c.message.alt(),
-                            message: c.message,
-                            message_id: receipt.seqs[0].to_string(),
-                            user_id: self.get_client()?.uin().await.to_string(),
-                            detail: WQMEDetail::GroupTemp {
-                                sub_type: "".to_string(),
-                                user_name: self
-                                    .get_client()?
-                                    .account_info
-                                    .read()
-                                    .await
-                                    .nickname
-                                    .clone(),
-                                group_id,
-                            },
-                        }
-                        .into(),
-                    )
-                    .await,
-                );
-                self.database.insert_private_message(&s_private);
+                self.database.insert_message(&event);
                 Ok(Resps::success(respc.into()))
             }
             "private" => {
@@ -383,39 +347,20 @@ impl Handler {
                         .map_err(error::rq_error)?,
                     _ => return Err(resp_error::unsupported_segment("forward")),
                 };
-                let message_id = receipt.seqs[0].to_string();
+                let cli = self.get_client()?;
+                let time = receipt.time as f64;
+                let event = new_event(
+                    cli,
+                    Some(time),
+                    new_private_receipt_content(cli, receipt, target, c.message).await,
+                )
+                .await;
                 let respc = SendMessageRespContent {
-                    message_id: message_id.clone(),
-                    time: receipt.time as f64,
+                    message_id: event.message_id(),
+                    time,
                     extra: ExtendedMap::default(),
                 };
-                let s_private = SPrivateMessage::receipt(
-                    receipt.clone(),
-                    target,
-                    new_event(
-                        self.get_client()?,
-                        Some(receipt.time as f64),
-                        MessageContent::<WQMEDetail> {
-                            detail: WQMEDetail::Private {
-                                sub_type: "".to_string(),
-                                user_name: self
-                                    .get_client()?
-                                    .account_info
-                                    .read()
-                                    .await
-                                    .nickname
-                                    .clone(),
-                            },
-                            message_id,
-                            alt_message: c.message.alt(),
-                            message: c.message,
-                            user_id: self.get_client()?.uin().await.to_string(),
-                        }
-                        .into(),
-                    )
-                    .await,
-                );
-                self.database.insert_private_message(&s_private);
+                self.database.insert_message(&event);
                 Ok(Resps::success(respc.into()))
             }
             ty => Err(resp_error::unsupported_param(ty)),
@@ -423,38 +368,29 @@ impl Handler {
     }
 
     async fn delete_message(&self, c: DeleteMessage) -> WQRespResult {
-        if let Some(m) = self.database.get_message(
-            c.message_id
-                .parse()
-                .map_err(|_| error::bad_param("message_id"))?,
-        ) {
-            match m {
-                SMessage::Private(p) => {
-                    self.get_client()?
-                        .recall_friend_message(p.target_id, p.time as i64, p.seqs, p.rands)
-                        .await
-                        .map_err(error::rq_error)?;
-                }
-                SMessage::Group(g) => {
-                    self.get_client()?
-                        .recall_group_message(g.group_code, g.seqs, g.rands)
-                        .await
-                        .map_err(error::rq_error)?;
-                }
-            }
-            Ok(Resps::empty_success())
-        } else {
-            Err(error::message_not_exist(&c.message_id))
+        let message = decode_message_id(&c.message_id)?;
+        match message.3 {
+            Some(time) => self
+                .get_client()?
+                .recall_friend_message(message.0, time as i64, message.1, message.2)
+                .await
+                .map_err(error::rq_error)?,
+            None => self
+                .get_client()?
+                .recall_group_message(message.0, message.1, message.2)
+                .await
+                .map_err(error::rq_error)?,
         }
+        Ok(Resps::empty_success())
     }
 
     async fn get_message(&self, c: GetMessage) -> WQRespResult {
-        if let Some(m) = self.database.get_message(
-            c.message_id
-                .parse()
+        if let Some(m) = self.database.get_message::<WQEvent>(
+            &c.message_id
+                .parse::<String>()
                 .map_err(|_| error::bad_param("message_id"))?,
         ) {
-            Ok(Resps::success(RespContent::MessageEvent(m.event())))
+            Ok(Resps::success(RespContent::MessageEvent(m)))
         } else {
             Err(error::message_not_exist(c.message_id))
         }

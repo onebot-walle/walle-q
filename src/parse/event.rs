@@ -1,23 +1,14 @@
-use crate::database::{Database, SGroupMessage, SPrivateMessage, SVoice, WQDatabase};
-use crate::extra::{WQEvent, WQEventContent, WQExtraNoticeContent, WQMEDetail, WQRequestContent};
+use super::util::{
+    new_event, new_group_audio_content, new_group_msg_content, new_group_temp_msg_content,
+    new_private_audio_content, new_private_msg_content,
+};
+use crate::database::{Database, SVoice, WQDatabase};
+use crate::extra::{WQEvent, WQExtraNoticeContent, WQRequestContent};
 
 use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
-use ricq::Client;
 use tracing::{info, warn};
 use walle_core::prelude::*;
-use walle_core::util::timestamp_nano_f64;
-
-pub(crate) async fn new_event(cli: &Client, time: Option<f64>, content: WQEventContent) -> WQEvent {
-    WQEvent {
-        id: "todo".to_string(), //todo
-        r#impl: crate::WALLE_Q.to_string(),
-        platform: crate::PLATFORM.to_string(),
-        self_id: cli.uin().await.to_string(),
-        time: time.unwrap_or_else(timestamp_nano_f64),
-        content,
-    }
-}
 
 pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<WQEvent> {
     match event {
@@ -36,21 +27,10 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<WQE
             let event = new_event(
                 &pme.client,
                 Some(pme.inner.time as f64),
-                MessageContent::<WQMEDetail> {
-                    detail: WQMEDetail::Private {
-                        sub_type: "".to_string(),
-                        user_name: pme.inner.from_nick.clone(),
-                    },
-                    alt_message: message.alt(),
-                    message,
-                    message_id: pme.inner.seqs[0].to_string(),
-                    user_id: pme.inner.from_uin.to_string(),
-                }
-                .into(),
+                new_private_msg_content(pme.inner, message),
             )
             .await;
-            let s_private = SPrivateMessage::new(pme.inner, event.clone());
-            wqdb.insert_private_message(&s_private);
+            wqdb.insert_message(&event);
             Some(event)
         }
         QEvent::GroupMessage(gme) => {
@@ -58,23 +38,10 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<WQE
             let event = new_event(
                 &gme.client,
                 Some(gme.inner.time as f64),
-                MessageContent::<WQMEDetail> {
-                    detail: WQMEDetail::Group {
-                        sub_type: "".to_string(),
-                        group_id: gme.inner.group_code.to_string(),
-                        group_name: gme.inner.group_name.clone(),
-                        user_name: gme.inner.group_card.clone(),
-                    },
-                    alt_message: message.alt(),
-                    message,
-                    message_id: gme.inner.seqs[0].to_string(),
-                    user_id: gme.inner.from_uin.to_string(),
-                }
-                .into(),
+                new_group_msg_content(gme.inner, message),
             )
             .await;
-            let s_group = SGroupMessage::new(gme.inner, event.clone());
-            wqdb.insert_group_message(&s_group);
+            wqdb.insert_message(&event);
             Some(event)
         }
         QEvent::GroupTempMessage(gtme) => {
@@ -82,22 +49,10 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<WQE
             let event = new_event(
                 &gtme.client,
                 Some(gtme.inner.time as f64),
-                MessageContent::<WQMEDetail> {
-                    alt_message: message.alt(),
-                    message,
-                    message_id: gtme.inner.seqs[0].to_string(),
-                    user_id: gtme.inner.from_uin.to_string(),
-                    detail: WQMEDetail::GroupTemp {
-                        sub_type: "".to_owned(),
-                        group_id: gtme.inner.group_code.to_string(),
-                        user_name: gtme.inner.from_nick.clone(),
-                    },
-                }
-                .into(),
+                new_group_temp_msg_content(gtme.inner, message),
             )
             .await;
-            let s_private = SPrivateMessage::from_temp(gtme.inner, event.clone());
-            wqdb.insert_private_message(&s_private);
+            wqdb.insert_message(&event);
             Some(event)
         }
 
@@ -312,50 +267,26 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<WQE
         ),
         QEvent::GroupAudioMessage(gam) => {
             let message = vec![MessageSegment::audio(gam.inner.audio.0.hex_voice_id())];
+            wqdb.insert_voice(&gam.inner.audio.0);
             let event = new_event(
                 &gam.client,
                 Some(gam.inner.time as f64),
-                MessageContent::<WQMEDetail> {
-                    detail: WQMEDetail::Group {
-                        sub_type: "".to_string(),
-                        group_id: gam.inner.group_code.to_string(),
-                        group_name: gam.inner.group_name.clone(),
-                        user_name: gam.inner.group_card.clone(),
-                    },
-                    alt_message: message.alt(),
-                    message,
-                    message_id: gam.inner.seqs[0].to_string(),
-                    user_id: gam.inner.from_uin.to_string(),
-                }
-                .into(),
+                new_group_audio_content(gam.inner, message),
             )
             .await;
-            wqdb.insert_voice(&gam.inner.audio.0);
-            let s_group = SGroupMessage::from_audio_event(gam.inner, event.clone());
-            wqdb.insert_group_message(&s_group);
+            wqdb.insert_message(&event);
             Some(event)
         }
         QEvent::FriendAudioMessage(fam) => {
             let message = vec![MessageSegment::audio(fam.inner.audio.0.hex_voice_id())];
+            wqdb.insert_voice(&fam.inner.audio.0);
             let event = new_event(
                 &fam.client,
                 Some(fam.inner.time as f64),
-                MessageContent::<WQMEDetail> {
-                    detail: WQMEDetail::Private {
-                        sub_type: "".to_string(),
-                        user_name: fam.inner.from_nick.clone(),
-                    },
-                    alt_message: message.alt(),
-                    message,
-                    message_id: fam.inner.seqs[0].to_string(),
-                    user_id: fam.inner.from_uin.to_string(),
-                }
-                .into(),
+                new_private_audio_content(fam.inner, message),
             )
             .await;
-            wqdb.insert_voice(&fam.inner.audio.0);
-            let s_private = SPrivateMessage::from_audio_event(fam.inner, event.clone());
-            wqdb.insert_private_message(&s_private);
+            wqdb.insert_message(&event);
             Some(event)
         }
         QEvent::FriendPoke(p) => Some(
