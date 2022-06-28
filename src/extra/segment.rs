@@ -2,7 +2,7 @@ use ricq::msg::MessageChain;
 use ricq::structs::{ForwardMessage, ForwardNode, MessageNode};
 use ricq::Client;
 use serde::Deserialize;
-use walle_core::{resp::RespError, MessageSegment};
+use walle_core::{message::MessageSegment, resp::RespError};
 
 use crate::database::WQDatabase;
 use crate::error;

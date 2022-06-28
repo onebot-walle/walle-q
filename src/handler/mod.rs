@@ -6,10 +6,11 @@ use once_cell::sync::OnceCell;
 use ricq::structs::{FriendAudio, GroupAudio};
 use ricq::Client;
 use tokio::sync::Mutex;
-use walle_core::onebot::{ActionHandler, EventHandler, OneBot};
-use walle_core::{action::*, ExtendedValue, MessageAlt, WalleError};
-use walle_core::{extended_value, resp::*};
-use walle_core::{ColoredAlt, ExtendedMap, MessageContent, RespContent, Resps, StandardAction};
+use walle_core::action::*;
+use walle_core::prelude::*;
+use walle_core::resp::*;
+use walle_core::util::ColoredAlt;
+use walle_core::{ActionHandler, EventHandler, OneBot};
 
 use crate::database::{Database, SGroupMessage, SMessage, SPrivateMessage, WQDatabase};
 use crate::error;
@@ -38,7 +39,7 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
         &self,
         ob: &Arc<OneBot<AH, EH, 12>>,
         config: Self::Config,
-    ) -> walle_core::WalleResult<Vec<tokio::task::JoinHandle<()>>>
+    ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
     where
         AH: ActionHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
         EH: EventHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
@@ -88,11 +89,7 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for Handler {
         }));
         Ok(tasks)
     }
-    async fn call<AH, EH>(
-        &self,
-        action: WQAction,
-        _ob: &OneBot<AH, EH, 12>,
-    ) -> walle_core::WalleResult<WQResp>
+    async fn call<AH, EH>(&self, action: WQAction, _ob: &OneBot<AH, EH, 12>) -> WalleResult<WQResp>
     where
         AH: ActionHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
         EH: EventHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
@@ -147,7 +144,7 @@ impl Handler {
                 StandardAction::UploadFileFragmented(c) => self.upload_file_fragmented(c).await,
                 StandardAction::GetFile(c) => self.get_file(c).await,
                 StandardAction::GetFileFragmented(c) => self.get_file_fragmented(c).await,
-                action => Err(error_builder::unsupported_action(action.action_type())),
+                action => Err(resp_error::unsupported_action(action.action_type())),
             },
             WQAction::Extra(extra) => match extra {
                 WQExtraAction::SetNewFriend(c) => self.set_new_friend(c).await,
@@ -324,10 +321,8 @@ impl Handler {
                         .send_group_temp_message(group_code, target, chain)
                         .await
                         .map_err(error::rq_error)?,
-                    RQSendItem::Forward(_) => {
-                        return Err(error_builder::unsupported_param("forward"))
-                    }
-                    RQSendItem::Voice(_) => return Err(error_builder::unsupported_param("voice")),
+                    RQSendItem::Forward(_) => return Err(resp_error::unsupported_param("forward")),
+                    RQSendItem::Voice(_) => return Err(resp_error::unsupported_param("voice")),
                 };
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
@@ -386,7 +381,7 @@ impl Handler {
                         .send_friend_audio(target, FriendAudio(ptt))
                         .await
                         .map_err(error::rq_error)?,
-                    _ => return Err(error_builder::unsupported_segment("forward")),
+                    _ => return Err(resp_error::unsupported_segment("forward")),
                 };
                 let message_id = receipt.seqs[0].to_string();
                 let respc = SendMessageRespContent {
@@ -423,7 +418,7 @@ impl Handler {
                 self.database.insert_private_message(&s_private);
                 Ok(Resps::success(respc.into()))
             }
-            ty => Err(error_builder::unsupported_param(ty)),
+            ty => Err(resp_error::unsupported_param(ty)),
         }
     }
 

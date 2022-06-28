@@ -7,9 +7,7 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::warn;
 use walle_core::{
-    onebot::{ActionHandler, EventHandler, OneBot},
-    resp::error_builder,
-    SelfId,
+    error::WalleResult, resp::resp_error, util::SelfId, ActionHandler, EventHandler, OneBot,
 };
 
 use crate::{
@@ -43,7 +41,7 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
         &self,
         ob: &Arc<OneBot<AH, EH, 12>>,
         mut config: Self::Config,
-    ) -> walle_core::WalleResult<Vec<tokio::task::JoinHandle<()>>>
+    ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
     where
         AH: ActionHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
         EH: EventHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
@@ -82,11 +80,7 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
         }
         Ok(vec![])
     }
-    async fn call<AH, EH>(
-        &self,
-        action: WQAction,
-        ob: &OneBot<AH, EH, 12>,
-    ) -> walle_core::WalleResult<WQResp>
+    async fn call<AH, EH>(&self, action: WQAction, ob: &OneBot<AH, EH, 12>) -> WalleResult<WQResp>
     where
         AH: ActionHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
         EH: EventHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
@@ -98,9 +92,9 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
             for ah in self.ahs.iter() {
                 return ah.0.call(action, ob).await;
             }
-            Ok(error_builder::bad_handler("unreachable! How??").into())
+            Ok(resp_error::bad_handler("unreachable! How??").into())
         } else {
-            Ok(error_builder::bad_param("self_id required").into())
+            Ok(resp_error::bad_param("self_id required").into())
         }
     }
 }

@@ -5,8 +5,8 @@ use sha2::Digest;
 use tokio::io::AsyncWriteExt;
 use tokio::{fs::File, io::AsyncReadExt};
 use walle_core::action::{GetFile, GetFileFragmented, UploadFile, UploadFileFragmented};
+use walle_core::prelude::*;
 use walle_core::resp::{FileFragmentedHead, FileIdContent, RespError};
-use walle_core::{extended_map, ExtendedMap, ExtendedMapExt, ExtendedValue, Resps};
 
 use crate::database::{save_image, save_voice, Database, Images, SImage, SVoice};
 use crate::error;
@@ -32,7 +32,7 @@ impl super::Handler {
                 })?;
                 Ok(data)
             }
-            "data" if let Some(data) = c.data => Ok(data),
+            "data" if let Some(data) = c.data => Ok(data.0),
             ty => Err(error::unsupported_param(ty)),
         }
     }
@@ -122,7 +122,7 @@ impl super::Handler {
                             UploadFile {
                                 r#type: "data".to_string(),
                                 name: image.get_file_name().to_string(),
-                                data: Some(data),
+                                data: Some(data.into()),
                                 url: None,
                                 path: None,
                                 headers: None,
@@ -175,7 +175,7 @@ impl super::Handler {
                 let mut file = tokio::fs::File::create(file_path)
                     .await
                     .map_err(error::file_create_error)?;
-                file.write_all(&data)
+                file.write_all(&data.0)
                     .await
                     .map_err(error::file_write_error)?;
                 match self.uploading_fragment.lock().await.cache_get_mut(&file_id) {

@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies.walle-core]
 # version = "0.5.4"
 git = "https://github.com/abrahum/Walle-core.git"
-features = ["impl", "websocket", "http"]
+features = ["impl_obc", "websocket", "http"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -52,8 +52,8 @@ uri-reader = { git = "https://github.com/abrahum/uri-reader", features = [
   "vendored",
 ] }
 
-ricq = "0.1.14"
-ricq-core = "0.1.14"
+ricq = "0.1.15"
+ricq-core = "0.1.15"
 prost = "0.9"
 
 # [dev-dependencies]
@@ -64,8 +64,9 @@ vendored = ["uri-reader/vendored"]
 
 [profile.release]
 lto = true
-opt-level = 3
+codegen-units = 1
+opt-level = 'z'
 debug = false
 debug-assertions = false
 overflow-checks = false
-strip = true
+# strip = true

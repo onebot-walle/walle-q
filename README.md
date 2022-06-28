@@ -14,7 +14,7 @@ A qq platform OneBot Implementation
 
 本项目使用 [ricq](https://github.com/lz1998/ricq) 协议库与 [Walle-core](https://GitHub.com/abrahum/walle-core) LibOnebot 构建。
 
-在线文档地址：[Walle-Mk.Q 使用手册](https://walle-q.abrahum.link)
+在线文档地址：[Walle-Mk.Q 使用手册](https://walle-q.1bot.dev)
 
 > 本项目采用 AGPLv3 开源协议，仅出于学习目的开发，不鼓励、不支持任何除此以外的任何其他用途。
 

@@ -6,7 +6,7 @@ use ricq::{RQError, RQResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use walle_core::resp::{FileIdContent, RespError};
-use walle_core::ExtendedMap;
+use walle_core::util::ExtendedMap;
 
 use crate::error;
 

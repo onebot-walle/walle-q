@@ -5,8 +5,8 @@ use ricq::client::handler::QEvent;
 use ricq::structs::GroupMemberPermission;
 use ricq::Client;
 use tracing::{info, warn};
-use walle_core::{extended_map, timestamp_nano_f64, MessageAlt, MessageSegment};
-use walle_core::{ExtendedMap, MessageContent, NoticeContent};
+use walle_core::prelude::*;
+use walle_core::util::timestamp_nano_f64;
 
 pub(crate) async fn new_event(cli: &Client, time: Option<f64>, content: WQEventContent) -> WQEvent {
     WQEvent {

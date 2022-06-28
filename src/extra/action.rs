@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use walle_core::{ExtendedMap, ExtendedMapExt, SelfId, StandardAction};
+use walle_core::action::StandardAction;
+use walle_core::util::{ExtendedMap, ExtendedMapExt, SelfId};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SetNewFriend {

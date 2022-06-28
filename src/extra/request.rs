@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use walle_core::{ColoredAlt, EventType};
+use walle_core::event::EventType;
+use walle_core::util::ColoredAlt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "detail_type", rename_all = "snake_case")]

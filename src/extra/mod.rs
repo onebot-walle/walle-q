@@ -11,7 +11,8 @@ pub use notice::*;
 pub use request::*;
 
 use serde::{Deserialize, Serialize};
-use walle_core::{BaseEvent, ColoredAlt, MessageContent, MetaContent};
+use walle_core::event::{BaseEvent, MessageContent, MetaContent};
+use walle_core::util::ColoredAlt;
 
 pub type WQEvent = BaseEvent<WQEventContent>;
 pub type WQMessageEvent = BaseEvent<MessageContent<WQMEDetail>>;

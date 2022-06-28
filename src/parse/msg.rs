@@ -4,8 +4,8 @@ use ricq::structs::ForwardMessage;
 use ricq::Client;
 use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
+use walle_core::prelude::*;
 use walle_core::resp::RespError;
-use walle_core::{extended_map, ExtendedMapExt, ExtendedValue, Message, MessageSegment};
 
 use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
@@ -288,7 +288,7 @@ async fn push_msg_seg(
             }
             t => {
                 warn!("unsupported custom type: {}", ty);
-                return Err(walle_core::resp::error_builder::unsupported_segment(t));
+                return Err(walle_core::resp::resp_error::unsupported_segment(t));
             }
         },
         MessageSegment::Image { file_id, mut extra } => {
@@ -369,7 +369,7 @@ async fn push_msg_seg(
         }
         seg => {
             warn!("unsupported MessageSegment: {:?}", seg);
-            return Err(walle_core::resp::error_builder::unsupported_segment(""));
+            return Err(walle_core::resp::resp_error::unsupported_segment(""));
         }
     }
     Ok(None)
