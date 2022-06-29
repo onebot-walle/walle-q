@@ -69,4 +69,4 @@ opt-level = 'z'
 debug = false
 debug-assertions = false
 overflow-checks = false
-# strip = true
+strip = true
