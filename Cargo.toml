@@ -1,13 +1,13 @@
 [package]
 name = "walle-q"
-version = "0.1.4"
+version = "0.2.0-a1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.walle-core]
-# version = "0.5.4"
-git = "https://github.com/abrahum/Walle-core.git"
+version = "0.6.0-a1"
+# git = "https://github.com/abrahum/Walle-core.git"
 features = ["impl_obc", "websocket", "http"]
 
 [dependencies]

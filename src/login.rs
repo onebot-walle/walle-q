@@ -60,7 +60,7 @@ pub(crate) async fn start_reconnect(cli: &Arc<Client>, uin: &str, password: Opti
     let token = cli.gen_token().await;
     let credential = if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
         Credential::Password(Password {
-            uin: uin,
+            uin,
             password: password.to_owned(),
         })
     } else {

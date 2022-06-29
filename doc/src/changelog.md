@@ -1,4 +1,4 @@
-## 0.2.0
+## 0.2.0-a1
 
 ### Features
 
@@ -6,11 +6,13 @@
 
 ### Dependencies
 
-- walle-core: 0.6.0(unrelease)
+- walle-core: 0.6.0-a1
+- 移除 qrcode 相关依赖
 
 ### Others
 
 - 配置文件切换为 toml 格式
+- 优化编译后文件大小
 
 ## 0.1.4
 
