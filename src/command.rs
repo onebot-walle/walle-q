@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use clap::{ArgEnum, Parser};
+use chrono::{Local, Offset, TimeZone};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{
     filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -25,7 +26,7 @@ pub(crate) struct Comm {
     #[clap(long, help = "this size of event cache will be used. (Default: 100)")]
     pub event_cache_size: Option<usize>,
 
-    #[clap(long, help = "time zone for log. (Default: +8)")]
+    #[clap(long, help = "time zone for log. (Default: local time zone)")]
     pub time_zone: Option<i8>,
 
     #[clap(long, help = "Enable SledDb")]
@@ -66,8 +67,11 @@ impl From<LogLevel> for LevelFilter {
 
 impl Comm {
     pub(crate) fn subscribe(&self) {
+        let offset = self.time_zone
+            .and_then(|hour| Some(3600 * hour as i32))
+            .unwrap_or_else(|| Local.timestamp(0, 0).offset().fix().local_minus_utc());
         let timer = tracing_subscriber::fmt::time::OffsetTime::new(
-            time::UtcOffset::from_hms(*self.time_zone.as_ref().unwrap_or(&8), 0, 0).unwrap(),
+            time::UtcOffset::from_whole_seconds(offset).unwrap(),
             time::macros::format_description!(
                 "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
             ),

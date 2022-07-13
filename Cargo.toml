@@ -26,6 +26,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "time"] }
 tracing-appender = "0.2"
 time = { version = "0.3", features = ["macros"] }
+chrono = "0.4"
 
 uuid = "1.0"
 clap = { version = "3.0", features = ["derive"] }
