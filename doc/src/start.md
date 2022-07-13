@@ -7,7 +7,7 @@
 ./walle-q -h # for help
 ```
 
-> 默认时间戳为+8时区，如需设置，请配置 --time-zone
+> 默认时间戳为本地时区，如需设置，请配置 --time-zone
 
 ## 配置列表
 
@@ -22,7 +22,7 @@ protocol = 0                  # 0..=5，默认为0
 log = "Info"                  # 日志级别，可选：Trace, Debug, Info, Warn, Error
 event_cache_size = 16         # 事件缓存区大小
 v11 = false                   # v11 协议模式（暂时失效）
-time_zone = +8                # log 时区，默认为+8
+# time_zone = +8              # log 时区，默认为本地时区
 sled = false                  # 启用 sled 数据库
 disable_leveldb = false       # 禁用 level_db 数据库
 
