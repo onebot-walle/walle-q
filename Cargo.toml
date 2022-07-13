@@ -43,7 +43,7 @@ dashmap = "5.3"
 # qrcode = "0.12"
 # rqrr = "0.5"
 image = "0.24"
-silk-rs = "0.1"
+silk-rs = "0.2"
 
 sled = "0.34"
 rusty-leveldb = "0.3"
