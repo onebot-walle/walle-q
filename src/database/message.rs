@@ -1,15 +1,11 @@
-use crate::extra::{WQEvent, WQEventContent};
+use walle_core::{event::Event, util::ExtendedMapExt};
 
 pub trait MessageId {
     fn message_id(&self) -> String;
 }
 
-impl MessageId for WQEvent {
+impl MessageId for Event {
     fn message_id(&self) -> String {
-        if let WQEventContent::Message(ref c) = self.content {
-            c.message_id.clone()
-        } else {
-            String::default()
-        }
+        self.extra.get_downcast("message_id").unwrap_or_default()
     }
 }

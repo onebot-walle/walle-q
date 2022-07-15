@@ -7,21 +7,21 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::warn;
 use walle_core::{
-    error::WalleResult, resp::resp_error, util::SelfId, ActionHandler, EventHandler, OneBot,
+    action::Action,
+    error::WalleResult,
+    event::Event,
+    resp::resp_error,
+    resp::Resp,
+    util::{SelfId, SelfIds},
+    ActionHandler, EventHandler, GetStatus, OneBot,
 };
 
-use crate::{
-    config::QQConfig,
-    database::WQDatabase,
-    extra::{WQAction, WQEvent},
-    handler::Handler,
-    WQResp, WALLE_Q,
-};
+use crate::{config::QQConfig, database::WQDatabase, handler::Handler, WALLE_Q};
 
 pub struct MultiAH {
     pub(crate) ahs: DashMap<String, (Handler, Vec<JoinHandle<()>>)>,
     pub(crate) database: Arc<WQDatabase>,
-    pub(crate) event_cache: Arc<Mutex<SizedCache<String, WQEvent>>>,
+    pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
 }
 
 impl MultiAH {
@@ -35,7 +35,27 @@ impl MultiAH {
 }
 
 #[async_trait::async_trait]
-impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
+impl SelfIds for MultiAH {
+    async fn self_ids(&self) -> Vec<String> {
+        let mut v = vec![];
+        for r in self.ahs.iter() {
+            v.push(r.value().0.client.get().unwrap().uin().await.to_string());
+        }
+        v
+    }
+}
+
+impl GetStatus for MultiAH {
+    fn get_status(&self) -> walle_core::structs::Status {
+        walle_core::structs::Status {
+            good: true,
+            online: true, //todo
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl ActionHandler<Event, Action, Resp, 12> for MultiAH {
     type Config = HashMap<String, QQConfig>;
     async fn start<AH, EH>(
         &self,
@@ -43,8 +63,8 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
         mut config: Self::Config,
     ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
     where
-        AH: ActionHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
-        EH: EventHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
+        AH: ActionHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
     {
         if config.is_empty() {
             config.insert(
@@ -80,10 +100,10 @@ impl ActionHandler<WQEvent, WQAction, WQResp, 12> for MultiAH {
         }
         Ok(vec![])
     }
-    async fn call<AH, EH>(&self, action: WQAction, ob: &OneBot<AH, EH, 12>) -> WalleResult<WQResp>
+    async fn call<AH, EH>(&self, action: Action, ob: &Arc<OneBot<AH, EH, 12>>) -> WalleResult<Resp>
     where
-        AH: ActionHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
-        EH: EventHandler<WQEvent, WQAction, WQResp, 12> + Send + Sync + 'static,
+        AH: ActionHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
     {
         let bot_id = action.self_id();
         if let Some(ah) = self.ahs.get(&bot_id) {

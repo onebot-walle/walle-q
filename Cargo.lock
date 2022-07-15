@@ -2194,6 +2194,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc88c725d61fc6c3132893370cac4a0200e3fedf5da8331c570664b1987f5ca2"
 
 [[package]]
+name = "snake_cased"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4586c5a1e13fd7b00552c861116077f2f60ec4b94092671bf1998e6adb462d25"
+dependencies = [
+ "snake_cased_derive",
+]
+
+[[package]]
+name = "snake_cased_derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c859c1484dd123a8b2913cef1e031794051845509bb9b149a84492d19779c47"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "snap"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2667,8 +2687,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "walle-core"
 version = "0.6.0-a1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e01136788fa28889b0b905768410fffbba0ab4a9353915687f13d09d0732e78"
+source = "git+https://github.com/abrahum/Walle-core.git#d7ee9b30dc8a83aaefc163e1bffd6913e5b450fe"
 dependencies = [
  "async-trait",
  "base64",
@@ -2680,11 +2699,23 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_json",
+ "snake_cased",
  "thiserror",
  "tokio",
  "tokio-tungstenite",
  "tracing",
  "uuid",
+ "walle-macro",
+]
+
+[[package]]
+name = "walle-macro"
+version = "0.1.0"
+source = "git+https://github.com/abrahum/Walle-core.git#d7ee9b30dc8a83aaefc163e1bffd6913e5b450fe"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

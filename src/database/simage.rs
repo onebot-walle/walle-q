@@ -5,8 +5,8 @@ use ricq::Client;
 use ricq::{RQError, RQResult};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use walle_core::resp::{FileIdContent, RespError};
-use walle_core::util::ExtendedMap;
+use walle_core::resp::RespError;
+use walle_core::structs::FileId;
 
 use crate::error;
 
@@ -44,10 +44,9 @@ pub trait SImage: Sized {
         path.push(self.hex_image_id());
         path
     }
-    fn as_file_id_content(&self) -> FileIdContent {
-        FileIdContent {
+    fn as_file_id_content(&self) -> FileId {
+        FileId {
             file_id: self.hex_image_id(),
-            extra: ExtendedMap::default(),
         }
     }
 }

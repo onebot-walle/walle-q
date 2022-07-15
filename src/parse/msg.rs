@@ -4,13 +4,13 @@ use ricq::structs::ForwardMessage;
 use ricq::Client;
 use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
+use walle_core::event::{BaseEvent, Event, Message};
+use walle_core::message::{self, Message as Segments};
 use walle_core::prelude::*;
 use walle_core::resp::RespError;
 
 use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
-use crate::extra::segment::NodeEnum;
-use crate::extra::{WQEvent, WQEventContent};
 
 use super::audio::encode_to_silk;
 use super::util::decode_message_id;
@@ -19,7 +19,7 @@ pub struct MsgChainBuilder<'a> {
     cli: &'a Client,
     target: i64,
     group: bool,
-    message: Message,
+    message: Segments,
 }
 
 pub enum RQSendItem {
@@ -51,7 +51,7 @@ impl TryFrom<RQSends> for RQSendItem {
 }
 
 impl<'a> MsgChainBuilder<'a> {
-    pub fn group_chain_builder(cli: &'a Client, target: i64, message: Message) -> Self {
+    pub fn group_chain_builder(cli: &'a Client, target: i64, message: Segments) -> Self {
         MsgChainBuilder {
             cli,
             target,
@@ -59,7 +59,7 @@ impl<'a> MsgChainBuilder<'a> {
             message,
         }
     }
-    pub fn private_chain_builder(cli: &'a Client, target: i64, message: Message) -> Self {
+    pub fn private_chain_builder(cli: &'a Client, target: i64, message: Segments) -> Self {
         MsgChainBuilder {
             cli,
             target,
@@ -89,25 +89,37 @@ impl<'a> MsgChainBuilder<'a> {
 
 pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<MessageSegment> {
     match elem {
-        RQElem::Text(text) => Some(MessageSegment::text(text.content)),
-        RQElem::At(elem::At { target: 0, .. }) => Some(MessageSegment::mention_all()),
-        RQElem::At(at) => Some(MessageSegment::mention(at.target.to_string())),
-        RQElem::Face(face) => Some(MessageSegment::Custom {
+        RQElem::Text(text) => Some(MessageSegment {
+            ty: "text".to_string(),
+            data: extended_map! {"text": text.content},
+        }),
+        RQElem::At(elem::At { target: 0, .. }) => Some(MessageSegment {
+            ty: "mention_all".to_string(),
+            data: extended_map! {},
+        }),
+        RQElem::At(at) => Some(MessageSegment {
+            ty: "mention".to_string(),
+            data: extended_map! {"user_id": at.target.to_string()},
+        }),
+        RQElem::Face(face) => Some(MessageSegment {
             ty: "face".to_owned(),
             data: extended_map! {
                 "id": face.index,
                 "file": face.name
             },
         }),
-        RQElem::MarketFace(face) => Some(MessageSegment::text(face.name)),
-        RQElem::Dice(d) => Some(MessageSegment::Custom {
-            ty: "dice".to_owned(),
+        RQElem::MarketFace(face) => Some(MessageSegment {
+            ty: "text".to_string(),
+            data: extended_map! {"text": face.name},
+        }),
+        RQElem::Dice(d) => Some(MessageSegment {
+            ty: "dice".to_string(),
             data: extended_map! {
                 "value": d.value,
             },
         }),
-        RQElem::FingerGuessing(f) => Some(MessageSegment::Custom {
-            ty: "rps".to_owned(),
+        RQElem::FingerGuessing(f) => Some(MessageSegment {
+            ty: "rps".to_string(),
             data: extended_map! {
                 "value": match f {
                     elem::FingerGuessing::Rock => 0i8,
@@ -116,41 +128,57 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 }
             },
         }),
-        RQElem::LightApp(l) => Some(MessageSegment::Custom {
-            ty: "json".to_owned(),
+        RQElem::LightApp(l) => Some(MessageSegment {
+            ty: "json".to_string(),
             data: extended_map! {"data": l.content},
         }),
         RQElem::FriendImage(i) => {
             wqdb.insert_image(&i);
-            Some(MessageSegment::Image {
-                extra: extended_map! {"url": i.url(), "flash": false},
-                file_id: i.hex_image_id(),
+            Some(MessageSegment {
+                ty: "image".to_string(),
+                data: extended_map! {
+                    "file_id": i.hex_image_id(),
+                    "url": i.url(),
+                    "falsh": false
+                },
             })
         }
         RQElem::GroupImage(i) => {
             wqdb.insert_image(&i);
-            Some(MessageSegment::Image {
-                extra: extended_map! {"url": i.url(), "flash": false},
-                file_id: i.hex_image_id(),
+            Some(MessageSegment {
+                ty: "image".to_string(),
+                data: extended_map! {
+                    "file_id": i.hex_image_id(),
+                    "url": i.url(),
+                    "flash": false
+                },
             })
         }
         RQElem::FlashImage(fi) => match fi {
             FlashImage::FriendImage(fi) => {
                 wqdb.insert_image(&fi);
-                Some(MessageSegment::Image {
-                    extra: extended_map! {"url": fi.url(), "flash": true},
-                    file_id: fi.hex_image_id(),
+                Some(MessageSegment {
+                    ty: "image".to_string(),
+                    data: extended_map! {
+                        "file_id": fi.hex_image_id(),
+                        "url": fi.url(),
+                        "flash": true
+                    },
                 })
             }
             FlashImage::GroupImage(gi) => {
                 wqdb.insert_image(&gi);
-                Some(MessageSegment::Image {
-                    extra: extended_map! {"url": gi.url(), "flash": true},
-                    file_id: gi.hex_image_id(),
+                Some(MessageSegment {
+                    ty: "image".to_string(),
+                    data: extended_map! {
+                        "file_id": gi.hex_image_id(),
+                        "url": gi.url(),
+                        "flash": true
+                    },
                 })
             }
         },
-        RQElem::RichMsg(rich) => Some(MessageSegment::Custom {
+        RQElem::RichMsg(rich) => Some(MessageSegment {
             ty: "xml".to_string(),
             data: extended_map! {
                 "service_id": rich.service_id,
@@ -171,11 +199,13 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
 pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> Vec<MessageSegment> {
     let mut rv = vec![];
     if let Some(reply) = chain.reply() {
-        rv.push(MessageSegment::Reply {
-            message_id: reply.reply_seq.to_string(),
-            user_id: reply.sender.to_string(),
-            extra: extended_map! {},
-        })
+        rv.push(
+            message::Reply {
+                message_id: reply.reply_seq.to_string(),
+                user_id: reply.sender.to_string(),
+            }
+            .into(),
+        )
     }
     for seg in chain.into_iter().filter_map(|s| rq_elem2msg_seg(s, wqdb)) {
         rv.push(seg);
@@ -193,6 +223,8 @@ macro_rules! maybe_flash {
     };
 }
 
+use crate::model::WQSegment;
+
 async fn push_msg_seg(
     items: &mut RQSends,
     seg: MessageSegment,
@@ -201,10 +233,14 @@ async fn push_msg_seg(
     cli: &Client,
     wqdb: &WQDatabase,
 ) -> Result<Option<elem::Reply>, RespError> {
-    match seg {
-        MessageSegment::Text { text, .. } => items.chain.push(elem::Text { content: text }),
-        MessageSegment::Mention { user_id, .. } => {
-            if let Ok(user_id) = user_id.parse() {
+    match seg.try_into().map_err(|e: WalleError| match e {
+        WalleError::DeclareNotMatch(_, get) => resp_error::unsupported_action(get),
+        WalleError::MapMissedKey(key) => resp_error::bad_segment_data(key),
+        _ => unreachable!(),
+    })? {
+        WQSegment::Text(text) => items.chain.push(elem::Text { content: text.text }),
+        WQSegment::Mention(mention) => {
+            if let Ok(user_id) = mention.user_id.parse() {
                 let display = cli
                     .get_group_member_info(target, user_id)
                     .await
@@ -216,86 +252,50 @@ async fn push_msg_seg(
                 })
             }
         }
-        MessageSegment::MentionAll { .. } => items.chain.push(elem::At {
+        WQSegment::MentionAll {} => items.chain.push(elem::At {
             display: "all".to_string(),
             target: 0,
         }),
-        MessageSegment::Reply { message_id, .. } => {
+        WQSegment::Reply(reply) => {
             let event = wqdb
-                .get_message::<WQEvent>(&message_id)
-                .ok_or_else(|| error::message_not_exist(&message_id))?;
-            let content = if let WQEventContent::Message(c) = event.content {
-                c
-            } else {
-                unreachable!()
-            };
-            let decoded = decode_message_id(&message_id)?;
+                .get_message::<Event>(&reply.message_id)
+                .ok_or_else(|| error::message_not_exist(&reply.message_id))?;
+            let event = BaseEvent::<Message>::try_from(event).unwrap(); //todo check
+            let decoded = decode_message_id(&reply.message_id)?;
             let sub_chain = {
                 let mut chain = MessageChain::default();
                 chain.push(elem::Text {
-                    content: content.alt_message,
+                    content: event.ty.alt_message,
                 });
                 chain
             };
             return Ok(Some(elem::Reply {
                 reply_seq: *decoded.1.first().unwrap(),
-                sender: content.user_id.parse().unwrap(),
+                sender: event.ty.user_id.parse().unwrap(),
                 time: event.time as i32,
                 elements: sub_chain,
             }));
         }
-        MessageSegment::Custom { ty, mut data } => match ty.as_str() {
-            "face" => {
-                if let Some(id) = data.remove("id").and_then(|v| v.downcast_int().ok()) {
-                    items.chain.push(elem::Face::new(id as i32));
-                } else if let Some(face) = data
-                    .remove("file")
-                    .and_then(|v| v.downcast_str().ok())
-                    .and_then(|name| elem::Face::new_from_name(&name))
-                {
-                    items.chain.push(face);
-                } else {
-                    warn!("invalid face id");
-                    return Err(error::bad_param("face"));
-                }
+        WQSegment::Face(face) => {
+            if let Some(id) = face.id {
+                items.chain.push(elem::Face::new(id));
+            } else if let Some(face) = face.file.and_then(|name| elem::Face::new_from_name(&name)) {
+                items.chain.push(face);
+            } else {
+                warn!("invalid face id");
+                return Err(error::bad_param("face"));
             }
-            "xml" => {
-                let service_id =
-                    data.try_remove::<i64>("service_id")
-                        .map_err(|_| error::bad_param("service_id"))? as i32;
-                let template1: String = data
-                    .try_remove("data")
-                    .map_err(|_| error::bad_param("data"))?;
-                items.chain.push(elem::RichMsg {
-                    service_id,
-                    template1,
-                });
-            }
-            "forward" => {
-                let nodes: Vec<NodeEnum> = serde_json::from_str(
-                    &serde_json::to_string(
-                        &data
-                            .try_remove::<Vec<ExtendedValue>>("nodes")
-                            .map_err(|_| error::bad_param("nodes"))?,
-                    )
-                    .unwrap(),
-                )
-                .map_err(|_| error::bad_param("nodes"))?;
-                for node in nodes {
-                    items.forward.push(match node {
-                        NodeEnum::Node(n) => n.to_forward_message(target, group, cli, wqdb).await?,
-                    })
-                }
-            }
-            t => {
-                warn!("unsupported custom type: {}", ty);
-                return Err(walle_core::resp::resp_error::unsupported_segment(t));
-            }
-        },
-        MessageSegment::Image { file_id, mut extra } => {
-            let flash = extra.try_remove("flash").unwrap_or(false);
+        }
+        WQSegment::Xml(xml) => {
+            items.chain.push(elem::RichMsg {
+                service_id: xml.service_id,
+                template1: xml.data,
+            });
+        }
+        WQSegment::Image(image) => {
+            let flash = image.flash.unwrap_or_default();
             if let Some(info) = wqdb.get_image::<Images>(
-                &hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?,
+                &hex::decode(&image.file_id).map_err(|_| error::bad_param("file_id"))?,
             )? {
                 if group {
                     if let Some(image) = info.try_into_group_elem(cli, target).await {
@@ -304,7 +304,7 @@ async fn push_msg_seg(
                 } else if let Some(image) = info.try_into_friend_elem(cli, target).await {
                     maybe_flash!(items.chain, flash, image);
                 }
-            } else if let Some(uri) = extra.remove("url").and_then(|b64| b64.downcast_str().ok()) {
+            } else if let Some(uri) = image.url {
                 match uri_reader::uget(&uri).await {
                     Ok(data) => {
                         if group {
@@ -331,13 +331,13 @@ async fn push_msg_seg(
                     }
                 }
             } else {
-                warn!("image not found: {}", file_id);
-                return Err(error::file_not_found(file_id));
+                warn!("image not found: {}", image.file_id);
+                return Err(error::file_not_found(image.file_id));
             }
         }
-        MessageSegment::Voice { file_id, .. } => {
+        WQSegment::Voice(voice) => {
             match wqdb
-                .get_voice(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
+                .get_voice(&hex::decode(&voice.file_id).map_err(|_| error::bad_param("file_id"))?)?
             {
                 Some(Voices::Ptt(ptt)) => items.voice = Some(ptt),
                 Some(Voices::Local(local)) if group => {
@@ -363,32 +363,11 @@ async fn push_msg_seg(
                     items.voice = Some(friend_audio.0);
                 }
                 None => {
-                    warn!("audio not found: {}", file_id);
-                    return Err(error::file_not_found(file_id));
+                    warn!("audio not found: {}", voice.file_id);
+                    return Err(error::file_not_found(voice.file_id));
                 }
             }
         }
-        seg => {
-            warn!("unsupported MessageSegment: {:?}", seg);
-            return Err(walle_core::resp::resp_error::unsupported_segment(""));
-        }
     }
     Ok(None)
-}
-
-pub trait SendAble {
-    fn check(&self) -> bool;
-}
-
-impl SendAble for MessageSegment {
-    fn check(&self) -> bool {
-        match self {
-            Self::Text { .. }
-            | Self::Mention { .. }
-            | Self::MentionAll { .. }
-            | Self::Image { .. } => true,
-            Self::Custom { ty, .. } if ty == "face" => true,
-            _ => false,
-        }
-    }
 }

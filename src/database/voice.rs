@@ -4,8 +4,8 @@ use crate::error;
 use prost::Message;
 use ricq_core::pb::msg::Ptt;
 use serde::{Deserialize, Serialize};
-use walle_core::extended_map;
-use walle_core::resp::{FileIdContent, RespError};
+use walle_core::resp::RespError;
+use walle_core::structs::FileId;
 
 pub async fn save_voice(data: &[u8]) -> Result<LocalVoice, RespError> {
     use tokio::io::AsyncWriteExt;
@@ -33,10 +33,9 @@ pub trait SVoice: Sized {
     fn hex_voice_id(&self) -> String {
         hex::encode(self.voice_id())
     }
-    fn as_file_id_content(&self) -> FileIdContent {
-        FileIdContent {
+    fn as_file_id_content(&self) -> FileId {
+        FileId {
             file_id: self.hex_voice_id(),
-            extra: extended_map! {},
         }
     }
 }
