@@ -5,10 +5,10 @@ use sha2::Digest;
 use tokio::io::AsyncWriteExt;
 use tokio::{fs::File, io::AsyncReadExt};
 use walle_core::action::{GetFileFragmented, UploadFileFragmented};
-use walle_core::extended_value;
 use walle_core::resp::{Resp, RespError};
 use walle_core::structs::FileId;
 use walle_core::util::OneBotBytes;
+use walle_core::value;
 
 use crate::database::{save_image, save_voice, Database, Images, SImage, SVoice};
 use crate::error;
@@ -254,7 +254,7 @@ impl super::Handler {
                         (i, sha256)
                     }
                 };
-                Ok(extended_value!({
+                Ok(value!({
                     "name": info.filename,
                     "total_size": info.size,
                     "sha256": sha256
@@ -280,7 +280,7 @@ impl super::Handler {
                 let mut data = Vec::with_capacity(size as usize);
                 file.read(&mut data).await.map_err(error::file_read_error)?;
                 let data = OneBotBytes(data);
-                Ok(extended_value!({ "data": data }).into())
+                Ok(value!({ "data": data }).into())
             }
         }
     }

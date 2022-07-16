@@ -10,10 +10,10 @@ use walle_core::{
         new_event as _new_event, DetailTypeDeclare, Event, Group, ImplDeclare, Message,
         PlatformDeclare, Private, SubTypeDeclare, TypeDeclare,
     },
-    extended_map,
-    message::Message as Segments,
     resp::RespError,
-    util::{new_uuid, timestamp_nano_f64, PushToExtendedMap},
+    segment::Segments,
+    util::{new_uuid, timestamp_nano_f64, PushToValueMap},
+    value_map,
 };
 
 use crate::{
@@ -27,11 +27,11 @@ pub(crate) async fn new_event<T, D, S, P, I>(
     content: (T, D, S, P, I),
 ) -> Event
 where
-    T: TypeDeclare + PushToExtendedMap,
-    D: DetailTypeDeclare + PushToExtendedMap,
-    S: SubTypeDeclare + PushToExtendedMap,
-    P: PlatformDeclare + PushToExtendedMap,
-    I: ImplDeclare + PushToExtendedMap,
+    T: TypeDeclare + PushToValueMap,
+    D: DetailTypeDeclare + PushToValueMap,
+    S: SubTypeDeclare + PushToValueMap,
+    P: PlatformDeclare + PushToValueMap,
+    I: ImplDeclare + PushToValueMap,
 {
     _new_event(
         new_uuid(),
@@ -42,7 +42,7 @@ where
         content.2,
         content.3,
         content.4,
-        extended_map!(),
+        value_map!(),
     )
     .into()
 }

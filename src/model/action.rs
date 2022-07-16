@@ -1,21 +1,21 @@
 use walle_core::action::*;
-use walle_core::prelude::{OneBot, PushToMap};
+use walle_core::prelude::{OneBot, PushToValueMap};
 use walle_core::util::OneBotBytes;
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct GetMessage {
     pub message_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct KickGroupMember {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct BanGroupMember {
     pub group_id: String,
@@ -23,28 +23,28 @@ pub struct BanGroupMember {
     pub duration: u32,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct UnbanGroupMember {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct SetGroupAdmin {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct UnsetGroupAdmin {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct SetNewFriend {
     pub user_id: String,
@@ -53,14 +53,14 @@ pub struct SetNewFriend {
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct DeleteFriend {
     pub user_id: String,
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct SetJoinGroup {
     pub request_id: i64,
@@ -72,7 +72,7 @@ pub struct SetJoinGroup {
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[action]
 pub struct SetGroupInvited {
     pub request_id: i64,
@@ -81,7 +81,7 @@ pub struct SetGroupInvited {
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, OneBot, PushToMap)]
+#[derive(Debug, Clone, PartialEq, Eq, OneBot, PushToValueMap)]
 #[action = "upload_file"]
 #[value]
 pub struct WQUploadFile {
@@ -95,7 +95,7 @@ pub struct WQUploadFile {
     pub file_type: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, OneBot, PushToMap)]
+#[derive(Debug, Clone, PartialEq, Eq, OneBot, PushToValueMap)]
 #[action = "get_file"]
 #[value]
 pub struct WQGetFile {

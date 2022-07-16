@@ -1,13 +1,13 @@
-use walle_core::prelude::{OneBot, PushToMap};
+use walle_core::prelude::{OneBot, PushToValueMap};
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(detail_type)]
 pub struct FriendPoke {
     pub user_id: String,
     pub receiver_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(detail_type)]
 pub struct GroupNameUpdate {
     pub group_id: String,
@@ -15,7 +15,7 @@ pub struct GroupNameUpdate {
     pub operator_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(detail_type)]
 pub struct GroupMemberBan {
     pub group_id: String,
@@ -24,7 +24,7 @@ pub struct GroupMemberBan {
     pub duration: i64,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(detail_type)]
 pub struct GroupAdminSet {
     pub group_id: String,
@@ -32,7 +32,7 @@ pub struct GroupAdminSet {
     pub operator_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(detail_type)]
 pub struct GroupAdminUnset {
     pub group_id: String,
@@ -40,26 +40,26 @@ pub struct GroupAdminUnset {
     pub operator_id: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(sub_type)]
 pub struct Join {}
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(sub_type)]
 pub struct Kick {}
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(sub_type)]
 pub struct Leave {}
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(sub_type)]
 pub struct Recall {}
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(sub_type)]
 pub struct Delete {}
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[event(sub_type)]
 pub struct Disband {}

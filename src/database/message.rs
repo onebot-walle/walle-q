@@ -1,4 +1,4 @@
-use walle_core::{event::Event, util::ExtendedMapExt};
+use walle_core::{event::Event, util::ValueMapExt};
 
 pub trait MessageId {
     fn message_id(&self) -> String;

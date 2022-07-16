@@ -5,9 +5,9 @@ use ricq::Client;
 use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
 use walle_core::event::{BaseEvent, Event, Message};
-use walle_core::message::{self, Message as Segments};
 use walle_core::prelude::*;
 use walle_core::resp::RespError;
+use walle_core::segment::{self, Segments};
 
 use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
@@ -91,36 +91,36 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
     match elem {
         RQElem::Text(text) => Some(MessageSegment {
             ty: "text".to_string(),
-            data: extended_map! {"text": text.content},
+            data: value_map! {"text": text.content},
         }),
         RQElem::At(elem::At { target: 0, .. }) => Some(MessageSegment {
             ty: "mention_all".to_string(),
-            data: extended_map! {},
+            data: value_map! {},
         }),
         RQElem::At(at) => Some(MessageSegment {
             ty: "mention".to_string(),
-            data: extended_map! {"user_id": at.target.to_string()},
+            data: value_map! {"user_id": at.target.to_string()},
         }),
         RQElem::Face(face) => Some(MessageSegment {
             ty: "face".to_owned(),
-            data: extended_map! {
+            data: value_map! {
                 "id": face.index,
                 "file": face.name
             },
         }),
         RQElem::MarketFace(face) => Some(MessageSegment {
             ty: "text".to_string(),
-            data: extended_map! {"text": face.name},
+            data: value_map! {"text": face.name},
         }),
         RQElem::Dice(d) => Some(MessageSegment {
             ty: "dice".to_string(),
-            data: extended_map! {
+            data: value_map! {
                 "value": d.value,
             },
         }),
         RQElem::FingerGuessing(f) => Some(MessageSegment {
             ty: "rps".to_string(),
-            data: extended_map! {
+            data: value_map! {
                 "value": match f {
                     elem::FingerGuessing::Rock => 0i8,
                     elem::FingerGuessing::Paper => 1,
@@ -130,13 +130,13 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         }),
         RQElem::LightApp(l) => Some(MessageSegment {
             ty: "json".to_string(),
-            data: extended_map! {"data": l.content},
+            data: value_map! {"data": l.content},
         }),
         RQElem::FriendImage(i) => {
             wqdb.insert_image(&i);
             Some(MessageSegment {
                 ty: "image".to_string(),
-                data: extended_map! {
+                data: value_map! {
                     "file_id": i.hex_image_id(),
                     "url": i.url(),
                     "falsh": false
@@ -147,7 +147,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
             wqdb.insert_image(&i);
             Some(MessageSegment {
                 ty: "image".to_string(),
-                data: extended_map! {
+                data: value_map! {
                     "file_id": i.hex_image_id(),
                     "url": i.url(),
                     "flash": false
@@ -159,7 +159,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 wqdb.insert_image(&fi);
                 Some(MessageSegment {
                     ty: "image".to_string(),
-                    data: extended_map! {
+                    data: value_map! {
                         "file_id": fi.hex_image_id(),
                         "url": fi.url(),
                         "flash": true
@@ -170,7 +170,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 wqdb.insert_image(&gi);
                 Some(MessageSegment {
                     ty: "image".to_string(),
-                    data: extended_map! {
+                    data: value_map! {
                         "file_id": gi.hex_image_id(),
                         "url": gi.url(),
                         "flash": true
@@ -180,7 +180,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         },
         RQElem::RichMsg(rich) => Some(MessageSegment {
             ty: "xml".to_string(),
-            data: extended_map! {
+            data: value_map! {
                 "service_id": rich.service_id,
                 "data": rich.template1
             },
@@ -200,7 +200,7 @@ pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> V
     let mut rv = vec![];
     if let Some(reply) = chain.reply() {
         rv.push(
-            message::Reply {
+            segment::Reply {
                 message_id: reply.reply_seq.to_string(),
                 user_id: reply.sender.to_string(),
             }

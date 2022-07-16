@@ -12,12 +12,12 @@ pub use request::*;
 pub use values::*;
 pub use segment::*;
 
-use walle_core::prelude::{OneBot, PushToMap};
+use walle_core::prelude::{OneBot, PushToValueMap};
 
-#[derive(Debug, Clone, Copy, OneBot, PushToMap)]
+#[derive(Debug, Clone, Copy, OneBot, PushToValueMap)]
 #[event(impl = "Walle-Q")]
 pub struct WalleQ {}
 
-#[derive(Debug, Clone, Copy, OneBot, PushToMap)]
+#[derive(Debug, Clone, Copy, OneBot, PushToValueMap)]
 #[event(platform = "qq")]
 pub struct QQ {}

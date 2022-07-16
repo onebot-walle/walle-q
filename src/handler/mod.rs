@@ -97,7 +97,7 @@ impl ActionHandler<Event, Action, Resp, 12> for Handler {
                         .lock()
                         .await
                         .cache_set(event.id.clone(), event.clone());
-                    ob.event_handler.call(event, &ob).await
+                    ob.event_handler.call(event).await.ok();
                 }
             }
         }));
@@ -112,11 +112,7 @@ impl ActionHandler<Event, Action, Resp, 12> for Handler {
         }));
         Ok(tasks)
     }
-    async fn call<AH, EH>(&self, action: Action, _ob: &Arc<OneBot<AH, EH, 12>>) -> WalleResult<Resp>
-    where
-        AH: ActionHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
-        EH: EventHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
-    {
+    async fn call(&self, action: Action) -> WalleResult<Resp> {
         match self._handle(action).await {
             Ok(resp) => Ok(resp),
             Err(e) => Ok(e.into()),

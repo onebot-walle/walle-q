@@ -343,7 +343,7 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<Eve
             .await,
         ),
         QEvent::GroupAudioMessage(gam) => {
-            let message = vec![walle_core::message::Voice {
+            let message = vec![walle_core::segment::Voice {
                 file_id: gam.inner.audio.0.hex_voice_id(),
             }
             .into()];
@@ -358,7 +358,7 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<Eve
             Some(event)
         }
         QEvent::FriendAudioMessage(fam) => {
-            let message = vec![walle_core::message::Voice {
+            let message = vec![walle_core::segment::Voice {
                 file_id: fam.inner.audio.0.hex_voice_id(),
             }
             .into()];

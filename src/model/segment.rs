@@ -1,7 +1,7 @@
-use walle_core::message::{self, Message as Segments};
-use walle_core::prelude::{OneBot, PushToMap};
+use walle_core::prelude::{OneBot, PushToValueMap};
+use walle_core::segment::{self, Segments};
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[segment]
 pub struct Node {
     pub user_id: String,
@@ -10,21 +10,21 @@ pub struct Node {
     pub message: Segments,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[segment]
 pub struct Face {
     pub id: Option<i32>,
     pub file: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[segment]
 pub struct Xml {
     pub service_id: i32,
     pub data: String,
 }
 
-#[derive(Debug, Clone, PushToMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[segment]
 pub struct Image {
     pub file_id: String,
@@ -35,14 +35,14 @@ pub struct Image {
 #[derive(Debug, Clone, OneBot)]
 #[segment]
 pub enum WQSegment {
-    Text(message::Text),
+    Text(segment::Text),
     MentionAll {},
-    Mention(message::Mention),
-    Reply(message::Reply),
+    Mention(segment::Mention),
+    Reply(segment::Reply),
     Face(Face),
     Image(Image),
     Xml(Xml),
-    Voice(message::Voice), // todo ForWard
+    Voice(segment::Voice), // todo ForWard
 }
 
 // impl Node {
