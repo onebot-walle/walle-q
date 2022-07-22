@@ -6,6 +6,7 @@ use once_cell::sync::OnceCell;
 use ricq::structs::{FriendAudio, GroupAudio};
 use ricq::Client;
 use tokio::sync::Mutex;
+use tracing::warn;
 use walle_core::action::*;
 use walle_core::alt::ColoredAlt;
 use walle_core::event::*;
@@ -129,7 +130,10 @@ impl Handler {
             WalleError::MapMissedKey(expect) => {
                 resp_error::bad_param(format!("missing key {}", expect))
             }
-            _ => unreachable!(),
+            e => {
+                warn!(target: crate::WALLE_Q, "{}", e);
+                resp_error::bad_handler(e.to_string())
+            }
         })? {
             WQAction::GetLatestEvents(c) => self.get_latest_events(c).await.map(Into::into),
             WQAction::GetSupportedActions {} => Self::get_supported_actions().map(Into::into),
