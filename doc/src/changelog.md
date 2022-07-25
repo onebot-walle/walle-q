@@ -1,3 +1,23 @@
+## 0.2.0
+
+### Fixes
+
+- #12: 群操作权限检查，群成员信息获取检查
+- #19: at 显示缺失 @ 字符
+
+### Dependencies
+
+- walle-core: 0.6.0-a1 -> 0.6.0
+- ricq: 0.1.15 -> 0.1.16
+
+### Breaking Changes
+
+- forward 消息段被移除，直接发送 Vec\<node\> 即视为 forward 消息段（优先级低于普通其他消息段）
+
+### Others
+
+- 感谢 [Itsusinn](https://github.com/Itsusinn) 对项目 ci 的优化 pr
+
 ## 0.2.0-a1
 
 ### Features

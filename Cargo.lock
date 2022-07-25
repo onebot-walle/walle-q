@@ -1164,9 +1164,9 @@ dependencies = [
 
 [[package]]
 name = "integer-encoding"
-version = "1.1.7"
+version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48dc51180a9b377fd75814d0cc02199c20f8e99433d6762f650d39cdbbd3b56f"
+checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
 
 [[package]]
 name = "itertools"
@@ -1965,9 +1965,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rusty-leveldb"
-version = "0.3.6"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19365c4619fa0892aef573e6ee1b569b1161ac1ac3da765f550a17645192615e"
+checksum = "440fc25292d3ed04eba65e99d4b0405834f1fa4f30792638afb07a4110901187"
 dependencies = [
  "crc",
  "errno",
@@ -2678,8 +2678,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "walle-core"
-version = "0.6.0-a1"
-source = "git+https://github.com/abrahum/Walle-core.git#00007a9c24973e96b4120d8d3f9ec04faeac631d"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c46940fae1ba8e2d0f322c4ec5cc9f6e6f1f9e1066e3a339f85f5d608c1f1e4f"
 dependencies = [
  "async-trait",
  "base64",
@@ -2702,8 +2703,9 @@ dependencies = [
 
 [[package]]
 name = "walle-macro"
-version = "0.1.0"
-source = "git+https://github.com/abrahum/Walle-core.git#00007a9c24973e96b4120d8d3f9ec04faeac631d"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d64344e11cb0c28304f674a4fbe1b3ef024aaf35d0d8408654e0c2815aead064"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2712,7 +2714,7 @@ dependencies = [
 
 [[package]]
 name = "walle-q"
-version = "0.2.0-a1"
+version = "0.2.0"
 dependencies = [
  "async-recursion",
  "async-trait",

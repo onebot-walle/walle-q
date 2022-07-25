@@ -1,13 +1,13 @@
 [package]
 name = "walle-q"
-version = "0.2.0-a1"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.walle-core]
-# version = "0.6.0-a1"
-git = "https://github.com/abrahum/Walle-core.git"
+version = "0.6.0"
+# git = "https://github.com/abrahum/Walle-core.git"
 features = ["impl-obc", "websocket", "http", "alt"]
 
 [dependencies]
@@ -47,14 +47,14 @@ image = "0.24"
 silk-rs = "0.2"
 
 sled = "0.34"
-rusty-leveldb = "0.3"
+rusty-leveldb = "1.0.3"
 
 uri-reader = { git = "https://github.com/abrahum/uri-reader", features = [
   "vendored",
 ] }
 
-ricq = "0.1.15"
-ricq-core = "0.1.15"
+ricq = "0.1.16"
+ricq-core = "0.1.16"
 prost = "0.9"
 
 # [dev-dependencies]
