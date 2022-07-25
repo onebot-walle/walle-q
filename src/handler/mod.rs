@@ -6,15 +6,17 @@ use once_cell::sync::OnceCell;
 use ricq::structs::{FriendAudio, GroupAudio};
 use ricq::Client;
 use tokio::sync::Mutex;
-use tracing::warn;
-use walle_core::action::*;
-use walle_core::alt::ColoredAlt;
-use walle_core::event::*;
-use walle_core::prelude::*;
-use walle_core::resp::*;
-use walle_core::structs::{GroupInfo, SendMessageResp, UserInfo, Version};
-use walle_core::util::SelfIds;
-use walle_core::{ActionHandler, EventHandler, OneBot};
+use tracing::{info, warn};
+use walle_core::{
+    action::*,
+    alt::ColoredAlt,
+    error::{WalleError, WalleResult},
+    event::*,
+    resp::*,
+    structs::{GroupInfo, SendMessageResp, UserInfo, Version},
+    util::SelfIds,
+    ActionHandler, EventHandler, GetStatus, OneBot,
+};
 
 use crate::database::{Database, MessageId, WQDatabase};
 use crate::error;
@@ -24,17 +26,21 @@ use crate::parse::util::{
     new_private_receipt_content,
 };
 use crate::parse::{util::new_event, MsgChainBuilder, RQSendItem};
+use crate::WALLE_Q;
 
 use self::file::FragmentFile;
 
 mod file;
-// pub(crate) mod v11;
+mod infos;
+
+pub(crate) use infos::Infos;
 
 pub struct Handler {
     pub(crate) client: OnceCell<Arc<ricq::Client>>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) uploading_fragment: Mutex<TimedCache<String, FragmentFile>>,
+    pub(crate) infos: Arc<Infos>,
 }
 
 #[async_trait]
@@ -80,6 +86,7 @@ impl ActionHandler<Event, Action, Resp, 12> for Handler {
             .unwrap();
         let _qcli = qclient.clone();
         let net = tokio::spawn(async move { _qcli.start(stream).await });
+
         self.client.set(qclient.clone()).ok();
         let event_cache = self.event_cache.clone();
         let database = self.database.clone();
@@ -88,11 +95,21 @@ impl ActionHandler<Event, Action, Resp, 12> for Handler {
         crate::login::login(&qclient, &config.0, config.1.clone())
             .await
             .map_err(|e| WalleError::Other(e.to_string()))?;
+        info!(target: WALLE_Q, "updating groups and friends infos");
+        if let Err(e) = self.infos.update(&qclient).await {
+            warn!(target: WALLE_Q, "update infos failed: {}", e);
+            return Err(WalleError::Other(e.to_string()));
+        }
+        info!(target: WALLE_Q, "update infos succeed");
         let mut tasks = vec![];
         let mut rx = ob.get_signal_rx()?;
+        let infos = self.infos.clone();
+        let self_id = qclient.uin().await;
         tasks.push(tokio::spawn(async move {
             while let Some(qevent) = qevent_rx.recv().await {
-                if let Some(event) = crate::parse::qevent2event(qevent, &database).await {
+                if let Some(event) =
+                    crate::parse::qevent2event(qevent, &database, &infos, self_id).await
+                {
                     tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
                     event_cache
                         .lock()
@@ -433,18 +450,16 @@ impl Handler {
         })
     }
     async fn get_friend_list(&self) -> RespResult<Vec<UserInfo>> {
-        Ok(self
-            .get_client()?
-            .get_friend_list()
+        self.infos
+            .update_friends(self.get_client()?)
             .await
-            .map_err(error::rq_error)?
+            .map_err(error::rq_error)?;
+        Ok(self
+            .infos
             .friends
             .iter()
-            .map(|i| UserInfo {
-                user_id: i.uin.to_string(),
-                nickname: i.nick.to_string(),
-            })
-            .collect::<Vec<_>>())
+            .map(|r| r.value().clone())
+            .collect())
     }
     async fn get_group_info(&self, c: GetGroupInfo) -> RespResult<GroupInfo> {
         let group_id: i64 = c
@@ -463,17 +478,24 @@ impl Handler {
         })
     }
     async fn get_group_list(&self) -> RespResult<Vec<GroupInfo>> {
-        Ok(self
-            .get_client()?
-            .get_group_list()
+        self.infos
+            .update_groups(self.get_client()?)
             .await
-            .map_err(error::rq_error)?
-            .into_iter()
-            .map(|i| GroupInfo {
-                group_id: i.code.to_string(),
-                group_name: i.name,
-            })
-            .collect::<Vec<_>>())
+            .map_err(error::rq_error)?;
+        let mut groups = self
+            .infos
+            .owned_groups
+            .iter()
+            .map(|info| info.value().clone())
+            .collect::<Vec<_>>();
+        groups.extend(
+            self.infos
+                .admined_groups
+                .iter()
+                .map(|info| info.value().clone()),
+        );
+        groups.extend(self.infos.groups.iter().map(|info| info.value().clone()));
+        Ok(groups)
     }
     async fn get_group_member_list(&self, c: GetGroupMemberList) -> RespResult<Vec<UserInfo>> {
         let group_id: i64 = c
@@ -511,19 +533,22 @@ impl Handler {
             .get_group_member_info(group_id, uin)
             .await
             .map_err(error::rq_error)?;
+        if member.nickname.is_empty() {
+            return Err(error::group_member_not_exist(uin)); // or use list?
+        }
         Ok(UserInfo {
             user_id: member.uin.to_string(),
             nickname: member.nickname,
         })
     }
     async fn set_group_name(&self, c: SetGroupName) -> RespResult<()> {
+        let group_id: i64 = c
+            .group_id
+            .parse()
+            .map_err(|_| error::bad_param("group_id"))?;
+        self.infos.check_admin(group_id)?;
         self.get_client()?
-            .update_group_name(
-                c.group_id
-                    .parse()
-                    .map_err(|_| error::bad_param("group_id"))?,
-                c.group_name,
-            )
+            .update_group_name(group_id, c.group_name)
             .await
             .map_err(error::rq_error)?;
         Ok(())
@@ -540,11 +565,14 @@ impl Handler {
         Ok(())
     }
     async fn kick_group_member(&self, c: KickGroupMember) -> RespResult<()> {
+        let group_id: i64 = c
+            .group_id
+            .parse()
+            .map_err(|_| error::bad_param("group_id"))?;
+        self.infos.check_admin(group_id)?;
         self.get_client()?
             .group_kick(
-                c.group_id
-                    .parse()
-                    .map_err(|_| error::bad_param("group_id"))?,
+                group_id,
                 vec![c.user_id.parse().map_err(|_| error::bad_param("user_id"))?],
                 "",
                 false,
@@ -560,11 +588,12 @@ impl Handler {
         duration: u32,
     ) -> RespResult<()> {
         use std::time::Duration;
-
+        let group_id: i64 = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
+        self.infos.check_admin(group_id)?;
         let duration = Duration::from_secs(duration as u64);
         self.get_client()?
             .group_mute(
-                group_id.parse().map_err(|_| error::bad_param("group_id"))?,
+                group_id,
                 user_id.parse().map_err(|_| error::bad_param("user_id"))?,
                 duration,
             )
@@ -578,9 +607,11 @@ impl Handler {
         user_id: String,
         unset: bool,
     ) -> RespResult<()> {
+        let group_id: i64 = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
+        self.infos.check_owner(group_id)?;
         self.get_client()?
             .group_set_admin(
-                group_id.parse().map_err(|_| error::bad_param("group_id"))?,
+                group_id,
                 user_id.parse().map_err(|_| error::bad_param("user_id"))?,
                 !unset,
             )

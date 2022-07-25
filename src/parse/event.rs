@@ -3,6 +3,7 @@ use super::util::{
     new_private_audio_content, new_private_msg_content,
 };
 use crate::database::{Database, SVoice, WQDatabase};
+use crate::handler::Infos;
 use crate::model::{
     Delete, Disband, FriendPoke, GroupAdminSet, GroupAdminUnset, GroupInvite, GroupMemberBan,
     GroupNameUpdate, Join, JoinGroup, Kick, Leave, NewFriend, Recall, UserName, WalleQ, QQ,
@@ -16,7 +17,12 @@ use walle_core::event::{
     GroupMessageDelete, Notice, PrivateMessageDelete, Request,
 };
 
-pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<Event> {
+pub(crate) async fn qevent2event(
+    event: QEvent,
+    wqdb: &WQDatabase,
+    infos: &Infos,
+    self_id: i64,
+) -> Option<Event> {
     match event {
         // meta
         QEvent::Login(uin) => {
@@ -222,43 +228,76 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<Eve
         }),
         QEvent::MemberPermissionChange(e) => {
             match e.inner.new_permission {
-                GroupMemberPermission::Administrator => Some(
-                    new_event(
-                        &e.client,
-                        None,
-                        (
-                            Notice {},
-                            GroupAdminSet {
-                                group_id: e.inner.group_code.to_string(),
-                                user_id: e.inner.member_uin.to_string(),
-                                operator_id: "".to_string(), //todo
-                            },
-                            (),
-                            QQ {},
-                            WalleQ {},
-                        ),
+                GroupMemberPermission::Administrator => {
+                    if e.inner.member_uin == self_id {
+                        if let Some((_, info)) = infos
+                            .groups
+                            .remove(&e.inner.group_code)
+                            .or_else(|| infos.owned_groups.remove(&e.inner.group_code))
+                        {
+                            infos.admined_groups.insert(e.inner.group_code, info);
+                        }
+                    }
+                    Some(
+                        new_event(
+                            &e.client,
+                            None,
+                            (
+                                Notice {},
+                                GroupAdminSet {
+                                    group_id: e.inner.group_code.to_string(),
+                                    user_id: e.inner.member_uin.to_string(),
+                                    operator_id: "".to_string(), //todo
+                                },
+                                (),
+                                QQ {},
+                                WalleQ {},
+                            ),
+                        )
+                        .await,
                     )
-                    .await,
-                ),
-                GroupMemberPermission::Member => Some(
-                    new_event(
-                        &e.client,
-                        None,
-                        (
-                            Notice {},
-                            GroupAdminUnset {
-                                group_id: e.inner.group_code.to_string(),
-                                user_id: e.inner.member_uin.to_string(),
-                                operator_id: "".to_string(), //todo
-                            },
-                            (),
-                            QQ {},
-                            WalleQ {},
-                        ),
+                }
+                GroupMemberPermission::Member => {
+                    if e.inner.member_uin == self_id {
+                        if let Some((_, info)) = infos
+                            .admined_groups
+                            .remove(&e.inner.group_code)
+                            .or_else(|| infos.owned_groups.remove(&e.inner.group_code))
+                        {
+                            infos.groups.insert(e.inner.group_code, info);
+                        }
+                    }
+                    Some(
+                        new_event(
+                            &e.client,
+                            None,
+                            (
+                                Notice {},
+                                GroupAdminUnset {
+                                    group_id: e.inner.group_code.to_string(),
+                                    user_id: e.inner.member_uin.to_string(),
+                                    operator_id: "".to_string(), //todo
+                                },
+                                (),
+                                QQ {},
+                                WalleQ {},
+                            ),
+                        )
+                        .await,
                     )
-                    .await,
-                ),
-                _ => None,
+                }
+                GroupMemberPermission::Owner => {
+                    if e.inner.member_uin == self_id {
+                        if let Some((_, info)) = infos
+                            .groups
+                            .remove(&e.inner.group_code)
+                            .or_else(|| infos.admined_groups.remove(&e.inner.group_code))
+                        {
+                            infos.owned_groups.insert(e.inner.group_code, info);
+                        }
+                    }
+                    None //todo
+                }
             }
         }
         QEvent::NewFriendRequest(fre) => Some(
@@ -389,40 +428,53 @@ pub(crate) async fn qevent2event(event: QEvent, wqdb: &WQDatabase) -> Option<Eve
             )
             .await,
         ),
-        QEvent::GroupNameUpdate(g) => Some(
-            new_event(
-                &g.client,
-                None,
-                (
-                    Notice {},
-                    GroupNameUpdate {
-                        group_id: g.inner.group_code.to_string(),
-                        group_name: g.inner.group_name,
-                        operator_id: g.inner.operator_uin.to_string(),
-                    },
-                    (),
-                    QQ {},
-                    WalleQ {},
-                ),
+        QEvent::GroupNameUpdate(g) => {
+            if let Some(mut group_info) = infos
+                .groups
+                .get_mut(&g.inner.group_code)
+                .or_else(|| infos.admined_groups.get_mut(&g.inner.group_code))
+                .or_else(|| infos.owned_groups.get_mut(&g.inner.group_code))
+            {
+                group_info.group_name = g.inner.group_name.clone();
+            }
+            Some(
+                new_event(
+                    &g.client,
+                    None,
+                    (
+                        Notice {},
+                        GroupNameUpdate {
+                            group_id: g.inner.group_code.to_string(),
+                            group_name: g.inner.group_name,
+                            operator_id: g.inner.operator_uin.to_string(),
+                        },
+                        (),
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await,
             )
-            .await,
-        ),
-        QEvent::DeleteFriend(d) => Some(
-            new_event(
-                &d.client,
-                None,
-                (
-                    Notice {},
-                    FriendDecrease {
-                        user_id: d.inner.uin.to_string(),
-                    },
-                    (),
-                    QQ {},
-                    WalleQ {},
-                ),
+        }
+        QEvent::DeleteFriend(d) => {
+            infos.friends.remove(&d.inner.uin);
+            Some(
+                new_event(
+                    &d.client,
+                    None,
+                    (
+                        Notice {},
+                        FriendDecrease {
+                            user_id: d.inner.uin.to_string(),
+                        },
+                        (),
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await,
             )
-            .await,
-        ),
+        }
         QEvent::KickedOffline(_) => {
             warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
             None

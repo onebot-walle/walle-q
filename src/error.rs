@@ -20,6 +20,7 @@ error_type!(message_not_exist, 35001, "消息不存在");
 error_type!(friend_not_exist, 35002, "好友不存在");
 error_type!(group_not_exist, 35003, "群不存在");
 error_type!(group_member_not_exist, 35004, "群成员不存在");
+error_type!(permission_denied, 35005, "权限不足");
 error_type!(image_info_decode_error, 61001, "图片解码错误");
 error_type!(bad_image_url, 61002, "图片URL错误");
 error_type!(bad_image_path, 61003, "图片路径错误");

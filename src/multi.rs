@@ -81,6 +81,7 @@ impl ActionHandler<Event, Action, Resp, 12> for MultiAH {
                 event_cache: self.event_cache.clone(),
                 database: self.database.clone(),
                 uploading_fragment: Mutex::new(TimedCache::with_lifespan(60)),
+                infos: Arc::default(),
             };
             match ah
                 .start(ob, (id, cs.password, cs.protocol.unwrap_or_default()))
