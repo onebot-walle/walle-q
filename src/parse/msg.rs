@@ -241,11 +241,17 @@ async fn push_msg_seg(
         WQSegment::Text(text) => items.chain.push(elem::Text { content: text.text }),
         WQSegment::Mention(mention) => {
             if let Ok(user_id) = mention.user_id.parse() {
-                let display = cli
-                    .get_group_member_info(target, user_id)
-                    .await
-                    .map(|info| info.nickname)
-                    .unwrap_or_else(|_| user_id.to_string());
+                let display = format!(
+                    "@{}",
+                    if group {
+                        cli.get_group_member_info(target, user_id)
+                            .await
+                            .map(|info| info.nickname)
+                            .unwrap_or_else(|_| user_id.to_string())
+                    } else {
+                        user_id.to_string()
+                    }
+                );
                 items.chain.push(elem::At {
                     display,
                     target: user_id,
