@@ -1,6 +1,6 @@
 use ricq::msg::elem::{self, FlashImage, RQElem};
 use ricq::msg::MessageChain;
-use ricq::structs::ForwardMessage;
+use ricq::structs::{ForwardMessage, ForwardNode, MessageNode};
 use ricq::Client;
 use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
@@ -16,10 +16,10 @@ use super::audio::encode_to_silk;
 use super::util::decode_message_id;
 
 pub struct MsgChainBuilder<'a> {
-    cli: &'a Client,
-    target: i64,
-    group: bool,
-    message: Segments,
+    pub cli: &'a Client,
+    pub target: i64,
+    pub group: bool,
+    pub message: Segments,
 }
 
 pub enum RQSendItem {
@@ -225,6 +225,7 @@ macro_rules! maybe_flash {
 
 use crate::model::WQSegment;
 
+#[async_recursion::async_recursion]
 async fn push_msg_seg(
     items: &mut RQSends,
     seg: MessageSegment,
@@ -372,6 +373,47 @@ async fn push_msg_seg(
                     warn!("audio not found: {}", voice.file_id);
                     return Err(error::file_not_found(voice.file_id));
                 }
+            }
+        }
+        WQSegment::Node(node) => {
+            let sub_builder = MsgChainBuilder {
+                cli,
+                target,
+                group,
+                message: node.message,
+            };
+            let sender_id = node
+                .user_id
+                .parse()
+                .map_err(|_| resp_error::bad_segment_data("user_id"))?;
+            let time = (node.time / 1000.0) as i32;
+            match sub_builder.build(wqdb).await? {
+                RQSendItem::Chain(chain) => {
+                    items.forward.push(ForwardMessage::Message(MessageNode {
+                        sender_id,
+                        sender_name: node.user_name,
+                        time,
+                        elements: chain,
+                    }))
+                }
+                RQSendItem::Forward(forwards) => {
+                    items.forward.push(ForwardMessage::Forward(ForwardNode {
+                        sender_id,
+                        sender_name: node.user_name,
+                        time,
+                        nodes: forwards,
+                    }))
+                }
+                RQSendItem::Voice(_) => items.forward.push(ForwardMessage::Message(MessageNode {
+                    sender_id,
+                    sender_name: node.user_name,
+                    time,
+                    elements: {
+                        let mut chain = MessageChain::default();
+                        chain.push(ricq::msg::elem::Text::new("[语音]".to_string()));
+                        chain
+                    },
+                })),
             }
         }
     }

@@ -65,6 +65,8 @@
 
 ## 语音消息 voice
 
+> 语音消息段仅支持单独发送，当同级中存在其他消息段，该语音消息段将被忽略。
+
 | 字段    | 类型   | 说明        |
 | ------- | ------ | ----------- |
 | file_id | String | 语音文件 ID |
@@ -96,24 +98,15 @@
 | service_id | i64    | 服务 ID  |
 | data       | String | xml 内容 |
 
-## 合并转发 forward
-
-> forward 消息段仅支持单独发送，与其他 MessageSegment 混合时将被忽略
-> 消息段接收时合并转发将被视为 xml 富文本消息段
-> 此消息段为扩展消息段
-
-| 字段  | 类型        | 说明           |
-| ----- | ----------- | -------------- |
-| nodes | Vec\<Node\> | 转发的消息节点 |
-
 ## 合并转发节点 node
 
-> 无法单独发送，请使用 forward 消息段包含 node 发送
+> node 消息段仅在同级中不存在其他类型消息段时生效（ Vocice 消息段除外，即优先级：others > node > voice ）
+> 合并转发消息段接收时将被视为 xml 富文本消息段
 > 此消息段为扩展消息段
 
-| 字段      | 类型                                 | 说明    |
-| --------- | ------------------------------------ | ------- |
-| user_id   | String                               | 用户 ID |
-| time      | f64                                  | 时间    |
-| user_name | String                               | 用户名  |
-| message   | Vec\<MessageSegment\> \| Vec\<Node\> | 消息    |
+| 字段      | 类型                  | 说明    |
+| --------- | --------------------- | ------- |
+| user_id   | String                | 用户 ID |
+| time      | f64                   | 时间    |
+| user_name | String                | 用户名  |
+| message   | Vec\<MessageSegment\> | 消息    |

@@ -1,14 +1,7 @@
-use walle_core::prelude::{OneBot, PushToValueMap};
-use walle_core::segment::{self, Segments};
-
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[segment]
-pub struct Node {
-    pub user_id: String,
-    pub time: f64,
-    pub user_name: String,
-    pub message: Segments,
-}
+use walle_core::{
+    prelude::{MessageSegment, OneBot, PushToValueMap},
+    segment,
+};
 
 #[derive(Debug, Clone, PushToValueMap, OneBot)]
 #[segment]
@@ -32,6 +25,15 @@ pub struct Image {
     pub flash: Option<bool>,
 }
 
+#[derive(Debug, Clone, PushToValueMap, OneBot)]
+#[segment]
+pub struct Node {
+    pub user_id: String,
+    pub time: f64,
+    pub user_name: String,
+    pub message: Vec<MessageSegment>,
+}
+
 #[derive(Debug, Clone, OneBot)]
 #[segment]
 pub enum WQSegment {
@@ -42,69 +44,6 @@ pub enum WQSegment {
     Face(Face),
     Image(Image),
     Xml(Xml),
-    Voice(segment::Voice), // todo ForWard
+    Voice(segment::Voice),
+    Node(Node),
 }
-
-// impl Node {
-//     #[async_recursion::async_recursion]
-//     pub(crate) async fn to_forward_message(
-//         self,
-//         target: i64,
-//         group: bool,
-//         cli: &Client,
-//         wqdb: &WQDatabase,
-//     ) -> Result<ForwardMessage, RespError> {
-//         Ok(match self.message {
-//             MaybeNodes::Nodes(nodes) => {
-//                 let mut fwd_nodes = Vec::new();
-//                 for node in nodes {
-//                     match node {
-//                         NodeEnum::Node(n) => {
-//                             let fwd_node = n.to_forward_message(target, group, cli, wqdb).await?;
-//                             fwd_nodes.push(fwd_node);
-//                         }
-//                     }
-//                 }
-//                 ForwardNode {
-//                     sender_id: self
-//                         .user_id
-//                         .parse()
-//                         .map_err(|_| error::bad_param("user_id"))?,
-//                     time: (self.time / 1000.0) as i32,
-//                     sender_name: self.user_name,
-//                     nodes: fwd_nodes,
-//                 }
-//                 .into()
-//             }
-//             MaybeNodes::Standards(message) => {
-//                 let elements: MessageChain = match if group {
-//                     MsgChainBuilder::group_chain_builder(cli, target, message)
-//                         .build(wqdb)
-//                         .await?
-//                 } else {
-//                     MsgChainBuilder::private_chain_builder(cli, target, message)
-//                         .build(wqdb)
-//                         .await?
-//                 } {
-//                     RQSendItem::Chain(chain) => chain,
-//                     RQSendItem::Forward(_) => return Err(error::bad_param("node")),
-//                     RQSendItem::Voice(_) => {
-//                         let mut chain = MessageChain::default();
-//                         chain.push(ricq::msg::elem::Text::new("[语音]".to_string()));
-//                         chain
-//                     }
-//                 };
-//                 MessageNode {
-//                     sender_id: self
-//                         .user_id
-//                         .parse()
-//                         .map_err(|_| error::bad_param("user_id"))?,
-//                     time: (self.time / 1000.0) as i32,
-//                     sender_name: self.user_name,
-//                     elements,
-//                 }
-//                 .into()
-//             }
-//         })
-//     }
-// }

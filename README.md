@@ -72,7 +72,9 @@ A qq platform OneBot Implementation
 
 ### 仅发送
 
-- [x] forward 消息（单独使用）
+- [x] forward(node) 消息（单独使用）
+
+> 消息段优先级 others > node(forward) > voice
 
 ## 已支持 API
 
