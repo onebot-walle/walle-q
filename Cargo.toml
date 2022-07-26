@@ -1,16 +1,20 @@
 [package]
 name = "walle-q"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.walle-core]
-version = "0.6.0"
+version = "0.6.1"
 # git = "https://github.com/abrahum/Walle-core.git"
 features = ["impl-obc", "websocket", "http", "alt"]
 
 [dependencies]
+ricq = "0.1.16"
+ricq-core = "0.1.16"
+prost = "0.9"
+
 tokio = { version = "1", features = ["full"] }
 tokio-util = "*"
 futures-util = "*"
@@ -32,17 +36,12 @@ uuid = "1.0"
 clap = { version = "3.0", features = ["derive"] }
 cached = "0.34"
 bytes = "1.1"
-hex = "0.4"
-base64 = "0.13"
-sha2 = "0.10"
 colored = "2"
 rand = "0.8"
 once_cell = "1"
 
 dashmap = "5.3"
 
-# qrcode = "0.12"
-# rqrr = "0.5"
 image = "0.24"
 silk-rs = "0.2"
 
@@ -53,12 +52,10 @@ uri-reader = { git = "https://github.com/abrahum/uri-reader", features = [
   "vendored",
 ] }
 
-ricq = "0.1.16"
-ricq-core = "0.1.16"
-prost = "0.9"
-
-# [dev-dependencies]
 md5 = "0.7"
+hex = "0.4"
+base64 = "0.13"
+sha2 = "0.10"
 
 [features]
 vendored = ["uri-reader/vendored"]
