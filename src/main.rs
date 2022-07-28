@@ -8,13 +8,14 @@ use walle_core::obc::ImplOBC;
 mod command;
 mod config;
 mod database;
-pub(crate) mod error;
 mod handler;
 mod login;
-pub(crate) mod model;
 mod multi;
-pub(crate) mod parse;
 mod util;
+
+pub(crate) mod error;
+pub(crate) mod model;
+pub(crate) mod parse;
 
 const WALLE_Q: &str = "Walle-Q";
 const PLATFORM: &str = "qq";
@@ -44,10 +45,7 @@ async fn main() {
     let ah = multi::MultiAH::new(comm.event_cache_size.unwrap_or(100), wqdb.clone());
     let joins = Arc::new(walle_core::OneBot::<_, _, 12>::new(
         ah,
-        ImplOBC::<walle_core::event::Event>::new(
-            WALLE_Q.to_string(),
-            PLATFORM.to_string(),
-        ),
+        ImplOBC::<walle_core::event::Event>::new(WALLE_Q.to_string(), PLATFORM.to_string()),
     ))
     .start(config.qq, config.onebot, false)
     .await

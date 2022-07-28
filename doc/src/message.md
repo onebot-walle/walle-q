@@ -100,7 +100,7 @@
 
 ## 合并转发节点 node
 
-> node 消息段仅在同级中不存在其他类型消息段时生效（ Vocice 消息段除外，即优先级：others > node > voice ）
+> node 消息段仅在同级中不存在其他类型消息段时生效（ voice 消息段除外，即优先级：others > node > voice ）
 > 
 > 合并转发消息段接收时将被视为 xml 富文本消息段
 > 
