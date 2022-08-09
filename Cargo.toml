@@ -57,6 +57,11 @@ hex = "0.4"
 base64 = "0.13"
 sha2 = "0.10"
 
+ricq-axum-api = "0.1.0"
+axum = { version = "0.5", features = ["json"] }
+tower = { version = "0.4" }
+tower-http = { version = "0.3", features = ["fs"] }
+
 [features]
 vendored = ["uri-reader/vendored"]
 
