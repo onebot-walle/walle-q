@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use clap::{ArgEnum, Parser};
 use chrono::{Local, Offset, TimeZone};
+use clap::{ArgEnum, Parser};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{
     filter::LevelFilter, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -15,7 +15,7 @@ use crate::WALLE_Q;
        author = "AbrahumLink",
        version = env!("CARGO_PKG_VERSION"),
        about = "Walle-Q is a Onebot implementation in Rust")]
-pub(crate) struct Comm {
+pub struct Comm {
     #[clap(long, arg_enum, help = "set global log level")]
     pub log: Option<LogLevel>,
 
@@ -39,7 +39,7 @@ pub(crate) struct Comm {
 }
 
 #[derive(ArgEnum, Clone, Serialize, Deserialize, Debug)]
-pub(crate) enum LogLevel {
+pub enum LogLevel {
     Trace,
     Debug,
     Info,
@@ -66,8 +66,9 @@ impl From<LogLevel> for LevelFilter {
 }
 
 impl Comm {
-    pub(crate) fn subscribe(&self) {
-        let offset = self.time_zone
+    pub fn subscribe(&self) {
+        let offset = self
+            .time_zone
             .and_then(|hour| Some(3600 * hour as i32))
             .unwrap_or_else(|| Local.timestamp(0, 0).offset().fix().local_minus_utc());
         let timer = tracing_subscriber::fmt::time::OffsetTime::new(
@@ -104,7 +105,7 @@ impl Comm {
             .init();
     }
 
-    pub(crate) fn db(&self) -> Arc<crate::database::WQDatabase> {
+    pub fn db(&self) -> Arc<crate::database::WQDatabase> {
         let mut db = crate::database::WQDatabase::default();
         if !self.disable_leveldb {
             db = db.level();
@@ -115,7 +116,7 @@ impl Comm {
         Arc::new(db)
     }
 
-    pub(crate) fn merge(&mut self, other: Self) {
+    pub fn merge(&mut self, other: Self) {
         fn merge_option<T>(a: &mut Option<T>, b: Option<T>) {
             if let Some(b) = b {
                 *a = Some(b);

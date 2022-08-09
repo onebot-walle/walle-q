@@ -5,27 +5,14 @@ use std::sync::Arc;
 use clap::Parser;
 use walle_core::obc::ImplOBC;
 
-mod command;
-mod config;
-mod database;
-mod handler;
-mod login;
-mod multi;
-mod util;
+use walle_q::command;
+use walle_q::config;
+use walle_q::multi;
 
-pub(crate) mod error;
-pub(crate) mod model;
-pub(crate) mod parse;
+use walle_q::init;
 
 const WALLE_Q: &str = "Walle-Q";
 const PLATFORM: &str = "qq";
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const LOG_PATH: &str = "./log";
-const IMAGE_CACHE_DIR: &str = "./data/image";
-const VOICE_CACHE_DIR: &str = "./data/voice";
-const FILE_CACHE_DIR: &str = "./data/file";
-const CLIENT_DIR: &str = "./data/client";
 
 #[tokio::main]
 async fn main() {
@@ -53,12 +40,4 @@ async fn main() {
     for join in joins {
         join.await.unwrap();
     }
-}
-
-async fn init() {
-    tokio::fs::create_dir_all(IMAGE_CACHE_DIR).await.ok();
-    tokio::fs::create_dir_all(FILE_CACHE_DIR).await.ok();
-    tokio::fs::create_dir_all(VOICE_CACHE_DIR).await.ok();
-    tokio::fs::create_dir_all(CLIENT_DIR).await.ok();
-    tokio::fs::create_dir(crate::LOG_PATH).await.ok();
 }
