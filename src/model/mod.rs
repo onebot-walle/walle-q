@@ -15,7 +15,7 @@ pub use segment::*;
 use walle_core::prelude::{OneBot, PushToValueMap};
 
 #[derive(Debug, Clone, Copy, OneBot, PushToValueMap)]
-#[event(impl = "Walle-Q")]
+#[event(impl = "walle-q")]
 pub struct WalleQ {}
 
 #[derive(Debug, Clone, Copy, OneBot, PushToValueMap)]
