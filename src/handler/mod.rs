@@ -7,6 +7,7 @@ use ricq::structs::{FriendAudio, GroupAudio};
 use ricq::Client;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
+use walle_core::structs::Selft;
 use walle_core::{
     action::*,
     alt::ColoredAlt,
@@ -14,7 +15,7 @@ use walle_core::{
     event::*,
     resp::*,
     structs::{GroupInfo, SendMessageResp, UserInfo, Version},
-    util::SelfIds,
+    util::GetSelfs,
     ActionHandler, EventHandler, GetStatus, OneBot,
 };
 
@@ -44,37 +45,40 @@ pub struct Handler {
 }
 
 #[async_trait]
-impl SelfIds for Handler {
-    async fn self_ids(&self) -> Vec<String> {
-        vec![self.client.get().unwrap().uin().await.to_string()]
+impl GetSelfs for Handler {
+    async fn get_selfs(&self) -> Vec<Selft> {
+        vec![Selft {
+            user_id: self.client.get().unwrap().uin().await.to_string(),
+            platform: crate::PLATFORM.to_owned(),
+        }]
     }
 }
 
 impl GetStatus for Handler {
-    fn get_status(&self) -> walle_core::structs::Status {
-        walle_core::structs::Status {
-            good: true, //todo
-            online: self
-                .client
-                .get()
-                .unwrap()
-                .online
-                .load(std::sync::atomic::Ordering::Relaxed),
-        }
+    fn is_good<'life0, 'async_trait>(
+        &'life0 self,
+    ) -> core::pin::Pin<
+        Box<dyn core::future::Future<Output = bool> + core::marker::Send + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move { self.client.get().is_some() })
     }
 }
 
 #[async_trait]
-impl ActionHandler<Event, Action, Resp, 12> for Handler {
+impl ActionHandler<Event, Action, Resp> for Handler {
     type Config = (String, Option<String>, u8); // (uin, password, protcol)
     async fn start<AH, EH>(
         &self,
-        ob: &Arc<OneBot<AH, EH, 12>>,
+        ob: &Arc<OneBot<AH, EH>>,
         config: Self::Config,
     ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
     where
-        AH: ActionHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
-        EH: EventHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
         let (qevent_tx, mut qevent_rx) = tokio::sync::mpsc::unbounded_channel();
         let qclient = Arc::new(Client::new_with_config(
@@ -154,7 +158,7 @@ impl Handler {
         })? {
             WQAction::GetLatestEvents(c) => self.get_latest_events(c).await.map(Into::into),
             WQAction::GetSupportedActions {} => Self::get_supported_actions().map(Into::into),
-            WQAction::GetStatus {} => Ok(self.get_status().into()),
+            WQAction::GetStatus {} => Ok(self.get_status().await.into()),
             WQAction::GetVersion {} => Ok(Self::get_version().into()),
 
             WQAction::SendMessage(c) => self.send_message(c).await.map(Into::into),
@@ -213,6 +217,12 @@ impl Handler {
 type RespResult<T> = Result<T, RespError>;
 
 impl Handler {
+    pub async fn selft(&self) -> Result<Selft, RespError> {
+        Ok(Selft {
+            platform: crate::PLATFORM.to_owned(),
+            user_id: self.get_client()?.uin().await.to_string(),
+        })
+    }
     pub fn get_client(&self) -> Result<&Arc<Client>, RespError> {
         self.client.get().ok_or(error::client_not_initialized(""))
     }
@@ -305,9 +315,15 @@ impl Handler {
                 let time = receipt.time as f64;
                 let cli = self.get_client()?;
                 let event = new_event(
-                    cli,
                     Some(time as f64),
-                    new_group_receipt_content(cli, receipt, group_code, c.message).await,
+                    new_group_receipt_content(
+                        cli,
+                        receipt,
+                        group_code,
+                        c.message,
+                        self.selft().await?,
+                    )
+                    .await,
                 )
                 .await;
                 let respc = SendMessageResp {
@@ -341,10 +357,16 @@ impl Handler {
                 let cli = self.get_client()?;
                 let time = receipt.time as f64;
                 let event = new_event(
-                    cli,
                     Some(time),
-                    new_group_temp_receipt_content(receipt, c.message, cli, group_code, target)
-                        .await,
+                    new_group_temp_receipt_content(
+                        receipt,
+                        c.message,
+                        cli,
+                        group_code,
+                        target,
+                        self.selft().await?,
+                    )
+                    .await,
                 )
                 .await;
                 let respc = SendMessageResp {
@@ -380,9 +402,15 @@ impl Handler {
                 let cli = self.get_client()?;
                 let time = receipt.time as f64;
                 let event = new_event(
-                    cli,
                     Some(time),
-                    new_private_receipt_content(cli, receipt, target, c.message).await,
+                    new_private_receipt_content(
+                        cli,
+                        receipt,
+                        target,
+                        c.message,
+                        self.selft().await?,
+                    )
+                    .await,
                 )
                 .await;
                 let respc = SendMessageResp {
@@ -426,15 +454,18 @@ impl Handler {
     }
 
     async fn get_self_info(&self) -> RespResult<UserInfo> {
+        let name = self
+            .get_client()?
+            .account_info
+            .read()
+            .await
+            .nickname
+            .clone();
         Ok(UserInfo {
             user_id: self.get_client()?.uin().await.to_string(),
-            nickname: self
-                .get_client()?
-                .account_info
-                .read()
-                .await
-                .nickname
-                .clone(),
+            user_name: name.clone(),
+            user_displayname: name.clone(),
+            user_remark: name,
         })
     }
     async fn get_user_info(&self, c: GetUserInfo) -> RespResult<UserInfo> {
@@ -446,7 +477,9 @@ impl Handler {
             .map_err(error::rq_error)?;
         Ok(UserInfo {
             user_id: info.uin.to_string(),
-            nickname: info.nickname,
+            user_name: info.nickname.clone(),
+            user_displayname: info.nickname.clone(),
+            user_remark: info.nickname,
         })
     }
     async fn get_friend_list(&self) -> RespResult<Vec<UserInfo>> {
@@ -517,7 +550,9 @@ impl Handler {
             .iter()
             .map(|i| UserInfo {
                 user_id: i.uin.to_string(),
-                nickname: i.nickname.clone(),
+                user_name: i.nickname.clone(),
+                user_displayname: i.card_name.clone(),
+                user_remark: i.special_title.clone(),
             })
             .collect::<Vec<_>>();
         Ok(v)
@@ -538,7 +573,9 @@ impl Handler {
         }
         Ok(UserInfo {
             user_id: member.uin.to_string(),
-            nickname: member.nickname,
+            user_name: member.nickname,
+            user_displayname: member.card_name,
+            user_remark: member.special_title,
         })
     }
     async fn set_group_name(&self, c: SetGroupName) -> RespResult<()> {

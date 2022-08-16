@@ -16,7 +16,7 @@ const CONFIG_PATH: &str = "walle-q.toml";
 const DEVICE_PATH: &str = "device.json";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub(crate) struct Config {
+pub struct Config {
     pub qq: HashMap<String, QQConfig>,
     pub meta: crate::command::Comm,
     pub onebot: ImplConfig,
@@ -104,7 +104,7 @@ impl NewConfig for Device {
 impl LoadConfig for Device {}
 
 impl Config {
-    pub(crate) fn load() -> Result<Self, std::io::Error> {
+    pub fn load() -> Result<Self, std::io::Error> {
         Self::load_or_new(CONFIG_PATH)
     }
 }

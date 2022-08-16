@@ -32,7 +32,9 @@ impl Infos {
                     info.uin,
                     UserInfo {
                         user_id: info.uin.to_string(),
-                        nickname: info.nick,
+                        user_name: info.nick.clone(),
+                        user_displayname: info.nick,
+                        user_remark: info.remark,
                     },
                 )
             })

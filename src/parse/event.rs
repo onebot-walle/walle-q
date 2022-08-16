@@ -16,6 +16,7 @@ use walle_core::event::{
     Event, FriendDecrease, FriendIncrease, GroupMemberDecrease, GroupMemberIncrease,
     GroupMessageDelete, Notice, PrivateMessageDelete, Request,
 };
+use walle_core::structs::Selft;
 
 pub(crate) async fn qevent2event(
     event: QEvent,
@@ -23,6 +24,10 @@ pub(crate) async fn qevent2event(
     infos: &Infos,
     self_id: i64,
 ) -> Option<Event> {
+    let selft = Selft {
+        user_id: self_id.to_string(),
+        platform: crate::PLATFORM.to_owned(),
+    };
     match event {
         // meta
         QEvent::Login(uin) => {
@@ -37,9 +42,8 @@ pub(crate) async fn qevent2event(
         QEvent::FriendMessage(pme) => {
             let message = super::msg_chain2msg_seg_vec(pme.inner.elements.clone(), wqdb);
             let event = new_event(
-                &pme.client,
                 Some(pme.inner.time as f64),
-                new_private_msg_content(pme.inner, message),
+                new_private_msg_content(pme.inner, message, selft),
             )
             .await;
             wqdb.insert_message(&event);
@@ -48,9 +52,8 @@ pub(crate) async fn qevent2event(
         QEvent::GroupMessage(gme) => {
             let message = super::msg_chain2msg_seg_vec(gme.inner.elements.clone(), wqdb);
             let event = new_event(
-                &gme.client,
                 Some(gme.inner.time as f64),
-                new_group_msg_content(gme.inner, message),
+                new_group_msg_content(gme.inner, message, selft),
             )
             .await;
             wqdb.insert_message(&event);
@@ -59,9 +62,8 @@ pub(crate) async fn qevent2event(
         QEvent::GroupTempMessage(gtme) => {
             let message = super::msg_chain2msg_seg_vec(gtme.inner.elements.clone(), wqdb);
             let event = new_event(
-                &gtme.client,
                 Some(gtme.inner.time as f64),
-                new_group_temp_msg_content(gtme.inner, message),
+                new_group_temp_msg_content(gtme.inner, message, selft),
             )
             .await;
             wqdb.insert_message(&event);
@@ -72,10 +74,9 @@ pub(crate) async fn qevent2event(
         // friend
         QEvent::FriendMessageRecall(e) => Some(
             new_event(
-                &e.client,
                 Some(e.inner.time as f64),
                 (
-                    Notice {},
+                    Notice { selft },
                     PrivateMessageDelete {
                         message_id: e.inner.msg_seq.to_string(),
                         user_id: e.inner.friend_uin.to_string(),
@@ -89,10 +90,9 @@ pub(crate) async fn qevent2event(
         ),
         QEvent::NewFriend(e) => Some(
             new_event(
-                &e.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     FriendIncrease {
                         user_id: e.inner.uin.to_string(),
                     },
@@ -109,10 +109,9 @@ pub(crate) async fn qevent2event(
         // group
         QEvent::NewMember(e) => Some(
             new_event(
-                &e.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMemberIncrease {
                         group_id: e.inner.group_code.to_string(),
                         user_id: e.inner.member_uin.to_string(),
@@ -127,10 +126,9 @@ pub(crate) async fn qevent2event(
         ),
         QEvent::GroupLeave(e) => Some(if e.inner.operator_uin.is_some() {
             new_event(
-                &e.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMemberDecrease {
                         group_id: e.inner.group_code.to_string(),
                         user_id: e.inner.member_uin.to_string(),
@@ -149,10 +147,9 @@ pub(crate) async fn qevent2event(
             .await
         } else {
             new_event(
-                &e.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMemberDecrease {
                         group_id: e.inner.group_code.to_string(),
                         user_id: e.inner.member_uin.to_string(),
@@ -172,10 +169,9 @@ pub(crate) async fn qevent2event(
         }),
         QEvent::GroupMute(e) => Some(
             new_event(
-                &e.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMemberBan {
                         group_id: e.inner.group_code.to_string(),
                         user_id: e.inner.target_uin.to_string(),
@@ -191,10 +187,9 @@ pub(crate) async fn qevent2event(
         ),
         QEvent::GroupMessageRecall(e) => Some(if e.inner.author_uin == e.inner.operator_uin {
             new_event(
-                &e.client,
                 Some(e.inner.time as f64),
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMessageDelete {
                         message_id: e.inner.msg_seq.to_string(), //todo
                         group_id: e.inner.group_code.to_string(),
@@ -209,10 +204,9 @@ pub(crate) async fn qevent2event(
             .await
         } else {
             new_event(
-                &e.client,
                 Some(e.inner.time as f64),
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMessageDelete {
                         message_id: e.inner.msg_seq.to_string(), //todo
                         group_id: e.inner.group_code.to_string(),
@@ -240,10 +234,9 @@ pub(crate) async fn qevent2event(
                     }
                     Some(
                         new_event(
-                            &e.client,
                             None,
                             (
-                                Notice {},
+                                Notice { selft },
                                 GroupAdminSet {
                                     group_id: e.inner.group_code.to_string(),
                                     user_id: e.inner.member_uin.to_string(),
@@ -269,10 +262,9 @@ pub(crate) async fn qevent2event(
                     }
                     Some(
                         new_event(
-                            &e.client,
                             None,
                             (
-                                Notice {},
+                                Notice { selft },
                                 GroupAdminUnset {
                                     group_id: e.inner.group_code.to_string(),
                                     user_id: e.inner.member_uin.to_string(),
@@ -302,10 +294,9 @@ pub(crate) async fn qevent2event(
         }
         QEvent::NewFriendRequest(fre) => Some(
             new_event(
-                &fre.client,
                 None,
                 (
-                    Request {},
+                    Request { selft },
                     NewFriend {
                         request_id: fre.inner.msg_seq,
                         user_id: fre.inner.req_uin.to_string(),
@@ -321,10 +312,9 @@ pub(crate) async fn qevent2event(
         ),
         QEvent::GroupRequest(gre) => Some(
             new_event(
-                &gre.client,
                 Some(gre.inner.msg_time as f64),
                 (
-                    Request {},
+                    Request { selft },
                     JoinGroup {
                         request_id: gre.inner.msg_seq,
                         user_id: gre.inner.req_uin.to_string(),
@@ -345,10 +335,9 @@ pub(crate) async fn qevent2event(
         ),
         QEvent::SelfInvited(i) => Some(
             new_event(
-                &i.client,
                 Some(i.inner.msg_seq as f64),
                 (
-                    Request {},
+                    Request { selft },
                     GroupInvite {
                         request_id: i.inner.msg_seq,
                         group_id: i.inner.group_code.to_string(),
@@ -365,10 +354,9 @@ pub(crate) async fn qevent2event(
         ),
         QEvent::GroupDisband(d) => Some(
             new_event(
-                &d.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     GroupMemberDecrease {
                         group_id: d.inner.group_code.to_string(),
                         user_id: d.client.uin().await.to_string(),
@@ -388,9 +376,8 @@ pub(crate) async fn qevent2event(
             .into()];
             wqdb.insert_voice(&gam.inner.audio.0);
             let event = new_event(
-                &gam.client,
                 Some(gam.inner.time as f64),
-                new_group_audio_content(gam.inner, message),
+                new_group_audio_content(gam.inner, message, selft),
             )
             .await;
             wqdb.insert_message(&event);
@@ -403,9 +390,8 @@ pub(crate) async fn qevent2event(
             .into()];
             wqdb.insert_voice(&fam.inner.audio.0);
             let event = new_event(
-                &fam.client,
                 Some(fam.inner.time as f64),
-                new_private_audio_content(fam.inner, message),
+                new_private_audio_content(fam.inner, message, selft),
             )
             .await;
             wqdb.insert_message(&event);
@@ -413,10 +399,9 @@ pub(crate) async fn qevent2event(
         }
         QEvent::FriendPoke(p) => Some(
             new_event(
-                &p.client,
                 None,
                 (
-                    Notice {},
+                    Notice { selft },
                     FriendPoke {
                         user_id: p.inner.sender.to_string(),
                         receiver_id: p.inner.receiver.to_string(),
@@ -439,10 +424,9 @@ pub(crate) async fn qevent2event(
             }
             Some(
                 new_event(
-                    &g.client,
                     None,
                     (
-                        Notice {},
+                        Notice { selft },
                         GroupNameUpdate {
                             group_id: g.inner.group_code.to_string(),
                             group_name: g.inner.group_name,
@@ -460,10 +444,9 @@ pub(crate) async fn qevent2event(
             infos.friends.remove(&d.inner.uin);
             Some(
                 new_event(
-                    &d.client,
                     None,
                     (
-                        Notice {},
+                        Notice { selft },
                         FriendDecrease {
                             user_id: d.inner.uin.to_string(),
                         },

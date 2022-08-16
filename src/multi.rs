@@ -12,7 +12,8 @@ use walle_core::{
     event::Event,
     resp::resp_error,
     resp::Resp,
-    util::{SelfId, SelfIds},
+    structs::Selft,
+    util::{GetSelf, GetSelfs},
     ActionHandler, EventHandler, GetStatus, OneBot,
 };
 
@@ -34,37 +35,51 @@ impl MultiAH {
     }
 }
 
-#[async_trait::async_trait]
-impl SelfIds for MultiAH {
-    async fn self_ids(&self) -> Vec<String> {
-        let mut v = vec![];
-        for r in self.ahs.iter() {
-            v.push(r.value().0.client.get().unwrap().uin().await.to_string());
-        }
-        v
+impl GetSelfs for MultiAH {
+    fn get_selfs<'life0, 'async_trait>(
+        &'life0 self,
+    ) -> core::pin::Pin<
+        Box<dyn core::future::Future<Output = Vec<Selft>> + core::marker::Send + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move {
+            let mut selfs = vec![];
+            for h in self.ahs.iter() {
+                selfs.extend(h.value().0.get_selfs().await.into_iter());
+            }
+            selfs
+        })
     }
 }
 
 impl GetStatus for MultiAH {
-    fn get_status(&self) -> walle_core::structs::Status {
-        walle_core::structs::Status {
-            good: true,
-            online: true, //todo
-        }
+    fn is_good<'life0, 'async_trait>(
+        &'life0 self,
+    ) -> core::pin::Pin<
+        Box<dyn core::future::Future<Output = bool> + core::marker::Send + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move { true })
     }
 }
 
 #[async_trait::async_trait]
-impl ActionHandler<Event, Action, Resp, 12> for MultiAH {
+impl ActionHandler<Event, Action, Resp> for MultiAH {
     type Config = HashMap<String, QQConfig>;
     async fn start<AH, EH>(
         &self,
-        ob: &Arc<OneBot<AH, EH, 12>>,
+        ob: &Arc<OneBot<AH, EH>>,
         mut config: Self::Config,
     ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
     where
-        AH: ActionHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
-        EH: EventHandler<Event, Action, Resp, 12> + Send + Sync + 'static,
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
         if config.is_empty() {
             config.insert(
@@ -102,8 +117,8 @@ impl ActionHandler<Event, Action, Resp, 12> for MultiAH {
         Ok(vec![])
     }
     async fn call(&self, action: Action) -> WalleResult<Resp> {
-        let bot_id = action.self_id();
-        if let Some(ah) = self.ahs.get(&bot_id) {
+        let bot_id = action.get_self();
+        if let Some(ah) = self.ahs.get(&bot_id.user_id) {
             ah.0.call(action).await
         } else if self.ahs.len() == 1 {
             for ah in self.ahs.iter() {

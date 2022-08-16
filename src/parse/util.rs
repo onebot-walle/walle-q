@@ -12,6 +12,7 @@ use walle_core::{
     },
     resp::RespError,
     segment::Segments,
+    structs::Selft,
     util::{new_uuid, timestamp_nano_f64, PushToValueMap},
     value_map,
 };
@@ -21,11 +22,7 @@ use crate::{
     model::{GroupTemp, Names, UserName, WalleQ, QQ},
 };
 
-pub(crate) async fn new_event<T, D, S, P, I>(
-    cli: &Client,
-    time: Option<f64>,
-    content: (T, D, S, P, I),
-) -> Event
+pub(crate) async fn new_event<T, D, S, P, I>(time: Option<f64>, content: (T, D, S, P, I)) -> Event
 where
     T: TypeDeclare + PushToValueMap,
     D: DetailTypeDeclare + PushToValueMap,
@@ -36,7 +33,6 @@ where
     _new_event(
         new_uuid(),
         time.unwrap_or_else(timestamp_nano_f64),
-        cli.uin().await.to_string(),
         content.0,
         content.1,
         content.2,
@@ -129,9 +125,11 @@ pub(crate) fn decode_message_id(
 pub(crate) fn new_group_msg_content(
     group_message: GroupMessage,
     message: Segments,
+    selft: Selft,
 ) -> (Message, Group, (), Names, WalleQ) {
     (
         Message {
+            selft,
             message_id: new_group_message_id(
                 group_message.group_code,
                 group_message.seqs,
@@ -158,9 +156,11 @@ pub(crate) async fn new_group_receipt_content(
     receipt: MessageReceipt,
     group_code: i64,
     message: Segments,
+    selft: Selft,
 ) -> (Message, Group, (), QQ, WalleQ) {
     (
         Message {
+            selft,
             message_id: new_group_message_id(group_code, receipt.seqs, receipt.rands),
             alt_message: alt_message(&message),
             message,
@@ -178,9 +178,11 @@ pub(crate) async fn new_group_receipt_content(
 pub(crate) fn new_group_audio_content(
     group_audio: GroupAudioMessage,
     message: Segments,
+    selft: Selft,
 ) -> (Message, Group, (), Names, WalleQ) {
     (
         Message {
+            selft,
             message_id: new_group_message_id(
                 group_audio.group_code,
                 group_audio.seqs,
@@ -205,9 +207,11 @@ pub(crate) fn new_group_audio_content(
 pub(crate) fn new_private_msg_content(
     friend_message: FriendMessage,
     message: Segments,
+    selft: Selft,
 ) -> (Message, Private, (), UserName, WalleQ) {
     (
         Message {
+            selft,
             alt_message: alt_message(&message),
             message,
             message_id: new_private_message_id(
@@ -232,9 +236,11 @@ pub(crate) async fn new_private_receipt_content(
     receipt: MessageReceipt,
     target_id: i64,
     message: Segments,
+    selft: Selft,
 ) -> (Message, Private, (), UserName, WalleQ) {
     (
         Message {
+            selft,
             alt_message: alt_message(&message),
             message,
             message_id: new_private_message_id(
@@ -257,9 +263,11 @@ pub(crate) async fn new_private_receipt_content(
 pub(crate) fn new_private_audio_content(
     friend_audio: FriendAudioMessage,
     message: Segments,
+    selft: Selft,
 ) -> (Message, Private, (), UserName, WalleQ) {
     (
         Message {
+            selft,
             alt_message: alt_message(&message),
             message,
             message_id: new_private_message_id(
@@ -282,9 +290,11 @@ pub(crate) fn new_private_audio_content(
 pub(crate) fn new_group_temp_msg_content(
     group_temp: GroupTempMessage,
     message: Segments,
+    selft: Selft,
 ) -> (Message, GroupTemp, (), UserName, WalleQ) {
     (
         Message {
+            selft,
             alt_message: alt_message(&message),
             message,
             message_id: new_private_message_id(
@@ -312,9 +322,11 @@ pub(crate) async fn new_group_temp_receipt_content(
     cli: &Client,
     group_code: i64,
     target_id: i64,
+    selft: Selft,
 ) -> (Message, GroupTemp, (), UserName, WalleQ) {
     (
         Message {
+            selft,
             alt_message: alt_message(&message),
             message,
             message_id: new_private_message_id(
