@@ -14,16 +14,22 @@ use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
 use walle_core::event::{
     Event, FriendDecrease, FriendIncrease, GroupMemberDecrease, GroupMemberIncrease,
-    GroupMessageDelete, Notice, PrivateMessageDelete, Request,
+    GroupMessageDelete, Meta, Notice, PrivateMessageDelete, Request,
 };
 use walle_core::structs::Selft;
+use walle_core::{action::Action, resp::Resp, ActionHandler, EventHandler, OneBot};
 
-pub(crate) async fn qevent2event(
+pub(crate) async fn qevent2event<AH, EH>(
     event: QEvent,
     wqdb: &WQDatabase,
     infos: &Infos,
     self_id: i64,
-) -> Option<Event> {
+    ob: &OneBot<AH, EH>,
+) -> Option<Event>
+where
+    AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+    EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
+{
     let selft = Selft {
         user_id: self_id.to_string(),
         platform: crate::PLATFORM.to_owned(),
@@ -35,7 +41,19 @@ pub(crate) async fn qevent2event(
                 target: crate::WALLE_Q,
                 "Walle-Q Login success with uin: {}", uin
             );
-            None
+            Some(
+                new_event(
+                    None,
+                    (
+                        Meta,
+                        ob.action_handler.get_status().await,
+                        (),
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await,
+            )
         }
 
         // message

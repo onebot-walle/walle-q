@@ -114,7 +114,7 @@ impl ActionHandler<Event, Action, Resp> for Handler {
         tasks.push(tokio::spawn(async move {
             while let Some(qevent) = qevent_rx.recv().await {
                 if let Some(event) =
-                    crate::parse::qevent2event(qevent, &database, &infos, self_id).await
+                    crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await
                 {
                     tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
                     event_cache
