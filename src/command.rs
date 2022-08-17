@@ -19,10 +19,6 @@ pub struct Comm {
     #[clap(long, arg_enum, help = "set global log level")]
     pub log: Option<LogLevel>,
 
-    #[clap(long, help = "use Onebot v11 standard")]
-    #[serde(default)]
-    pub v11: bool,
-
     #[clap(long, help = "this size of event cache will be used. (Default: 100)")]
     pub event_cache_size: Option<usize>,
 
@@ -128,7 +124,6 @@ impl Comm {
 
         merge_option(&mut self.log, other.log);
         merge_option(&mut self.event_cache_size, other.event_cache_size);
-        merge_bool(&mut self.v11, other.v11);
         merge_bool(&mut self.sled, other.sled);
         merge_bool(&mut self.disable_leveldb, other.disable_leveldb);
     }
