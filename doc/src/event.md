@@ -37,7 +37,7 @@
 | alt_message | String  | 消息文本        |
 | user_id     | String  | 发送者 ID       |
 | group_id    | String  | 群 ID           |
-| * user_name | String  | 发送者 nickname |
+| user_name   | String  | 发送者 nickname |
 
 ### 群用户消息事件 message.group
 
@@ -136,8 +136,6 @@
 | operator_id | String | 操作者 ID |
 
 ### * 群名称更新 notice.group_name_update
-
-> 此事件为扩展事件
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
