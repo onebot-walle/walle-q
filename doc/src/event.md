@@ -1,18 +1,24 @@
 # 事件 Event
 
+> \* 标记表示扩展字段或事件
+
 所有事件共有字段
 
-| 字段     | 类型   | 说明                 |
-| -------- | ------ | -------------------- |
-| id       | String | 事件 ID              |
-| impl     | String | 实现名，即 `Walle-Q` |
-| platform | String | 平台名，即 `qq`      |
-| self_id  | String | Bot ID               |
-| time     | f64    | 事件戳，单位：秒     |
+| 字段        | 类型   | 说明                         |
+| ----------- | ------ | ---------------------------- |
+| id          | String | 事件 ID                      |
+| time        | f64    | 事件戳，单位：秒             |
+| type        | String | message \| notice \| request |
+| detail_type | String |                              |
+| sub_type    | String |                              |
 
 ## 消息事件 message
 
-### [标准]单用户消息事件 message.private
+| 字段 | 类型 | 说明      |
+| ---- | ---- | --------- |
+| self | Self | Self 标识 |
+
+### 单用户消息事件 message.private
 
 | 字段        | 类型    | 说明            |
 | ----------- | ------- | --------------- |
@@ -20,9 +26,9 @@
 | message     | Message | 消息对象        |
 | alt_message | String  | 消息文本        |
 | user_id     | String  | 发送者 ID       |
-| user_name   | String  | 发送者 nickname |
+| * user_name | String  | 发送者 nickname |
 
-### [扩展]群临时消息 message.group_temp
+### * 群临时消息 message.group_temp
 
 | 字段        | 类型    | 说明            |
 | ----------- | ------- | --------------- |
@@ -31,9 +37,9 @@
 | alt_message | String  | 消息文本        |
 | user_id     | String  | 发送者 ID       |
 | group_id    | String  | 群 ID           |
-| user_name   | String  | 发送者 nickname |
+| * user_name | String  | 发送者 nickname |
 
-### [标准]群用户消息事件 message.group
+### 群用户消息事件 message.group
 
 | 字段         | 类型    | 说明       |
 | ------------ | ------- | ---------- |
@@ -42,32 +48,32 @@
 | alt_message  | String  | 消息文本   |
 | user_id      | String  | 发送者 ID  |
 | group_id     | String  | 群 ID      |
-| _user_card_  | String  | 发送者名片 |
-| _group_name_ | String  | 群名称     |
+| * user_card  | String  | 发送者名片 |
+| * group_name | String  | 群名称     |
 
 ## 通知事件 notice
 
-### [标准]好友消息撤回 notice.private_message_delete
+### 好友消息撤回 notice.private_message_delete
 
 | 字段       | 类型   | 说明      |
 | ---------- | ------ | --------- |
 | message_id | String | 消息 ID   |
 | user_id    | String | 发送者 ID |
 
-### [标准]好友增加 notice.friend_increase
+### 好友增加 notice.friend_increase
 
 | 字段        | 类型   | 说明     |
 | ----------- | ------ | -------- |
 | user_id     | String | 好友 ID  |
-| _user_name_ | String | 好友昵称 |
+| * user_name | String | 好友昵称 |
 
-### [标准]好友减少 notice.friend_decrease
+### 好友减少 notice.friend_decrease
 
 | 字段    | 类型   | 说明    |
 | ------- | ------ | ------- |
 | user_id | String | 好友 ID |
 
-### [扩展]好友戳一戳 notice.friend_poke
+### * 好友戳一戳 notice.friend_poke
 
 > 此事件为扩展事件
 
@@ -76,7 +82,7 @@
 | user_id     | String | 发送者 ID |
 | receiver_id | String | 接收者 ID |
 
-### [标准]群成员增加 notice.group_member_increase
+### 群成员增加 notice.group_member_increase
 
 | 字段        | 类型   | 说明             |
 | ----------- | ------ | ---------------- |
@@ -85,7 +91,7 @@
 | group_id    | String | 群 ID            |
 | operator_id | String | 操作者 ID (暂缺) |
 
-### [标准]群成员减少 notice.group_member_decrease
+### 群成员减少 notice.group_member_decrease
 
 | 字段        | 类型   | 说明                              |
 | ----------- | ------ | --------------------------------- |
@@ -94,16 +100,16 @@
 | group_id    | String | 群 ID                             |
 | operator_id | String | 操作者 ID                         |
 
-### [标准]群成员禁言 notice.group_member_ban
+### 群成员禁言 notice.group_member_ban
 
 | 字段        | 类型   | 说明               |
 | ----------- | ------ | ------------------ |
 | user_id     | String | 成员 ID            |
 | group_id    | String | 群 ID              |
 | operator_id | String | 操作者 ID          |
-| _duration_  | i64    | 禁言时长，单位：秒 |
+| * duration  | i64    | 禁言时长，单位：秒 |
 
-### [标准]群消息撤回 notice.group_message_delete
+### 群消息撤回 notice.group_message_delete
 
 | 字段        | 类型   | 说明                      |
 | ----------- | ------ | ------------------------- |
@@ -113,7 +119,7 @@
 | group_id    | String | 群 ID                     |
 | operator_id | String | 操作者 ID                 |
 
-### [标准]群管理员设置 notice.group_admin_set
+### 群管理员设置 notice.group_admin_set
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
@@ -121,7 +127,7 @@
 | group_id    | String | 群 ID     |
 | operator_id | String | 操作者 ID |
 
-### [标准]群管理员取消 notice.group_admin_unset
+### 群管理员取消 notice.group_admin_unset
 
 | 字段        | 类型   | 说明      |
 | ----------- | ------ | --------- |
@@ -129,7 +135,7 @@
 | group_id    | String | 群 ID     |
 | operator_id | String | 操作者 ID |
 
-### [扩展]群名称更新 notice.group_name_update
+### * 群名称更新 notice.group_name_update
 
 > 此事件为扩展事件
 
@@ -141,7 +147,11 @@
 
 ## 请求事件 request
 
-### [扩展]好友添加请求 request.new_friend
+| 字段 | 类型 | 说明      |
+| ---- | ---- | --------- |
+| self | Self | Self 标识 |
+
+### * 好友添加请求 request.new_friend
 
 > 此事件为扩展事件
 
@@ -152,9 +162,7 @@
 | user_name  | String | 用户名称/昵称 |
 | message    | String | 请求信息      |
 
-### [扩展]新成员加群申请 request.join_group
-
-> 此事件为扩展事件
+### * 新成员加群申请 request.join_group
 
 | 字段         | 类型             | 说明          |
 | ------------ | ---------------- | ------------- |
@@ -168,9 +176,7 @@
 | invitor_id   | Option\<String\> | 邀请人 ID     |
 | invitor_name | Option\<String\> | 邀请人名称    |
 
-### [扩展]群邀请 request.group_invited
-
-> 此事件为扩展事件
+### * 群邀请 request.group_invited
 
 | 字段         | 类型             | 说明       |
 | ------------ | ---------------- | ---------- |

@@ -7,14 +7,8 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::warn;
 use walle_core::{
-    action::Action,
-    error::WalleResult,
-    event::Event,
-    resp::resp_error,
-    resp::Resp,
-    structs::Selft,
-    util::{GetSelf, GetSelfs},
-    ActionHandler, EventHandler, GetStatus, OneBot,
+    action::Action, error::WalleResult, event::Event, resp::resp_error, resp::Resp, structs::Selft,
+    util::GetSelf, ActionHandler, EventHandler, GetSelfs, GetStatus, OneBot,
 };
 
 use crate::{config::QQConfig, database::WQDatabase, handler::Handler, WALLE_Q};
@@ -52,6 +46,19 @@ impl GetSelfs for MultiAH {
             }
             selfs
         })
+    }
+    fn get_impl<'life0, 'life1, 'async_trait>(
+        &'life0 self,
+        _: &'life1 Selft,
+    ) -> core::pin::Pin<
+        Box<dyn core::future::Future<Output = String> + core::marker::Send + 'async_trait>,
+    >
+    where
+        'life0: 'async_trait,
+        'life1: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move { crate::WALLE_Q.to_owned() })
     }
 }
 

@@ -23,12 +23,7 @@
 
 无动作请求数据
 
-动作响应：
-
-| 字段   | 类型 | 说明                                            |
-| ------ | ---- | ----------------------------------------------- |
-| good   | bool | 是否各项状态都符合预期，OneBot 实现各模块均正常 |
-| online | bool | 是否在线                                        |
+动作响应：Status
 
 ### 获取版本信息 get_version
 
@@ -38,7 +33,6 @@
 
 | 字段           | 类型   | 说明           |
 | -------------- | ------ | -------------- |
-| impl           | String | `Walle-Q`      |
 | platform       | String | `qq`           |
 | version        | String | Walle-Q 版本号 |
 | onebot_version | String | `12`           |
@@ -95,10 +89,11 @@
 
 动作响应：
 
-| 字段     | 类型   | 说明            |
-| -------- | ------ | --------------- |
-| user_id  | String | 机器人用户 ID   |
-| nickname | String | 机器人名称/昵称 |
+| 字段             | 类型   | 说明            |
+| ---------------- | ------ | --------------- |
+| user_id          | String | 机器人用户 ID   |
+| user_name        | String | 机器人名称/昵称 |
+| user_displayname | String | 显示名称        |
 
 ### 获取用户信息 get_user_info
 
@@ -110,10 +105,12 @@
 
 动作响应：
 
-| 字段     | 类型   | 说明      |
-| -------- | ------ | --------- |
-| user_id  | String | 用户 ID   |
-| nickname | String | 名称/昵称 |
+| 字段             | 类型   | 说明      |
+| ---------------- | ------ | --------- |
+| user_id          | String | 用户 ID   |
+| user_name        | String | 名称/昵称 |
+| user_remark      | String | 备注名称  |
+| user_displayname | String | 显示名称  |
 
 ### 获取好友列表 get_friend_list
 
@@ -191,10 +188,12 @@
 
 动作响应：
 
-| 字段名   | 数据类型 | 说明          |
-| -------- | -------- | ------------- |
-| user_id  | String   | 用户 ID       |
-| nickname | String   | 用户名称/昵称 |
+| 字段名           | 数据类型 | 说明          |
+| ---------------- | -------- | ------------- |
+| user_id          | String   | 用户 ID       |
+| user_name        | String   | 用户名称/昵称 |
+| user_remark      | String   | 备注名称      |
+| user_displayname | String   | 群头衔        |
 
 ### 获取群成员列表 get_group_member_list
 

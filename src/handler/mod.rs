@@ -15,8 +15,7 @@ use walle_core::{
     event::*,
     resp::*,
     structs::{GroupInfo, SendMessageResp, UserInfo, Version},
-    util::GetSelfs,
-    ActionHandler, EventHandler, GetStatus, OneBot,
+    ActionHandler, EventHandler, GetSelfs, GetStatus, OneBot,
 };
 
 use crate::database::{Database, MessageId, WQDatabase};
@@ -51,6 +50,9 @@ impl GetSelfs for Handler {
             user_id: self.client.get().unwrap().uin().await.to_string(),
             platform: crate::PLATFORM.to_owned(),
         }]
+    }
+    async fn get_impl(&self, _: &Selft) -> String {
+        crate::WALLE_Q.to_owned()
     }
 }
 

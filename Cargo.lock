@@ -2679,7 +2679,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "walle-core"
 version = "0.6.1"
-source = "git+https://github.com/abrahum/Walle-core.git#90b73fe4efe4a099e267480475476f09278949d7"
+source = "git+https://github.com/abrahum/Walle-core.git#a04670faef0c058ca58dd13ec2c0d775777a7105"
 dependencies = [
  "async-trait",
  "base64",
@@ -2703,7 +2703,7 @@ dependencies = [
 [[package]]
 name = "walle-macro"
 version = "0.6.0"
-source = "git+https://github.com/abrahum/Walle-core.git#90b73fe4efe4a099e267480475476f09278949d7"
+source = "git+https://github.com/abrahum/Walle-core.git#a04670faef0c058ca58dd13ec2c0d775777a7105"
 dependencies = [
  "proc-macro2",
  "quote",
