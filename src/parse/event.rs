@@ -25,7 +25,7 @@ pub(crate) async fn qevent2event<AH, EH>(
     infos: &Infos,
     self_id: i64,
     ob: &OneBot<AH, EH>,
-) -> Option<Event>
+) -> Event
 where
     AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
     EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
@@ -41,19 +41,17 @@ where
                 target: crate::WALLE_Q,
                 "Walle-Q Login success with uin: {}", uin
             );
-            Some(
-                new_event(
-                    None,
-                    (
-                        Meta,
-                        ob.action_handler.get_status().await,
-                        (),
-                        QQ {},
-                        WalleQ {},
-                    ),
-                )
-                .await,
+            new_event(
+                None,
+                (
+                    Meta,
+                    ob.action_handler.get_status().await,
+                    (),
+                    QQ {},
+                    WalleQ {},
+                ),
             )
+            .await
         }
 
         // message
@@ -65,7 +63,7 @@ where
             )
             .await;
             wqdb.insert_message(&event);
-            Some(event)
+            event
         }
         QEvent::GroupMessage(gme) => {
             let message = super::msg_chain2msg_seg_vec(gme.inner.elements.clone(), wqdb);
@@ -75,7 +73,7 @@ where
             )
             .await;
             wqdb.insert_message(&event);
-            Some(event)
+            event
         }
         QEvent::GroupTempMessage(gtme) => {
             let message = super::msg_chain2msg_seg_vec(gtme.inner.elements.clone(), wqdb);
@@ -85,12 +83,12 @@ where
             )
             .await;
             wqdb.insert_message(&event);
-            Some(event)
+            event
         }
 
         // notice
         // friend
-        QEvent::FriendMessageRecall(e) => Some(
+        QEvent::FriendMessageRecall(e) => {
             new_event(
                 Some(e.inner.time as f64),
                 (
@@ -104,9 +102,10 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
-        QEvent::NewFriend(e) => Some(
+            .await
+        }
+
+        QEvent::NewFriend(e) => {
             new_event(
                 None,
                 (
@@ -121,11 +120,11 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
+            .await
+        }
 
         // group
-        QEvent::NewMember(e) => Some(
+        QEvent::NewMember(e) => {
             new_event(
                 None,
                 (
@@ -140,52 +139,54 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
-        QEvent::GroupLeave(e) => Some(if e.inner.operator_uin.is_some() {
-            new_event(
-                None,
-                (
-                    Notice { selft },
-                    GroupMemberDecrease {
-                        group_id: e.inner.group_code.to_string(),
-                        user_id: e.inner.member_uin.to_string(),
-                        operator_id: e
-                            .inner
-                            .operator_uin
-                            .clone()
-                            .unwrap_or(e.inner.member_uin)
-                            .to_string(),
-                    },
-                    Kick {},
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
             .await
-        } else {
-            new_event(
-                None,
-                (
-                    Notice { selft },
-                    GroupMemberDecrease {
-                        group_id: e.inner.group_code.to_string(),
-                        user_id: e.inner.member_uin.to_string(),
-                        operator_id: e
-                            .inner
-                            .operator_uin
-                            .clone()
-                            .unwrap_or(e.inner.member_uin)
-                            .to_string(),
-                    },
-                    Leave {},
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
-            .await
-        }),
-        QEvent::GroupMute(e) => Some(
+        }
+        QEvent::GroupLeave(e) => {
+            if e.inner.operator_uin.is_some() {
+                new_event(
+                    None,
+                    (
+                        Notice { selft },
+                        GroupMemberDecrease {
+                            group_id: e.inner.group_code.to_string(),
+                            user_id: e.inner.member_uin.to_string(),
+                            operator_id: e
+                                .inner
+                                .operator_uin
+                                .clone()
+                                .unwrap_or(e.inner.member_uin)
+                                .to_string(),
+                        },
+                        Kick {},
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await
+            } else {
+                new_event(
+                    None,
+                    (
+                        Notice { selft },
+                        GroupMemberDecrease {
+                            group_id: e.inner.group_code.to_string(),
+                            user_id: e.inner.member_uin.to_string(),
+                            operator_id: e
+                                .inner
+                                .operator_uin
+                                .clone()
+                                .unwrap_or(e.inner.member_uin)
+                                .to_string(),
+                        },
+                        Leave {},
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await
+            }
+        }
+        QEvent::GroupMute(e) => {
             new_event(
                 None,
                 (
@@ -201,43 +202,45 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
-        QEvent::GroupMessageRecall(e) => Some(if e.inner.author_uin == e.inner.operator_uin {
-            new_event(
-                Some(e.inner.time as f64),
-                (
-                    Notice { selft },
-                    GroupMessageDelete {
-                        message_id: e.inner.msg_seq.to_string(), //todo
-                        group_id: e.inner.group_code.to_string(),
-                        user_id: e.inner.author_uin.to_string(),
-                        operator_id: e.inner.operator_uin.to_string(),
-                    },
-                    Recall {},
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
             .await
-        } else {
-            new_event(
-                Some(e.inner.time as f64),
-                (
-                    Notice { selft },
-                    GroupMessageDelete {
-                        message_id: e.inner.msg_seq.to_string(), //todo
-                        group_id: e.inner.group_code.to_string(),
-                        user_id: e.inner.author_uin.to_string(),
-                        operator_id: e.inner.operator_uin.to_string(),
-                    },
-                    Delete {},
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
-            .await
-        }),
+        }
+        QEvent::GroupMessageRecall(e) => {
+            if e.inner.author_uin == e.inner.operator_uin {
+                new_event(
+                    Some(e.inner.time as f64),
+                    (
+                        Notice { selft },
+                        GroupMessageDelete {
+                            message_id: e.inner.msg_seq.to_string(), //todo
+                            group_id: e.inner.group_code.to_string(),
+                            user_id: e.inner.author_uin.to_string(),
+                            operator_id: e.inner.operator_uin.to_string(),
+                        },
+                        Recall {},
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await
+            } else {
+                new_event(
+                    Some(e.inner.time as f64),
+                    (
+                        Notice { selft },
+                        GroupMessageDelete {
+                            message_id: e.inner.msg_seq.to_string(), //todo
+                            group_id: e.inner.group_code.to_string(),
+                            user_id: e.inner.author_uin.to_string(),
+                            operator_id: e.inner.operator_uin.to_string(),
+                        },
+                        Delete {},
+                        QQ {},
+                        WalleQ {},
+                    ),
+                )
+                .await
+            }
+        }
         QEvent::MemberPermissionChange(e) => {
             match e.inner.new_permission {
                 GroupMemberPermission::Administrator => {
@@ -250,23 +253,21 @@ where
                             infos.admined_groups.insert(e.inner.group_code, info);
                         }
                     }
-                    Some(
-                        new_event(
-                            None,
-                            (
-                                Notice { selft },
-                                GroupAdminSet {
-                                    group_id: e.inner.group_code.to_string(),
-                                    user_id: e.inner.member_uin.to_string(),
-                                    operator_id: "".to_string(), //todo
-                                },
-                                (),
-                                QQ {},
-                                WalleQ {},
-                            ),
-                        )
-                        .await,
+                    new_event(
+                        None,
+                        (
+                            Notice { selft },
+                            GroupAdminSet {
+                                group_id: e.inner.group_code.to_string(),
+                                user_id: e.inner.member_uin.to_string(),
+                                operator_id: "".to_string(), //todo
+                            },
+                            (),
+                            QQ {},
+                            WalleQ {},
+                        ),
                     )
+                    .await
                 }
                 GroupMemberPermission::Member => {
                     if e.inner.member_uin == self_id {
@@ -278,23 +279,21 @@ where
                             infos.groups.insert(e.inner.group_code, info);
                         }
                     }
-                    Some(
-                        new_event(
-                            None,
-                            (
-                                Notice { selft },
-                                GroupAdminUnset {
-                                    group_id: e.inner.group_code.to_string(),
-                                    user_id: e.inner.member_uin.to_string(),
-                                    operator_id: "".to_string(), //todo
-                                },
-                                (),
-                                QQ {},
-                                WalleQ {},
-                            ),
-                        )
-                        .await,
+                    new_event(
+                        None,
+                        (
+                            Notice { selft },
+                            GroupAdminUnset {
+                                group_id: e.inner.group_code.to_string(),
+                                user_id: e.inner.member_uin.to_string(),
+                                operator_id: "".to_string(), //todo
+                            },
+                            (),
+                            QQ {},
+                            WalleQ {},
+                        ),
                     )
+                    .await
                 }
                 GroupMemberPermission::Owner => {
                     if e.inner.member_uin == self_id {
@@ -306,11 +305,25 @@ where
                             infos.owned_groups.insert(e.inner.group_code, info);
                         }
                     }
-                    None //todo
+                    new_event(
+                        None,
+                        (
+                            Notice { selft },
+                            GroupAdminSet {
+                                group_id: e.inner.group_code.to_string(),
+                                user_id: e.inner.member_uin.to_string(),
+                                operator_id: "".to_string(), //todo
+                            },
+                            (),
+                            QQ {},
+                            WalleQ {},
+                        ),
+                    )
+                    .await //todo
                 }
             }
         }
-        QEvent::NewFriendRequest(fre) => Some(
+        QEvent::NewFriendRequest(fre) => {
             new_event(
                 None,
                 (
@@ -326,9 +339,9 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
-        QEvent::GroupRequest(gre) => Some(
+            .await
+        }
+        QEvent::GroupRequest(gre) => {
             new_event(
                 Some(gre.inner.msg_time as f64),
                 (
@@ -349,9 +362,10 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
-        QEvent::SelfInvited(i) => Some(
+            .await
+        }
+
+        QEvent::SelfInvited(i) => {
             new_event(
                 Some(i.inner.msg_seq as f64),
                 (
@@ -368,9 +382,10 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
-        QEvent::GroupDisband(d) => Some(
+            .await
+        }
+
+        QEvent::GroupDisband(d) => {
             new_event(
                 None,
                 (
@@ -385,8 +400,9 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
+            .await
+        }
+
         QEvent::GroupAudioMessage(gam) => {
             let message = vec![walle_core::segment::Voice {
                 file_id: gam.inner.audio.0.hex_voice_id(),
@@ -399,7 +415,7 @@ where
             )
             .await;
             wqdb.insert_message(&event);
-            Some(event)
+            event
         }
         QEvent::FriendAudioMessage(fam) => {
             let message = vec![walle_core::segment::Voice {
@@ -413,9 +429,9 @@ where
             )
             .await;
             wqdb.insert_message(&event);
-            Some(event)
+            event
         }
-        QEvent::FriendPoke(p) => Some(
+        QEvent::FriendPoke(p) => {
             new_event(
                 None,
                 (
@@ -429,8 +445,9 @@ where
                     WalleQ {},
                 ),
             )
-            .await,
-        ),
+            .await
+        }
+
         QEvent::GroupNameUpdate(g) => {
             if let Some(mut group_info) = infos
                 .groups
@@ -440,52 +457,66 @@ where
             {
                 group_info.group_name = g.inner.group_name.clone();
             }
-            Some(
-                new_event(
-                    None,
-                    (
-                        Notice { selft },
-                        GroupNameUpdate {
-                            group_id: g.inner.group_code.to_string(),
-                            group_name: g.inner.group_name,
-                            operator_id: g.inner.operator_uin.to_string(),
-                        },
-                        (),
-                        QQ {},
-                        WalleQ {},
-                    ),
-                )
-                .await,
+            new_event(
+                None,
+                (
+                    Notice { selft },
+                    GroupNameUpdate {
+                        group_id: g.inner.group_code.to_string(),
+                        group_name: g.inner.group_name,
+                        operator_id: g.inner.operator_uin.to_string(),
+                    },
+                    (),
+                    QQ {},
+                    WalleQ {},
+                ),
             )
+            .await
         }
         QEvent::DeleteFriend(d) => {
             infos.friends.remove(&d.inner.uin);
-            Some(
-                new_event(
-                    None,
-                    (
-                        Notice { selft },
-                        FriendDecrease {
-                            user_id: d.inner.uin.to_string(),
-                        },
-                        (),
-                        QQ {},
-                        WalleQ {},
-                    ),
-                )
-                .await,
+
+            new_event(
+                None,
+                (
+                    Notice { selft },
+                    FriendDecrease {
+                        user_id: d.inner.uin.to_string(),
+                    },
+                    (),
+                    QQ {},
+                    WalleQ {},
+                ),
             )
+            .await
         }
         QEvent::KickedOffline(_) => {
             warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
-            None
+            new_event(
+                None,
+                (
+                    Meta,
+                    ob.action_handler.get_status().await,
+                    (),
+                    QQ {},
+                    WalleQ {},
+                ),
+            )
+            .await
         }
         QEvent::MSFOffline(_) => {
             warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
-            None
-        } // event => {
-          //     warn!("unsupported event: {:?}", event);
-          //     None
-          // }
+            new_event(
+                None,
+                (
+                    Meta,
+                    ob.action_handler.get_status().await,
+                    (),
+                    QQ {},
+                    WalleQ {},
+                ),
+            )
+            .await
+        }
     }
 }

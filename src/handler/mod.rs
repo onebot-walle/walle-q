@@ -46,10 +46,18 @@ pub struct Handler {
 #[async_trait]
 impl GetSelfs for Handler {
     async fn get_selfs(&self) -> Vec<Selft> {
-        vec![Selft {
-            user_id: self.client.get().unwrap().uin().await.to_string(),
-            platform: crate::PLATFORM.to_owned(),
-        }]
+        if let Some(true) = self
+            .client
+            .get()
+            .map(|cli| cli.online.load(std::sync::atomic::Ordering::SeqCst))
+        {
+            vec![Selft {
+                user_id: self.client.get().unwrap().uin().await.to_string(),
+                platform: crate::PLATFORM.to_owned(),
+            }]
+        } else {
+            vec![]
+        }
     }
     async fn get_impl(&self, _: &Selft) -> String {
         crate::WALLE_Q.to_owned()
@@ -66,7 +74,11 @@ impl GetStatus for Handler {
         'life0: 'async_trait,
         Self: 'async_trait,
     {
-        Box::pin(async move { self.client.get().is_some() })
+        Box::pin(async move {
+            self.client.get().map_or(false, |cli| {
+                cli.online.load(std::sync::atomic::Ordering::SeqCst)
+            })
+        })
     }
 }
 
@@ -113,16 +125,14 @@ impl ActionHandler<Event, Action, Resp> for Handler {
         let self_id = qclient.uin().await;
         tasks.push(tokio::spawn(async move {
             while let Some(qevent) = qevent_rx.recv().await {
-                if let Some(event) =
-                    crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await
-                {
-                    tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
-                    event_cache
-                        .lock()
-                        .await
-                        .cache_set(event.id.clone(), event.clone());
-                    ob.event_handler.call(event).await.ok();
-                }
+                let event =
+                    crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await;
+                tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
+                event_cache
+                    .lock()
+                    .await
+                    .cache_set(event.id.clone(), event.clone());
+                ob.event_handler.call(event).await.ok();
             }
         }));
         let _qcli = qclient.clone();
