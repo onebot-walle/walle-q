@@ -17,7 +17,7 @@ use walle_core::event::{
     GroupMessageDelete, Meta, Notice, PrivateMessageDelete, Request,
 };
 use walle_core::structs::Selft;
-use walle_core::{action::Action, resp::Resp, ActionHandler, EventHandler, OneBot};
+use walle_core::{action::Action, resp::Resp, ActionHandler, EventHandler, GetStatus, OneBot};
 
 pub(crate) async fn qevent2event<AH, EH>(
     event: QEvent,
@@ -41,17 +41,7 @@ where
                 target: crate::WALLE_Q,
                 "Walle-Q Login success with uin: {}", uin
             );
-            new_event(
-                None,
-                (
-                    Meta,
-                    ob.action_handler.get_status().await,
-                    (),
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
-            .await
+            new_event(None, (Meta, ob.get_status().await, (), QQ {}, WalleQ {})).await
         }
 
         // message
@@ -492,31 +482,11 @@ where
         }
         QEvent::KickedOffline(_) => {
             warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
-            new_event(
-                None,
-                (
-                    Meta,
-                    ob.action_handler.get_status().await,
-                    (),
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
-            .await
+            new_event(None, (Meta, ob.get_status().await, (), QQ {}, WalleQ {})).await
         }
         QEvent::MSFOffline(_) => {
             warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
-            new_event(
-                None,
-                (
-                    Meta,
-                    ob.action_handler.get_status().await,
-                    (),
-                    QQ {},
-                    WalleQ {},
-                ),
-            )
-            .await
+            new_event(None, (Meta, ob.get_status().await, (), QQ {}, WalleQ {})).await
         }
     }
 }

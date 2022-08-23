@@ -132,7 +132,7 @@ impl ActionHandler<Event, Action, Resp> for Handler {
                     .lock()
                     .await
                     .cache_set(event.id.clone(), event.clone());
-                ob.event_handler.call(event).await.ok();
+                ob.handle_event(event).await.ok();
             }
         }));
         let _qcli = qclient.clone();
