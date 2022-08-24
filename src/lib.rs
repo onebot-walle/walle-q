@@ -1,6 +1,5 @@
 #![feature(if_let_guard)]
 
-pub mod command;
 pub mod config;
 mod database;
 mod handler;

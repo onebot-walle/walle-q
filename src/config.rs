@@ -1,13 +1,17 @@
+use std::sync::Arc;
 use std::{collections::HashMap, io::Read};
 
+use chrono::{Offset, TimeZone};
 use rand::SeedableRng;
 use ricq::version::get_version;
 use ricq::Config as RsQQConfig;
 use ricq::{device::Device, version::Protocol};
 use serde::{Deserialize, Serialize};
+use tracing::metadata::LevelFilter;
 use tracing::{info, warn};
 use walle_core::config::ImplConfig;
 
+use crate::database::WQDatabase;
 use crate::WALLE_Q;
 
 type IOResult<T> = Result<T, std::io::Error>;
@@ -18,7 +22,7 @@ const DEVICE_PATH: &str = "device.json";
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     pub qq: HashMap<String, QQConfig>,
-    pub meta: crate::command::Comm,
+    pub meta: MetaConfig,
     pub onebot: ImplConfig,
 }
 
@@ -128,4 +132,101 @@ pub(crate) fn load_device(uin: &str, protocol: u8) -> IOResult<RsQQConfig> {
         }),
         version: get_version(Protocol::try_from(protocol).unwrap_or_default()),
     })
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LogLevel {
+    Trace,
+    Debug,
+    #[default]
+    Info,
+    Warn,
+    Error,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MetaConfig {
+    pub log_level: LogLevel,
+    pub event_cache_size: usize,
+    pub sled: bool,
+    pub leveldb: bool,
+}
+
+impl Default for MetaConfig {
+    fn default() -> Self {
+        Self {
+            log_level: LogLevel::default(),
+            event_cache_size: 10,
+            sled: true,
+            leveldb: false,
+        }
+    }
+}
+
+impl From<LogLevel> for LevelFilter {
+    fn from(log: LogLevel) -> Self {
+        match log {
+            LogLevel::Trace => LevelFilter::TRACE,
+            LogLevel::Debug => LevelFilter::DEBUG,
+            LogLevel::Info => LevelFilter::INFO,
+            LogLevel::Warn => LevelFilter::WARN,
+            LogLevel::Error => LevelFilter::ERROR,
+        }
+    }
+}
+
+impl MetaConfig {
+    pub fn subscribe(&self) {
+        let offset = chrono::Local
+            .timestamp(0, 0)
+            .offset()
+            .fix()
+            .local_minus_utc();
+        let timer = tracing_subscriber::fmt::time::OffsetTime::new(
+            time::UtcOffset::from_whole_seconds(offset).unwrap(),
+            time::macros::format_description!(
+                "[year repr:last_two]-[month]-[day] [hour]:[minute]:[second]"
+            ),
+        );
+        let filter = tracing_subscriber::filter::Targets::new()
+            .with_default(LevelFilter::INFO)
+            .with_targets([
+                (crate::WALLE_Q, self.log_level),
+                (walle_core::WALLE_CORE, self.log_level),
+                (walle_core::obc::OBC, self.log_level),
+            ]);
+        let file_appender =
+            tracing_appender::rolling::daily(crate::LOG_PATH, format!("{}.log", crate::WALLE_Q));
+        use tracing_subscriber::{
+            prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
+        };
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_timer(timer.clone())
+                    .with_filter(filter),
+            )
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_writer(file_appender)
+                    .with_timer(timer)
+                    .with_ansi(false)
+                    .with_filter(
+                        tracing_subscriber::filter::Targets::new().with_default(LevelFilter::WARN),
+                    ),
+            )
+            .init();
+    }
+
+    pub fn db(&self) -> Arc<WQDatabase> {
+        let mut db = WQDatabase::default();
+        if self.sled {
+            db = db.sled();
+        }
+        if self.leveldb {
+            db = db.level()
+        }
+        Arc::new(db)
+    }
 }
