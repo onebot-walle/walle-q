@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies.walle-core]
-# version = "0.6.1"
-git = "https://github.com/abrahum/Walle-core.git"
+version = "0.7.0-a1"
+# git = "https://github.com/abrahum/Walle-core.git"
 features = ["impl-obc", "websocket", "http", "alt"]
 
 [dependencies]

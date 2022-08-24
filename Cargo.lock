@@ -2678,8 +2678,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "walle-core"
-version = "0.6.1"
-source = "git+https://github.com/abrahum/Walle-core.git#fc9df5840e522879f4478d97a3386a160f70a459"
+version = "0.7.0-a1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80c11c3cf8847cd9844cabbf535647a124168c5202b418f89d2d9c9673a4d7dc"
 dependencies = [
  "async-trait",
  "base64",
@@ -2702,8 +2703,9 @@ dependencies = [
 
 [[package]]
 name = "walle-macro"
-version = "0.6.0"
-source = "git+https://github.com/abrahum/Walle-core.git#fc9df5840e522879f4478d97a3386a160f70a459"
+version = "0.7.0-a1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf2eb50fa1bc3d6ecacbcefe15d820008a8c737e46356786af8b16e27d7a3c10"
 dependencies = [
  "proc-macro2",
  "quote",
