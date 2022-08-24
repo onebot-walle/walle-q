@@ -12,19 +12,17 @@
 ## 配置列表
 
 ```toml
-[qq.name]                     # name在密码登录时必须与 QQ 号一致
+[qq.name]                     # name 在密码登录时必须与 QQ 号一致
 password = "your password"    # password
 protocol = 0                  # 0..=5，默认为0
 
-[qq.other]                    # 缺失密码时默认使用扫码登录，扫码登录仅手表或MacOS可用
+[qq.other]                    # 缺失密码时默认使用扫码登录，扫码登录仅手表或 MacOS 可用
 
 [meta]
-log = "Info"                  # 日志级别，可选：Trace, Debug, Info, Warn, Error
-event_cache_size = 16         # 事件缓存区大小
-v11 = false                   # v11 协议模式（暂时失效）
-# time_zone = +8              # log 时区，默认为本地时区
+log = "info"                  # 日志级别，可选：trace, debug, info, warn, error
+event_cache_size = 10         # 事件缓存区大小
 sled = false                  # 启用 sled 数据库
-disable_leveldb = false       # 禁用 level_db 数据库
+leveldb = true                # 启用 leveldb 数据库
 
 [[onebot.http]]
 host = "127.0.0.1"

@@ -28,7 +28,7 @@ use crate::parse::util::{
 use crate::parse::{util::new_event, MsgChainBuilder, RQSendItem};
 use crate::WALLE_Q;
 
-use self::file::FragmentFile;
+pub use self::file::FragmentFile;
 
 mod file;
 mod infos;
@@ -39,7 +39,7 @@ pub struct Handler {
     pub(crate) client: OnceCell<Arc<ricq::Client>>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
     pub(crate) database: Arc<WQDatabase>,
-    pub(crate) uploading_fragment: Mutex<TimedCache<String, FragmentFile>>,
+    pub(crate) uploading_fragment: Arc<Mutex<TimedCache<String, FragmentFile>>>,
     pub(crate) infos: Arc<Infos>,
 }
 

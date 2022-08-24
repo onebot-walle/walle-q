@@ -17,12 +17,14 @@ pub struct MultiAH {
     pub(crate) ahs: DashMap<String, (Handler, Vec<JoinHandle<()>>)>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
+    pub(crate) file_cache: Arc<Mutex<TimedCache<String, crate::handler::FragmentFile>>>,
 }
 
 impl MultiAH {
     pub fn new(event_cache_size: usize, database: Arc<WQDatabase>) -> Self {
         Self {
             event_cache: Arc::new(Mutex::new(SizedCache::with_size(event_cache_size))),
+            file_cache: Arc::new(Mutex::new(TimedCache::with_lifespan(60))),
             database,
             ahs: DashMap::default(),
         }
@@ -102,7 +104,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                 client: OnceCell::default(),
                 event_cache: self.event_cache.clone(),
                 database: self.database.clone(),
-                uploading_fragment: Mutex::new(TimedCache::with_lifespan(60)),
+                uploading_fragment: self.file_cache.clone(),
                 infos: Arc::default(),
             };
             match ah
