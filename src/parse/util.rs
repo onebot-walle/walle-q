@@ -7,13 +7,14 @@ use ricq::{
 };
 use walle_core::{
     event::{
-        new_event as _new_event, DetailTypeDeclare, Event, Group, ImplDeclare, Message,
-        PlatformDeclare, Private, SubTypeDeclare, TypeDeclare,
+        new_event as _new_event, DetailTypeLevel, Event, Group, ImplLevel, Message, PlatformLevel,
+        Private, SubTypeLevel, TypeLevel,
     },
+    prelude::ToEvent,
     resp::RespError,
     segment::Segments,
     structs::Selft,
-    util::{new_uuid, timestamp_nano_f64, PushToValueMap},
+    util::{new_uuid, timestamp_nano_f64},
     value_map,
 };
 
@@ -24,11 +25,11 @@ use crate::{
 
 pub(crate) async fn new_event<T, D, S, P, I>(time: Option<f64>, content: (T, D, S, P, I)) -> Event
 where
-    T: TypeDeclare + PushToValueMap,
-    D: DetailTypeDeclare + PushToValueMap,
-    S: SubTypeDeclare + PushToValueMap,
-    P: PlatformDeclare + PushToValueMap,
-    I: ImplDeclare + PushToValueMap,
+    T: ToEvent<TypeLevel>,
+    D: ToEvent<DetailTypeLevel>,
+    S: ToEvent<SubTypeLevel>,
+    P: ToEvent<PlatformLevel>,
+    I: ToEvent<ImplLevel>,
 {
     _new_event(
         new_uuid(),

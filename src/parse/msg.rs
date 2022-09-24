@@ -87,38 +87,38 @@ impl<'a> MsgChainBuilder<'a> {
     }
 }
 
-pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<MessageSegment> {
+pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<MsgSegment> {
     match elem {
-        RQElem::Text(text) => Some(MessageSegment {
+        RQElem::Text(text) => Some(MsgSegment {
             ty: "text".to_string(),
             data: value_map! {"text": text.content},
         }),
-        RQElem::At(elem::At { target: 0, .. }) => Some(MessageSegment {
+        RQElem::At(elem::At { target: 0, .. }) => Some(MsgSegment {
             ty: "mention_all".to_string(),
             data: value_map! {},
         }),
-        RQElem::At(at) => Some(MessageSegment {
+        RQElem::At(at) => Some(MsgSegment {
             ty: "mention".to_string(),
             data: value_map! {"user_id": at.target.to_string()},
         }),
-        RQElem::Face(face) => Some(MessageSegment {
+        RQElem::Face(face) => Some(MsgSegment {
             ty: "face".to_owned(),
             data: value_map! {
                 "id": face.index,
                 "file": face.name
             },
         }),
-        RQElem::MarketFace(face) => Some(MessageSegment {
+        RQElem::MarketFace(face) => Some(MsgSegment {
             ty: "text".to_string(),
             data: value_map! {"text": face.name},
         }),
-        RQElem::Dice(d) => Some(MessageSegment {
+        RQElem::Dice(d) => Some(MsgSegment {
             ty: "dice".to_string(),
             data: value_map! {
                 "value": d.value,
             },
         }),
-        RQElem::FingerGuessing(f) => Some(MessageSegment {
+        RQElem::FingerGuessing(f) => Some(MsgSegment {
             ty: "rps".to_string(),
             data: value_map! {
                 "value": match f {
@@ -128,13 +128,13 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 }
             },
         }),
-        RQElem::LightApp(l) => Some(MessageSegment {
+        RQElem::LightApp(l) => Some(MsgSegment {
             ty: "json".to_string(),
             data: value_map! {"data": l.content},
         }),
         RQElem::FriendImage(i) => {
             wqdb.insert_image(&i);
-            Some(MessageSegment {
+            Some(MsgSegment {
                 ty: "image".to_string(),
                 data: value_map! {
                     "file_id": i.hex_image_id(),
@@ -145,7 +145,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         }
         RQElem::GroupImage(i) => {
             wqdb.insert_image(&i);
-            Some(MessageSegment {
+            Some(MsgSegment {
                 ty: "image".to_string(),
                 data: value_map! {
                     "file_id": i.hex_image_id(),
@@ -157,7 +157,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
         RQElem::FlashImage(fi) => match fi {
             FlashImage::FriendImage(fi) => {
                 wqdb.insert_image(&fi);
-                Some(MessageSegment {
+                Some(MsgSegment {
                     ty: "image".to_string(),
                     data: value_map! {
                         "file_id": fi.hex_image_id(),
@@ -168,7 +168,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
             }
             FlashImage::GroupImage(gi) => {
                 wqdb.insert_image(&gi);
-                Some(MessageSegment {
+                Some(MsgSegment {
                     ty: "image".to_string(),
                     data: value_map! {
                         "file_id": gi.hex_image_id(),
@@ -178,7 +178,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
                 })
             }
         },
-        RQElem::RichMsg(rich) => Some(MessageSegment {
+        RQElem::RichMsg(rich) => Some(MsgSegment {
             ty: "xml".to_string(),
             data: value_map! {
                 "service_id": rich.service_id,
@@ -196,7 +196,7 @@ pub(crate) fn rq_elem2msg_seg(elem: RQElem, wqdb: &WQDatabase) -> Option<Message
     }
 }
 
-pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> Vec<MessageSegment> {
+pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> Vec<MsgSegment> {
     let mut rv = vec![];
     if let Some(reply) = chain.reply() {
         rv.push(
@@ -228,7 +228,7 @@ use crate::model::WQSegment;
 #[async_recursion::async_recursion]
 async fn push_msg_seg(
     items: &mut RQSends,
-    seg: MessageSegment,
+    seg: MsgSegment,
     target: i64,
     group: bool,
     cli: &Client,

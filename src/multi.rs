@@ -125,13 +125,17 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
         }
         Ok(vec![])
     }
-    async fn call(&self, action: Action) -> WalleResult<Resp> {
+    async fn call<AH, EH>(&self, action: Action, ob: &Arc<OneBot<AH, EH>>) -> WalleResult<Resp>
+    where
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
+    {
         let bot_id = action.get_self();
         if let Some(ah) = self.ahs.get(&bot_id.user_id) {
-            ah.0.call(action).await
+            ah.0.call(action, ob).await
         } else if self.ahs.len() == 1 {
             for ah in self.ahs.iter() {
-                return ah.0.call(action).await;
+                return ah.0.call(action, ob).await;
             }
             Ok(resp_error::bad_handler("unreachable! How??").into())
         } else {

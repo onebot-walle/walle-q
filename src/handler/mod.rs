@@ -146,7 +146,11 @@ impl ActionHandler<Event, Action, Resp> for Handler {
         }));
         Ok(tasks)
     }
-    async fn call(&self, action: Action) -> WalleResult<Resp> {
+    async fn call<AH, EH>(&self, action: Action, _: &Arc<OneBot<AH, EH>>) -> WalleResult<Resp>
+    where
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
+    {
         match self._handle(action).await {
             Ok(resp) => Ok(resp),
             Err(e) => Ok(e.into()),

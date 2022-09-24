@@ -1,51 +1,44 @@
 use walle_core::action::*;
-use walle_core::prelude::{OneBot, PushToValueMap};
+use walle_core::prelude::{PushToValueMap, TryFromAction, TryFromValue};
 use walle_core::util::OneBotBytes;
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct GetMessage {
     pub message_id: String,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct KickGroupMember {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct BanGroupMember {
     pub group_id: String,
     pub user_id: String,
     pub duration: u32,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct UnbanGroupMember {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct SetGroupAdmin {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct UnsetGroupAdmin {
     pub group_id: String,
     pub user_id: String,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct SetNewFriend {
     pub user_id: String,
     pub request_id: i64,
@@ -53,15 +46,13 @@ pub struct SetNewFriend {
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct DeleteFriend {
     pub user_id: String,
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct SetJoinGroup {
     pub request_id: i64,
     pub user_id: String,
@@ -72,8 +63,7 @@ pub struct SetJoinGroup {
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromValue)]
 pub struct SetGroupInvited {
     pub request_id: i64,
     pub group_id: String,
@@ -81,9 +71,7 @@ pub struct SetGroupInvited {
     pub self_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, OneBot, PushToValueMap)]
-#[action = "upload_file"]
-#[value]
+#[derive(Debug, Clone, PartialEq, Eq, TryFromValue, PushToValueMap)]
 pub struct WQUploadFile {
     pub ty: String,
     pub name: String,
@@ -95,17 +83,14 @@ pub struct WQUploadFile {
     pub file_type: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, OneBot, PushToValueMap)]
-#[action = "get_file"]
-#[value]
+#[derive(Debug, Clone, PartialEq, Eq, TryFromValue)]
 pub struct WQGetFile {
     pub file_id: String,
     pub ty: String,
     pub file_type: Option<String>,
 }
 
-#[derive(Debug, Clone, OneBot)]
-#[action]
+#[derive(Debug, Clone, TryFromAction)]
 pub enum WQAction {
     GetLatestEvents(GetLatestEvents),
     GetSupportedActions {},

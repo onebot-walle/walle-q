@@ -1,8 +1,7 @@
-use walle_core::prelude::{OneBot, PushToValueMap};
+use walle_core::prelude::{PushToValueMap, ToEvent};
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, ToEvent)]
 #[event(detail_type)]
-#[value]
 pub struct NewFriend {
     pub request_id: i64,
     pub user_id: String,
@@ -10,9 +9,8 @@ pub struct NewFriend {
     pub message: String,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, ToEvent)]
 #[event(detail_type)]
-#[value]
 pub struct JoinGroup {
     pub request_id: i64,
     pub user_id: String,
@@ -25,9 +23,8 @@ pub struct JoinGroup {
     pub invitor_name: Option<String>,
 }
 
-#[derive(Debug, Clone, PushToValueMap, OneBot)]
+#[derive(Debug, Clone, PushToValueMap, ToEvent)]
 #[event(detail_type)]
-#[value]
 pub struct GroupInvite {
     pub request_id: i64,
     pub group_id: String,
