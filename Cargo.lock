@@ -2714,7 +2714,7 @@ dependencies = [
 
 [[package]]
 name = "walle-q"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "async-recursion",
  "async-trait",
