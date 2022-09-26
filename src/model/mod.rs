@@ -16,8 +16,8 @@ use walle_core::prelude::{PushToValueMap, ToEvent};
 
 #[derive(Debug, Clone, Copy, ToEvent, PushToValueMap)]
 #[event(impl = "walle-q")]
-pub struct WalleQ {}
+pub struct WalleQ;
 
 #[derive(Debug, Clone, Copy, ToEvent, PushToValueMap)]
 #[event(platform = "qq")]
-pub struct QQ {}
+pub struct QQ;

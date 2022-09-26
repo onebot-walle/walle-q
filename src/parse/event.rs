@@ -41,7 +41,7 @@ where
                 target: crate::WALLE_Q,
                 "Walle-Q Login success with uin: {}", uin
             );
-            new_event(None, (Meta, ob.get_status().await, (), QQ {}, WalleQ {})).await
+            new_event(None, (Meta, ob.get_status().await, (), QQ, WalleQ)).await
         }
 
         // message
@@ -88,8 +88,8 @@ where
                         user_id: e.inner.friend_uin.to_string(),
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -107,7 +107,7 @@ where
                     UserName {
                         user_name: e.inner.nick,
                     },
-                    WalleQ {},
+                    WalleQ,
                 ),
             )
             .await
@@ -125,8 +125,8 @@ where
                         operator_id: "".to_string(), //todo
                     },
                     Join {},
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -148,8 +148,8 @@ where
                                 .to_string(),
                         },
                         Kick {},
-                        QQ {},
-                        WalleQ {},
+                        QQ,
+                        WalleQ,
                     ),
                 )
                 .await
@@ -169,8 +169,8 @@ where
                                 .to_string(),
                         },
                         Leave {},
-                        QQ {},
-                        WalleQ {},
+                        QQ,
+                        WalleQ,
                     ),
                 )
                 .await
@@ -188,8 +188,8 @@ where
                         duration: e.inner.duration.as_secs() as i64,
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -207,8 +207,8 @@ where
                             operator_id: e.inner.operator_uin.to_string(),
                         },
                         Recall {},
-                        QQ {},
-                        WalleQ {},
+                        QQ,
+                        WalleQ,
                     ),
                 )
                 .await
@@ -224,8 +224,8 @@ where
                             operator_id: e.inner.operator_uin.to_string(),
                         },
                         Delete {},
-                        QQ {},
-                        WalleQ {},
+                        QQ,
+                        WalleQ,
                     ),
                 )
                 .await
@@ -253,8 +253,8 @@ where
                                 operator_id: "".to_string(), //todo
                             },
                             (),
-                            QQ {},
-                            WalleQ {},
+                            QQ,
+                            WalleQ,
                         ),
                     )
                     .await
@@ -279,8 +279,8 @@ where
                                 operator_id: "".to_string(), //todo
                             },
                             (),
-                            QQ {},
-                            WalleQ {},
+                            QQ,
+                            WalleQ,
                         ),
                     )
                     .await
@@ -305,8 +305,8 @@ where
                                 operator_id: "".to_string(), //todo
                             },
                             (),
-                            QQ {},
-                            WalleQ {},
+                            QQ,
+                            WalleQ,
                         ),
                     )
                     .await //todo
@@ -325,8 +325,8 @@ where
                         message: fre.inner.message,
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -348,8 +348,8 @@ where
                         invitor_name: gre.inner.invitor_nick,
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -368,8 +368,8 @@ where
                         invitor_name: i.inner.invitor_nick,
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -386,8 +386,8 @@ where
                         operator_id: d.inner.operator_uin.to_string(),
                     },
                     Disband {},
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -431,8 +431,8 @@ where
                         receiver_id: p.inner.receiver.to_string(),
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -457,8 +457,8 @@ where
                         operator_id: g.inner.operator_uin.to_string(),
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
@@ -474,19 +474,19 @@ where
                         user_id: d.inner.uin.to_string(),
                     },
                     (),
-                    QQ {},
-                    WalleQ {},
+                    QQ,
+                    WalleQ,
                 ),
             )
             .await
         }
         QEvent::KickedOffline(_) => {
             warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
-            new_event(None, (Meta, ob.get_status().await, (), QQ {}, WalleQ {})).await
+            new_event(None, (Meta, ob.get_status().await, (), QQ, WalleQ)).await
         }
         QEvent::MSFOffline(_) => {
             warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
-            new_event(None, (Meta, ob.get_status().await, (), QQ {}, WalleQ {})).await
+            new_event(None, (Meta, ob.get_status().await, (), QQ, WalleQ)).await
         }
     }
 }

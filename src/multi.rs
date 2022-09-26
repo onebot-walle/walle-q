@@ -143,3 +143,64 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
         }
     }
 }
+
+impl MultiAH {
+    pub async fn add_handler<AH, EH>(
+        &self,
+        uin: String,
+        password: Option<String>,
+        protcol: u8,
+        ob: &Arc<OneBot<AH, EH>>,
+    ) -> WalleResult<()>
+    where
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
+    {
+        let handler = Handler {
+            client: OnceCell::default(),
+            event_cache: self.event_cache.clone(),
+            database: self.database.clone(),
+            uploading_fragment: self.file_cache.clone(),
+            infos: Arc::default(),
+        };
+        let tasks = handler.start(ob, (uin, password, protcol)).await?;
+        self.ahs.insert(
+            handler.get_client().unwrap().uin().await.to_string(),
+            (handler, tasks),
+        );
+        Ok(())
+    }
+    pub async fn remove_handler<AH, EH>(
+        &self,
+        uin: &str,
+        ob: &Arc<OneBot<AH, EH>>,
+    ) -> WalleResult<Option<Handler>>
+    where
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
+    {
+        if let Some((_, (mut handler, tasks))) = self.ahs.remove(uin) {
+            for task in tasks {
+                task.abort();
+            }
+            ob.handle_event(
+                crate::parse::util::new_event(
+                    None,
+                    (
+                        walle_core::event::Meta,
+                        ob.get_status().await,
+                        (),
+                        crate::model::QQ,
+                        crate::model::WalleQ,
+                    ),
+                )
+                .await,
+            )
+            .await?;
+            handler.client = OnceCell::default();
+            Ok(Some(handler))
+        } else {
+            Ok(None)
+        }
+    }
+}
