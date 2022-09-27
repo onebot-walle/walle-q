@@ -14,7 +14,7 @@ use ricq::structs::GroupMemberPermission;
 use tracing::{info, warn};
 use walle_core::event::{
     Event, FriendDecrease, FriendIncrease, GroupMemberDecrease, GroupMemberIncrease,
-    GroupMessageDelete, Meta, Notice, PrivateMessageDelete, Request,
+    GroupMessageDelete, Meta, Notice, PrivateMessageDelete, Request, StatusUpdate,
 };
 use walle_core::structs::Selft;
 use walle_core::{action::Action, resp::Resp, ActionHandler, EventHandler, GetStatus, OneBot};
@@ -41,7 +41,19 @@ where
                 target: crate::WALLE_Q,
                 "Walle-Q Login success with uin: {}", uin
             );
-            new_event(None, (Meta, ob.get_status().await, (), QQ, WalleQ)).await
+            new_event(
+                None,
+                (
+                    Meta,
+                    StatusUpdate {
+                        status: ob.get_status().await,
+                    },
+                    (),
+                    QQ,
+                    WalleQ,
+                ),
+            )
+            .await
         }
 
         // message
@@ -482,11 +494,35 @@ where
         }
         QEvent::KickedOffline(_) => {
             warn!(target: crate::WALLE_Q, "Kicked Off 从其他客户端强制下线");
-            new_event(None, (Meta, ob.get_status().await, (), QQ, WalleQ)).await
+            new_event(
+                None,
+                (
+                    Meta,
+                    StatusUpdate {
+                        status: ob.get_status().await,
+                    },
+                    (),
+                    QQ,
+                    WalleQ,
+                ),
+            )
+            .await
         }
         QEvent::MSFOffline(_) => {
             warn!(target: crate::WALLE_Q, "MSF offline 服务器强制下线");
-            new_event(None, (Meta, ob.get_status().await, (), QQ, WalleQ)).await
+            new_event(
+                None,
+                (
+                    Meta,
+                    StatusUpdate {
+                        status: ob.get_status().await,
+                    },
+                    (),
+                    QQ,
+                    WalleQ,
+                ),
+            )
+            .await
         }
     }
 }

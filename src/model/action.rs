@@ -91,6 +91,20 @@ pub struct WQGetFile {
 }
 
 #[derive(Debug, Clone, TryFromAction)]
+pub struct LoginClient {
+    pub uin: String,
+    pub password: Option<String>,
+    pub password_md5: Option<String>,
+    pub protcol: u8,
+}
+
+#[derive(Debug, TryFromAction)]
+pub struct SubmitTicket {
+    pub user_id: String,
+    pub ticket: String,
+}
+
+#[derive(Debug, Clone, TryFromAction)]
 pub enum WQAction {
     GetLatestEvents(GetLatestEvents),
     GetSupportedActions {},

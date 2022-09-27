@@ -1,5 +1,11 @@
 use walle_core::prelude::{PushToValueMap, ToEvent};
 
+#[derive(Debug, PushToValueMap, ToEvent)]
+#[event(detail_type)]
+pub struct TicketRequest {
+    pub url: String,
+}
+
 #[derive(Debug, Clone, PushToValueMap, ToEvent)]
 #[event(detail_type)]
 pub struct NewFriend {

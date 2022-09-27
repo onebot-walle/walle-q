@@ -9,6 +9,10 @@ use ricq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Passwor
 use ricq::{LoginResponse, QRCodeState};
 use ricq::{RQError, RQResult};
 use tracing::{debug, info, warn};
+use walle_core::resp::Resp;
+
+use crate::error::login_failed;
+use crate::model::LoginResp;
 
 #[allow(dead_code)]
 const EMPTY_MD5: [u8; 16] = [
@@ -130,7 +134,7 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
                 );
                 return Err(RQError::Other("password login failure".to_string()));
             }
-            LoginResponse::DeviceLockLogin { .. } => {
+            LoginResponse::DeviceLockLogin(_) => {
                 resp = cli.device_lock_login().await?;
             }
             LoginResponse::AccountFrozen => {
@@ -165,6 +169,99 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
             }
         }
     }
+}
+
+pub(crate) async fn action_login(
+    cli: &Arc<Client>,
+    uin: &str,
+    password: Option<String>,
+) -> RQResult<Resp> {
+    let token_path = format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH);
+    match fs::read(&token_path).map(|s| rmp_serde::from_slice(&s)) {
+        Ok(Ok(token)) => {
+            info!(
+                target: crate::WALLE_Q,
+                "成功读取 Token, 尝试使用 Token 登录"
+            );
+            match cli.token_login(token).await {
+                Ok(_) => {
+                    info!(target: crate::WALLE_Q, "Token 登录成功");
+                    after_login(cli).await;
+                    return Ok(LoginResp {
+                        user_id: cli.uin().await.to_string(),
+                        url: None,
+                        qrcode: None,
+                    }
+                    .into());
+                }
+                Err(_) => {
+                    warn!(target: crate::WALLE_Q, "Token 登录失败");
+                }
+            }
+        }
+        _ => {}
+    };
+    if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
+        info!(target: crate::WALLE_Q, "login with password");
+        login_resp_to_resp(cli, cli.password_login(uin, password).await?).await
+    } else {
+        info!(target: crate::WALLE_Q, "login with qrcode");
+        match cli.fetch_qrcode().await? {
+            QRCodeState::ImageFetch(image) => Ok(LoginResp {
+                user_id: uin.to_string(),
+                url: None,
+                qrcode: Some(image.image_data.to_vec().into()),
+            }
+            .into()), //todo
+            _ => Ok(login_failed("二维码获取失败").into()),
+        }
+    }
+}
+
+pub(crate) async fn login_resp_to_resp(
+    cli: &Arc<Client>,
+    mut resp: LoginResponse,
+) -> RQResult<Resp> {
+    if let LoginResponse::DeviceLockLogin(_) = resp {
+        resp = cli.device_lock_login().await?;
+    }
+    let user_id = cli.uin().await.to_string();
+    Ok(match resp {
+        LoginResponse::Success(_) => {
+            let token = cli.gen_token().await;
+            fs::write(
+                format!("{}/{}-{}", crate::CLIENT_DIR, user_id, TOKEN_PATH),
+                rmp_serde::to_vec(&token).unwrap(),
+            )
+            .unwrap();
+            cli.register_client().await?;
+            LoginResp {
+                user_id,
+                url: None,
+                qrcode: None,
+            }
+            .into()
+        }
+        LoginResponse::NeedCaptcha(n) => LoginResp {
+            user_id,
+            url: n.verify_url,
+            qrcode: None,
+        }
+        .into(),
+        LoginResponse::DeviceLocked(l) => (
+            login_failed("devicd_locked"),
+            LoginResp {
+                user_id,
+                url: l.verify_url,
+                qrcode: None,
+            },
+        )
+            .into(),
+        LoginResponse::AccountFrozen => login_failed("账号被冻结").into(),
+        LoginResponse::TooManySMSRequest => login_failed("短信验证码请求过于频繁").into(),
+        LoginResponse::UnknownStatus(_) => login_failed("未知状态").into(),
+        LoginResponse::DeviceLockLogin(_) => unreachable!(),
+    })
 }
 
 #[test]

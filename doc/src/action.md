@@ -39,6 +39,36 @@
 | version        | String | Walle-Q 版本号 |
 | onebot_version | String | `12`           |
 
+### * [Plan to add] 登录新账号 login_client
+
+动作请求:
+
+| 字段         | 类型                 | 说明            |
+| ------------ | -------------------- | --------------- |
+| uin          | u32                  | QQ 号           |
+| password     | Option&lt;String&gt; | 明文密码        |
+| password_md5 | Option&lt;String&gt; | MD5 密码        |
+| protcol      | u8                   | client 使用协议 |
+
+动作响应:
+
+| 字段    | 类型                 | 说明                   |
+| ------- | -------------------- | ---------------------- |
+| user_id | String               | user_id                |
+| url     | Option&lt;String&gt; | ticket_url             |
+| qrcode  | Option&lt;bytes&gt;  | 密码缺失将会返回二维码 |
+
+### * [Plan to add] 提交ticket submit_ticket
+
+动作请求:
+
+| 字段    | 类型   | 说明   |
+| ------- | ------ | ------ |
+| user_id | String | -      |
+| ticket  | String | ticket |
+
+无动作响应字段
+
 ## 消息动作
 
 ### 发送消息 send_message

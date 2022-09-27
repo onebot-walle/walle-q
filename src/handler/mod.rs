@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cached::{Cached, SizedCache, TimedCache};
 use once_cell::sync::OnceCell;
+use ricq::handler::QEvent;
 use ricq::structs::{FriendAudio, GroupAudio};
 use ricq::Client;
 use tokio::sync::Mutex;
@@ -19,7 +20,7 @@ use walle_core::{
 };
 
 use crate::database::{Database, MessageId, WQDatabase};
-use crate::error;
+use crate::error::{self, map_action_parse_error};
 use crate::model::*;
 use crate::parse::util::{
     decode_message_id, new_group_receipt_content, new_group_temp_receipt_content,
@@ -94,57 +95,16 @@ impl ActionHandler<Event, Action, Resp> for Handler {
         AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
         EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
-        let (qevent_tx, mut qevent_rx) = tokio::sync::mpsc::unbounded_channel();
-        let qclient = Arc::new(Client::new_with_config(
-            crate::config::load_device(&config.0, config.2).unwrap(),
-            qevent_tx,
-        ));
-        let stream = tokio::net::TcpStream::connect(qclient.get_address())
-            .await
-            .unwrap();
-        let _qcli = qclient.clone();
-        let net = tokio::spawn(async move { _qcli.start(stream).await });
-
-        self.client.set(qclient.clone()).ok();
-        let event_cache = self.event_cache.clone();
-        let database = self.database.clone();
-        let ob = ob.clone();
-        tokio::task::yield_now().await;
-        crate::login::login(&qclient, &config.0, config.1.clone())
-            .await
-            .map_err(|e| WalleError::Other(e.to_string()))?;
-        info!(target: WALLE_Q, "updating groups and friends infos");
-        if let Err(e) = self.infos.update(&qclient).await {
-            warn!(target: WALLE_Q, "update infos failed: {}", e);
-            return Err(WalleError::Other(e.to_string()));
-        }
-        info!(target: WALLE_Q, "update infos succeed");
-        let mut tasks = vec![];
-        let mut rx = ob.get_signal_rx()?;
-        let infos = self.infos.clone();
-        let self_id = qclient.uin().await;
-        tasks.push(tokio::spawn(async move {
-            while let Some(qevent) = qevent_rx.recv().await {
-                let event =
-                    crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await;
-                tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
-                event_cache
-                    .lock()
-                    .await
-                    .cache_set(event.id.clone(), event.clone());
-                ob.handle_event(event).await.ok();
-            }
-        }));
-        let _qcli = qclient.clone();
-        tasks.push(tokio::spawn(async move {
-            net.await.ok();
-            crate::login::start_reconnect(&_qcli, &config.0, config.1).await;
-        }));
-        tasks.push(tokio::spawn(async move {
-            rx.recv().await.ok();
-            qclient.stop(ricq::client::NetworkStatus::NetworkOffline);
-        }));
-        Ok(tasks)
+        let (net, qevent_rx) = self.init_client(config.0.clone(), config.2).await;
+        crate::login::login(
+            self.get_client().map_err(WalleError::RespError)?,
+            &config.0,
+            config.1.clone(),
+        )
+        .await
+        .map_err(|e| WalleError::Other(e.to_string()))?;
+        self.update_infos().await?;
+        self.spawn(net, qevent_rx, &ob).await
     }
     async fn call<AH, EH>(&self, action: Action, _: &Arc<OneBot<AH, EH>>) -> WalleResult<Resp>
     where
@@ -156,22 +116,103 @@ impl ActionHandler<Event, Action, Resp> for Handler {
             Err(e) => Ok(e.into()),
         }
     }
+    async fn shutdown(&self) {
+        if let Some(cli) = self.client.get() {
+            cli.stop(ricq::client::NetworkStatus::Stop);
+        }
+    }
+}
+
+impl Handler {
+    pub async fn init_client(
+        &self,
+        uin: String,
+        protocol: u8,
+    ) -> (
+        tokio::task::JoinHandle<()>,
+        tokio::sync::mpsc::UnboundedReceiver<QEvent>,
+    ) {
+        let (qevent_tx, qevent_rx) = tokio::sync::mpsc::unbounded_channel();
+        let qclient = Arc::new(Client::new_with_config(
+            crate::config::load_device(&uin, protocol).unwrap(),
+            qevent_tx,
+        ));
+        let stream = tokio::net::TcpStream::connect(qclient.get_address())
+            .await
+            .unwrap();
+        let _qcli = qclient.clone();
+        let net = tokio::spawn(async move { _qcli.start(stream).await });
+        self.client.set(qclient.clone()).ok();
+        tokio::task::yield_now().await;
+        (net, qevent_rx)
+    }
+
+    pub async fn spawn<AH, EH>(
+        &self,
+        net: tokio::task::JoinHandle<()>,
+        mut qevent_rx: tokio::sync::mpsc::UnboundedReceiver<QEvent>,
+        ob: &Arc<OneBot<AH, EH>>,
+    ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
+    where
+        AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
+        EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
+    {
+        let database = self.database.clone();
+        let infos = self.infos.clone();
+        let self_id = self
+            .get_client()
+            .map_err(WalleError::RespError)?
+            .uin()
+            .await;
+        let event_cache = self.event_cache.clone();
+        let ob = ob.clone();
+        let mut rx = ob.get_signal_rx()?;
+        let qclient0 = self.get_client().map_err(WalleError::RespError)?.clone();
+        let qclient = self.get_client().map_err(WalleError::RespError)?.clone();
+        Ok(vec![
+            tokio::spawn(async move {
+                while let Some(qevent) = qevent_rx.recv().await {
+                    let event =
+                        crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await;
+                    tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
+                    event_cache
+                        .lock()
+                        .await
+                        .cache_set(event.id.clone(), event.clone());
+                    ob.handle_event(event).await.ok();
+                }
+            }),
+            tokio::spawn(async move {
+                net.await.ok();
+                crate::login::start_reconnect(&qclient0, "", None).await;
+            }),
+            tokio::spawn(async move {
+                rx.recv().await.ok();
+                qclient.stop(ricq::client::NetworkStatus::Stop);
+            }),
+        ])
+    }
+
+    pub async fn update_infos(&self) -> WalleResult<()> {
+        info!(target: WALLE_Q, "updating groups and friends infos");
+        if let Err(e) = self
+            .infos
+            .update(self.get_client().map_err(WalleError::RespError)?)
+            .await
+        {
+            warn!(target: WALLE_Q, "update infos failed: {}", e);
+            return Err(WalleError::Other(e.to_string()));
+        }
+        info!(target: WALLE_Q, "update infos succeed");
+        Ok(())
+    }
 }
 
 use crate::model::WQAction;
 
 impl Handler {
     async fn _handle(&self, action: Action) -> Result<Resp, RespError> {
-        match WQAction::try_from(action).map_err(|e: WalleError| match e {
-            WalleError::DeclareNotMatch(_, get) => resp_error::unsupported_action(get),
-            WalleError::MapMissedKey(expect) => {
-                resp_error::bad_param(format!("missing key {}", expect))
-            }
-            e => {
-                warn!(target: crate::WALLE_Q, "{}", e);
-                resp_error::bad_handler(e.to_string())
-            }
-        })? {
+        match WQAction::try_from(action).map_err(map_action_parse_error)? {
             WQAction::GetLatestEvents(c) => self.get_latest_events(c).await.map(Into::into),
             WQAction::GetSupportedActions {} => Self::get_supported_actions().map(Into::into),
             WQAction::GetStatus {} => Ok(self.get_status().await.into()),
@@ -230,7 +271,7 @@ impl Handler {
     }
 }
 
-type RespResult<T> = Result<T, RespError>;
+pub type RespResult<T> = Result<T, RespError>;
 
 impl Handler {
     pub async fn selft(&self) -> Result<Selft, RespError> {

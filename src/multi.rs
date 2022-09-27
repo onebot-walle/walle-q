@@ -3,21 +3,43 @@ use std::{collections::HashMap, sync::Arc};
 use cached::{SizedCache, TimedCache};
 use dashmap::DashMap;
 use once_cell::sync::OnceCell;
+use ricq::{ext::common::after_login, handler::QEvent};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::warn;
 use walle_core::{
-    action::Action, error::WalleResult, event::Event, resp::resp_error, resp::Resp, structs::Selft,
-    util::GetSelf, ActionHandler, EventHandler, GetSelfs, GetStatus, OneBot,
+    action::Action,
+    error::WalleResult,
+    event::{Event, StatusUpdate},
+    resp::resp_error,
+    resp::Resp,
+    structs::Selft,
+    util::GetSelf,
+    ActionHandler, EventHandler, GetSelfs, GetStatus, OneBot, WalleError,
 };
 
-use crate::{config::QQConfig, database::WQDatabase, handler::Handler, WALLE_Q};
+use crate::{
+    config::QQConfig,
+    database::WQDatabase,
+    error::map_action_parse_error,
+    handler::Handler,
+    login::{action_login, login_resp_to_resp},
+    WALLE_Q,
+};
 
 pub struct MultiAH {
     pub(crate) ahs: DashMap<String, (Handler, Vec<JoinHandle<()>>)>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
     pub(crate) file_cache: Arc<Mutex<TimedCache<String, crate::handler::FragmentFile>>>,
+    pub(crate) unadded_client: DashMap<
+        String,
+        (
+            Handler,
+            tokio::sync::mpsc::UnboundedReceiver<QEvent>,
+            tokio::task::JoinHandle<()>,
+        ),
+    >,
 }
 
 impl MultiAH {
@@ -27,6 +49,7 @@ impl MultiAH {
             file_cache: Arc::new(Mutex::new(TimedCache::with_lifespan(60))),
             database,
             ahs: DashMap::default(),
+            unadded_client: DashMap::default(),
         }
     }
 }
@@ -130,16 +153,67 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
         AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
         EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
-        let bot_id = action.get_self();
-        if let Some(ah) = self.ahs.get(&bot_id.user_id) {
-            ah.0.call(action, ob).await
-        } else if self.ahs.len() == 1 {
-            for ah in self.ahs.iter() {
-                return ah.0.call(action, ob).await;
+        match action.action.as_str() {
+            "login_client" => match crate::model::LoginClient::try_from(action) {
+                Ok(login) => {
+                    let ah = Handler {
+                        client: OnceCell::default(),
+                        event_cache: self.event_cache.clone(),
+                        database: self.database.clone(),
+                        uploading_fragment: self.file_cache.clone(),
+                        infos: Arc::default(),
+                    };
+                    let (net, rx) = ah.init_client(login.uin.clone(), login.protcol).await;
+                    let cli = ah.get_client().unwrap().clone();
+                    self.unadded_client.insert(login.uin.clone(), (ah, rx, net));
+                    action_login(&cli, &login.uin, login.password)
+                        .await
+                        .map_err(|e| WalleError::Other(e.to_string()))
+                }
+                Err(e) => Ok(map_action_parse_error(e).into()),
+            },
+            "submit_ticket" => match crate::model::SubmitTicket::try_from(action) {
+                Ok(ticket) => {
+                    if let Some((_, (handler, rx, net))) =
+                        self.unadded_client.remove(&ticket.user_id)
+                    {
+                        let cli = match handler.get_client() {
+                            Ok(cli) => cli.clone(),
+                            Err(e) => return Ok(e.into()),
+                        };
+                        let resp = match cli.submit_ticket(&ticket.ticket).await {
+                            Ok(resp) => resp,
+                            Err(e) => return Ok(crate::error::rq_error(e).into()),
+                        };
+                        if let ricq::LoginResponse::Success(_) = resp {
+                            after_login(&cli).await;
+                            let tasks = handler.spawn(net, rx, ob).await?;
+                            handler.update_infos().await.ok(); //todo
+                            self.ahs.insert(ticket.user_id, (handler, tasks));
+                        }
+                        match login_resp_to_resp(&cli, resp).await {
+                            Ok(resp) => Ok(resp),
+                            Err(e) => Ok(crate::error::rq_error(e).into()),
+                        }
+                    } else {
+                        Ok(walle_core::resp::resp_error::who_am_i("").into())
+                    }
+                }
+                Err(e) => Ok(map_action_parse_error(e).into()),
+            },
+            _ => {
+                let bot_id = action.get_self();
+                if let Some(ah) = self.ahs.get(&bot_id.user_id) {
+                    ah.0.call(action, ob).await
+                } else if self.ahs.len() == 1 {
+                    for ah in self.ahs.iter() {
+                        return ah.0.call(action, ob).await;
+                    }
+                    Ok(resp_error::bad_handler("unreachable! How??").into())
+                } else {
+                    Ok(resp_error::bad_param("self_id required").into())
+                }
             }
-            Ok(resp_error::bad_handler("unreachable! How??").into())
-        } else {
-            Ok(resp_error::bad_param("self_id required").into())
         }
     }
 }
@@ -188,7 +262,9 @@ impl MultiAH {
                     None,
                     (
                         walle_core::event::Meta,
-                        ob.get_status().await,
+                        StatusUpdate {
+                            status: ob.get_status().await,
+                        },
                         (),
                         crate::model::QQ,
                         crate::model::WalleQ,
@@ -197,6 +273,10 @@ impl MultiAH {
                 .await,
             )
             .await?;
+            handler
+                .get_client()
+                .unwrap()
+                .stop(ricq::client::NetworkStatus::Stop);
             handler.client = OnceCell::default();
             Ok(Some(handler))
         } else {

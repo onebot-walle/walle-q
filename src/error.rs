@@ -1,5 +1,5 @@
-use walle_core::error_type;
-use walle_core::resp::RespError;
+use walle_core::resp::{resp_error, RespError};
+use walle_core::{error_type, WalleError};
 
 error_type!(bad_param, 10003, "参数错误");
 error_type!(empty_message, 10003, "消息为空");
@@ -16,6 +16,7 @@ error_type!(file_not_found, 32005, "文件不存在");
 error_type!(file_type_not_match, 32006, "文件类型不匹配");
 error_type!(net_download_fail, 33001, "网络下载失败");
 error_type!(rq_error, 34001, "ricq错误");
+error_type!(login_failed, 34002, "login failed");
 error_type!(message_not_exist, 35001, "消息不存在");
 error_type!(friend_not_exist, 35002, "好友不存在");
 error_type!(group_not_exist, 35003, "群不存在");
@@ -27,3 +28,16 @@ error_type!(bad_image_path, 61003, "图片路径错误");
 error_type!(bad_image_data, 61004, "图片内容错误");
 error_type!(audio_encode_failed, 61005, "音频编码失败");
 error_type!(silk_encode_failed, 61005, "silk编码失败");
+
+pub fn map_action_parse_error(error: WalleError) -> RespError {
+    match error {
+        WalleError::DeclareNotMatch(_, get) => resp_error::unsupported_action(get),
+        WalleError::MapMissedKey(expect) => {
+            resp_error::bad_param(format!("missing key {}", expect))
+        }
+        e => {
+            tracing::warn!(target: crate::WALLE_Q, "{}", e);
+            resp_error::bad_handler(e.to_string())
+        }
+    }
+}
