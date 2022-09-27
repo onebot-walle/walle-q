@@ -149,8 +149,11 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
                         tokio::io::stdin(),
                         tokio_util::codec::LinesCodec::new(),
                     );
-                    while let Some(Ok(ticket)) = reader.next().await {
-                        resp = cli.submit_ticket(&ticket).await?;
+                    loop {
+                        if let Some(Ok(ticket)) = reader.next().await {
+                            resp = cli.submit_ticket(&ticket).await?;
+                            break;
+                        }
                     }
                 } else {
                     return Err(RQError::Other("NeedCaptcha without url".to_string()));
