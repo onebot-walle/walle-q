@@ -424,6 +424,8 @@
 | 32005 | File Not Found Error     | 文件不存在             | 文件不存在                |
 | 33001 | Net Download Error       | 网络下载错误           | 网络下载错误              |
 | 34001 | Ricq Error               | ricq 未处理报错        | ricq 报错                 |
+| 34002 | login failed             | 登录失败               | 登录失败                  |
+| 34003 | risk_controlled          | 可能被风控             | 可能被风控                |
 | 35001 | Message Not Exist        | 消息不存在             | 消息不存在                |
 | 35002 | Friend Not Exist         | 好友不存在             | 好友不存在                |
 | 35003 | Group Not Exist          | 群不存在               | 群不存在                  |

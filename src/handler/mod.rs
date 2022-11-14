@@ -369,6 +369,9 @@ impl Handler {
                         .await
                         .map_err(error::rq_error)?,
                 };
+                if receipt.seqs.first() == Some(&0) || receipt.rands.first() == Some(&0) {
+                    return Err(crate::error::risk_controlled(""));
+                }
                 let time = receipt.time as f64;
                 let cli = self.get_client()?;
                 let event = new_event(

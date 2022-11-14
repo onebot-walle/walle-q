@@ -17,6 +17,7 @@ error_type!(file_type_not_match, 32006, "文件类型不匹配");
 error_type!(net_download_fail, 33001, "网络下载失败");
 error_type!(rq_error, 34001, "ricq错误");
 error_type!(login_failed, 34002, "login failed");
+error_type!(risk_controlled, 34003, "可能被风控");
 error_type!(message_not_exist, 35001, "消息不存在");
 error_type!(friend_not_exist, 35002, "好友不存在");
 error_type!(group_not_exist, 35003, "群不存在");
