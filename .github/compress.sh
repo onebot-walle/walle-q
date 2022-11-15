@@ -1,10 +1,11 @@
 apt-get install zip
 cd packages
-for files in $(ls)
-do
-  zip $files.zip $files
-done
-for files in $(ls *.exe.zip)
-do
-  mv $files ${files%%.*}.zip
+for file in $(ls); do
+    name=${file%%.*}
+    if [${file##*.} == "exe"]
+    then
+        zip $name.zip $file
+    else
+        tar -czvf $name.tar.gz $file
+    fi
 done
