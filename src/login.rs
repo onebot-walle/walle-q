@@ -8,6 +8,7 @@ use ricq::ext::common::after_login;
 use ricq::ext::reconnect::{auto_reconnect, Credential, Password};
 use ricq::{LoginResponse, QRCodeState};
 use ricq::{RQError, RQResult};
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, info, warn};
 use walle_core::resp::Resp;
 
@@ -83,6 +84,20 @@ pub(crate) async fn start_reconnect(cli: &Arc<Client>, uin: &str, password: Opti
 async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
     let resp = cli.fetch_qrcode().await?;
     if let QRCodeState::ImageFetch(f) = resp {
+        match tokio::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open("qrcode.png")
+            .await
+        {
+            Ok(mut file) => {
+                file.write_all(&f.image_data)
+                    .await
+                    .map_err(|e| warn!("unable to write qrcode.png file: {}", e))
+                    .ok();
+            }
+            Err(e) => warn!("unable create qrcode.png file: {}", e),
+        }
         let rended = crate::util::qrcode2str(&f.image_data);
         info!(target: crate::WALLE_Q, "扫描二维码登录:");
         println!("{}", rended);
