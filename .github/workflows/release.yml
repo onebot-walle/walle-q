@@ -35,6 +35,14 @@ jobs:
             postfix: ""
             extra_args: ""
             cross: true
+
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-musleabihf
+            release_name: armv7-linux-musleabihf
+            postfix: ""
+            extra_args: ""
+            cross: true
+
           # Windows GNU
           - os: ubuntu-latest
             target: x86_64-pc-windows-gnu
