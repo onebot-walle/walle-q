@@ -25,7 +25,7 @@ pub(crate) async fn qevent2event<AH, EH>(
     infos: &Infos,
     self_id: i64,
     ob: &OneBot<AH, EH>,
-) -> Event
+) -> Option<Event>
 where
     AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
     EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
@@ -34,7 +34,7 @@ where
         user_id: self_id.to_string(),
         platform: crate::PLATFORM.to_owned(),
     };
-    match event {
+    Some(match event {
         // meta
         QEvent::Login(uin) => {
             info!(
@@ -477,7 +477,6 @@ where
         }
         QEvent::DeleteFriend(d) => {
             infos.friends.remove(&d.inner.uin);
-
             new_event(
                 None,
                 (
@@ -524,5 +523,9 @@ where
             )
             .await
         }
-    }
+        QEvent::ClientDisconnect(_) => {
+            warn!(target: crate::WALLE_Q, "网络断线，自动重连。。。");
+            return None;
+        }
+    })
 }

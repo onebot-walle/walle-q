@@ -3,12 +3,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use cached::{Cached, SizedCache, TimedCache};
 use once_cell::sync::OnceCell;
+use ricq::client::{Client, Connector, DefaultConnector};
 use ricq::handler::QEvent;
 use ricq::structs::{FriendAudio, GroupAudio};
-use ricq::Client;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 use walle_core::structs::Selft;
+use walle_core::GetVersion;
 use walle_core::{
     action::*,
     alt::ColoredAlt,
@@ -83,6 +84,16 @@ impl GetStatus for Handler {
     }
 }
 
+impl GetVersion for Handler {
+    fn get_version(&self) -> Version {
+        Version {
+            implt: crate::WALLE_Q.to_owned(),
+            version: crate::VERSION.to_owned(),
+            onebot_version: 12.to_string(),
+        }
+    }
+}
+
 #[async_trait]
 impl ActionHandler<Event, Action, Resp> for Handler {
     type Config = (String, Option<String>, u8); // (uin, password, protcol)
@@ -137,9 +148,7 @@ impl Handler {
             crate::config::load_device(&uin, protocol).unwrap(),
             qevent_tx,
         ));
-        let stream = tokio::net::TcpStream::connect(qclient.get_address())
-            .await
-            .unwrap();
+        let stream = DefaultConnector.connect(&qclient).await.unwrap();
         let _qcli = qclient.clone();
         let net = tokio::spawn(async move { _qcli.start(stream).await });
         self.client.set(qclient.clone()).ok();
@@ -172,8 +181,8 @@ impl Handler {
         Ok(vec![
             tokio::spawn(async move {
                 while let Some(qevent) = qevent_rx.recv().await {
-                    let event =
-                        crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await;
+                    let Some(event) =
+                        crate::parse::qevent2event(qevent, &database, &infos, self_id, &ob).await else {continue;};
                     tracing::info!(target: crate::WALLE_Q, "{}", event.colored_alt());
                     event_cache
                         .lock()
@@ -216,7 +225,7 @@ impl Handler {
             WQAction::GetLatestEvents(c) => self.get_latest_events(c).await.map(Into::into),
             WQAction::GetSupportedActions {} => Self::get_supported_actions().map(Into::into),
             WQAction::GetStatus {} => Ok(self.get_status().await.into()),
-            WQAction::GetVersion {} => Ok(Self::get_version().into()),
+            WQAction::GetVersion {} => Ok(self.get_version().into()),
 
             WQAction::SendMessage(c) => self.send_message(c).await.map(Into::into),
             WQAction::DeleteMessage(c) => self.delete_message(c).await.map(Into::into),
@@ -330,14 +339,6 @@ impl Handler {
             "delete_friend",
             "get_new_friend_request",
         ])
-    }
-    fn get_version() -> Version {
-        Version {
-            implt: crate::WALLE_Q.to_string(),
-            platform: "qq".to_string(),
-            version: crate::VERSION.to_string(),
-            onebot_version: 12.to_string(),
-        }
     }
 
     async fn send_message(&self, c: SendMessage) -> RespResult<SendMessageResp> {

@@ -179,7 +179,8 @@ impl From<LogLevel> for LevelFilter {
 impl MetaConfig {
     pub fn subscribe(&self) {
         let offset = chrono::Local
-            .timestamp(0, 0)
+            .timestamp_opt(0, 0)
+            .unwrap()
             .offset()
             .fix()
             .local_minus_utc();

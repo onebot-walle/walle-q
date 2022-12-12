@@ -13,9 +13,9 @@ use walle_core::{
     event::{Event, StatusUpdate},
     resp::resp_error,
     resp::Resp,
-    structs::Selft,
+    structs::{Selft, Version},
     util::GetSelf,
-    ActionHandler, EventHandler, GetSelfs, GetStatus, OneBot, WalleError,
+    ActionHandler, EventHandler, GetSelfs, GetStatus, GetVersion, OneBot, WalleError,
 };
 
 use crate::{
@@ -98,6 +98,16 @@ impl GetStatus for MultiAH {
         Self: 'async_trait,
     {
         Box::pin(async move { true })
+    }
+}
+
+impl GetVersion for MultiAH {
+    fn get_version(&self) -> Version {
+        Version {
+            implt: crate::WALLE_Q.to_owned(),
+            version: crate::VERSION.to_owned(),
+            onebot_version: 12.to_string(),
+        }
     }
 }
 

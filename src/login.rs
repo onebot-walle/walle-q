@@ -3,9 +3,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use ricq::client::Client;
+use ricq::client::{Client, DefaultConnector};
 use ricq::ext::common::after_login;
-use ricq::ext::reconnect::{auto_reconnect, Credential, DefaultConnector, Password};
+use ricq::ext::reconnect::{auto_reconnect, Credential, Password};
 use ricq::{LoginResponse, QRCodeState};
 use ricq::{RQError, RQResult};
 use tracing::{debug, info, warn};
