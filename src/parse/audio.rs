@@ -1,10 +1,11 @@
-use silk_rs::encode_silk;
-use tokio::{io::AsyncReadExt, process::Command};
 use walle_core::resp::RespError;
 
 use crate::error;
 
+#[cfg(feature = "silk")]
 pub async fn encode_to_silk(audio_file: &str) -> Result<Vec<u8>, RespError> {
+    use silk_rs::encode_silk;
+    use tokio::{io::AsyncReadExt, process::Command};
     let temp_pcm = format!("{audio_file}_pcm");
     Command::new("ffmpeg")
         .arg("-i")
@@ -27,4 +28,11 @@ pub async fn encode_to_silk(audio_file: &str) -> Result<Vec<u8>, RespError> {
         .await
         .map_err(|e| error::file_read_error(e))?;
     encode_silk(pcm, 24000, 24000, true).map_err(|e| error::silk_encode_failed(e))
+}
+
+#[cfg(not(feature = "silk"))]
+pub async fn encode_to_silk(_: &str) -> Result<Vec<u8>, RespError> {
+    Err(error::silk_encode_failed(
+        "silk is not supported in this target platform",
+    ))
 }
