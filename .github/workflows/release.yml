@@ -36,12 +36,19 @@ jobs:
             extra_args: ""
             cross: true
 
-          - os: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-            release_name: armv7-linux-gnueabihf
-            postfix: ""
-            extra_args: ""
-            cross: true
+          # - os: ubuntu-latest
+          #   target: riscv64gc-unknown-linux-gnu
+          #   release_name: riscv64gc-linux-gnu
+          #   postfix: ""
+          #   extra_args: ""
+          #   cross: true
+
+          # - os: ubuntu-latest
+          #   target: armv7-unknown-linux-gnueabihf
+          #   release_name: armv7-linux-gnueabihf
+          #   postfix: ""
+          #   extra_args: ""
+          #   cross: true
 
           # Windows GNU
           - os: ubuntu-latest
