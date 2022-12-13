@@ -37,8 +37,8 @@ jobs:
             cross: true
 
           - os: ubuntu-latest
-            target: armv7-unknown-linux-musleabihf
-            release_name: armv7-linux-musleabihf
+            target: armv7-unknown-linux-gnueabihf
+            release_name: armv7-linux-gnueabihf
             postfix: ""
             extra_args: ""
             cross: true
