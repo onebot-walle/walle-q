@@ -2596,9 +2596,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "walle-core"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab007509bdde5895c946931b010575963865c61df80414f3f57b7aa0e763a239"
+checksum = "3429eb1e0bdfa86ec398b6d7f90250a573bd6efd1f8e4ff503de76f42d88cda4"
 dependencies = [
  "async-trait",
  "base64",

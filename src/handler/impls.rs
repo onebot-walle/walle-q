@@ -1,6 +1,6 @@
 use super::Handler;
 use crate::WALLE_Q;
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use cached::Cached;
@@ -41,14 +41,10 @@ impl GetSelfs for Handler {
     }
 }
 impl GetStatus for Handler {
-    fn is_good<'life0, 'async_trait>(
-        &'life0 self,
-    ) -> core::pin::Pin<
-        Box<dyn core::future::Future<Output = bool> + core::marker::Send + 'async_trait>,
-    >
+    fn is_good<'a, 't>(&'a self) -> Pin<Box<dyn Future<Output = bool> + Send + 't>>
     where
-        'life0: 'async_trait,
-        Self: 'async_trait,
+        'a: 't,
+        Self: 't,
     {
         Box::pin(async move {
             self.client.get().map_or(false, |cli| {

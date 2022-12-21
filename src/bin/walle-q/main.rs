@@ -20,14 +20,10 @@ async fn main() {
     init().await;
 
     let ah = multi::MultiAH::new(config.meta.event_cache_size, config.meta.db());
-    let joins = Arc::new(walle_core::OneBot::new(
+    let ob = Arc::new(walle_core::OneBot::new(
         ah,
         ImplOBC::new(WALLE_Q.to_owned()),
-    ))
-    .start(config.qq, config.onebot, false)
-    .await
-    .unwrap();
-    for join in joins {
-        join.await.unwrap();
-    }
+    ));
+    ob.start(config.qq, config.onebot, false).await.unwrap();
+    ob.wait_all().await;
 }
