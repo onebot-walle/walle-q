@@ -104,6 +104,11 @@ pub struct SubmitTicket {
     pub ticket: String,
 }
 
+#[derive(Debug, TryFromAction)]
+pub struct Shutdown {
+    pub super_token: String,
+}
+
 #[derive(Debug, Clone, TryFromAction)]
 pub enum WQAction {
     GetLatestEvents(GetLatestEvents),

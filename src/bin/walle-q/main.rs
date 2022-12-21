@@ -19,7 +19,11 @@ async fn main() {
     config.meta.subscribe();
     init().await;
 
-    let ah = multi::MultiAH::new(config.meta.event_cache_size, config.meta.db());
+    let ah = multi::MultiAH::new(
+        config.meta.super_token.clone(),
+        config.meta.event_cache_size,
+        config.meta.db(),
+    );
     let ob = Arc::new(walle_core::OneBot::new(
         ah,
         ImplOBC::new(WALLE_Q.to_owned()),

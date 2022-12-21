@@ -21,13 +21,14 @@ use walle_core::{
 use crate::{
     config::QQConfig,
     database::WQDatabase,
-    error::map_action_parse_error,
+    error::{self, map_action_parse_error},
     handler::Handler,
     login::{action_login, login_resp_to_resp},
     WALLE_Q,
 };
 
 pub struct MultiAH {
+    pub super_token: Option<String>,
     pub(crate) ahs: DashMap<String, (Handler, Vec<JoinHandle<()>>)>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
@@ -43,8 +44,13 @@ pub struct MultiAH {
 }
 
 impl MultiAH {
-    pub fn new(event_cache_size: usize, database: Arc<WQDatabase>) -> Self {
+    pub fn new(
+        super_token: Option<String>,
+        event_cache_size: usize,
+        database: Arc<WQDatabase>,
+    ) -> Self {
         Self {
+            super_token,
             event_cache: Arc::new(Mutex::new(SizedCache::with_size(event_cache_size))),
             file_cache: Arc::new(Mutex::new(TimedCache::with_lifespan(60))),
             database,
@@ -207,6 +213,22 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                         }
                     } else {
                         Ok(walle_core::resp::resp_error::who_am_i("").into())
+                    }
+                }
+                Err(e) => Ok(map_action_parse_error(e).into()),
+            },
+            "shutdown" => match crate::model::Shutdown::try_from(action) {
+                Ok(shutdown) => {
+                    if let Some(ref token) = self.super_token {
+                        if token == shutdown.super_token.as_str() {
+                            let ob = ob.clone();
+                            tokio::spawn(async move { ob.shutdown(true).await });
+                            Ok(Resp::ok((), ""))
+                        } else {
+                            Ok(error::bad_param("super_token not match").into())
+                        }
+                    } else {
+                        Ok(resp_error::bad_handler("super_token unset").into())
                     }
                 }
                 Err(e) => Ok(map_action_parse_error(e).into()),

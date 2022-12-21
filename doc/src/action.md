@@ -39,6 +39,16 @@
 | version        | String | Walle-Q 版本号 |
 | onebot_version | String | `12`           |
 
+### * 关闭应用 shutdown
+
+动作请求:
+
+| 字段        | 类型   | 说明             |
+| ----------- | ------ | ---------------- |
+| super_token | String | 超级管理员 token |
+
+无动作响应
+
 ### * [Plan to add] 登录新账号 login_client
 
 动作请求:

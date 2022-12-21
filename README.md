@@ -82,6 +82,7 @@ A qq platform OneBot Implementation
 - [x] 获取支持的动作列表 get_supported_actions
 - [x] 获取运行状态 get_status
 - [x] 获取版本信息 get_version
+- [x] * 关闭应用 shutdown
 
 ### 消息动作
 

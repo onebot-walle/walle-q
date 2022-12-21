@@ -151,6 +151,7 @@ pub struct MetaConfig {
     pub event_cache_size: usize,
     pub sled: bool,
     pub leveldb: bool,
+    pub super_token: Option<String>,
 }
 
 impl Default for MetaConfig {
@@ -160,6 +161,7 @@ impl Default for MetaConfig {
             event_cache_size: 10,
             sled: true,
             leveldb: false,
+            super_token: None,
         }
     }
 }
