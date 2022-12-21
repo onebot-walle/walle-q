@@ -105,9 +105,7 @@ impl Handler {
             .await;
         let event_cache = self.event_cache.clone();
         let ob = ob.clone();
-        let mut rx = ob.get_signal_rx()?;
         let qclient0 = self.get_client().map_err(WalleError::RespError)?.clone();
-        let qclient = self.get_client().map_err(WalleError::RespError)?.clone();
         Ok(vec![
             tokio::spawn(async move {
                 while let Some(qevent) = qevent_rx.recv().await {
@@ -124,10 +122,6 @@ impl Handler {
             tokio::spawn(async move {
                 net.await.ok();
                 crate::login::start_reconnect(&qclient0, "", None).await;
-            }),
-            tokio::spawn(async move {
-                rx.recv().await.ok();
-                qclient.stop(ricq::client::NetworkStatus::Stop);
             }),
         ])
     }

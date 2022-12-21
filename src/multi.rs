@@ -227,8 +227,20 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                         Ok(error::bad_param("super_token not set").into())
                     }
                 }
-                Ok(WQMetaAction::Logout(_token)) => {
-                    todo!()
+                Ok(WQMetaAction::Logout(token)) => {
+                    if let Some(ref super_token) = self.super_token {
+                        if super_token == token.super_token.as_str() {
+                            if let Ok(Some(_)) = self.remove_handler(&bot.user_id, ob).await {
+                                Ok(Resp::ok((), ""))
+                            } else {
+                                Ok(resp_error::internal_handler("bot not found").into())
+                            }
+                        } else {
+                            Ok(error::bad_param("super_token not match").into())
+                        }
+                    } else {
+                        Ok(error::bad_param("super_token not set").into())
+                    }
                 }
                 Err(e) => Ok(map_action_parse_error(e).into()),
             }
