@@ -171,10 +171,10 @@ impl Handler {
                 let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
                 let receipt = match MsgChainBuilder::group_chain_builder(
                     self.get_client()?,
+                    &self.database,
                     group_code,
-                    c.message.clone(),
                 )
-                .build(&self.database)
+                .build(c.message.clone())
                 .await?
                 {
                     RQSendItem::Chain(chain) => self
@@ -224,10 +224,10 @@ impl Handler {
                 let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
                 let receipt = match MsgChainBuilder::private_chain_builder(
                     self.get_client()?,
+                    &self.database,
                     target,
-                    c.message.clone(),
                 )
-                .build(&self.database)
+                .build(c.message.clone())
                 .await?
                 {
                     RQSendItem::Chain(chain) => self
@@ -265,10 +265,10 @@ impl Handler {
                 let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
                 let receipt = match MsgChainBuilder::private_chain_builder(
                     self.get_client()?,
+                    &self.database,
                     target,
-                    c.message.clone(),
                 )
-                .build(&self.database)
+                .build(c.message.clone())
                 .await?
                 {
                     RQSendItem::Chain(chain) => self

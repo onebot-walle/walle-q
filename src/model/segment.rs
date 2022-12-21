@@ -1,6 +1,7 @@
 use walle_core::{
     prelude::{TryFromMsgSegment, TryFromValue},
     segment::{self, MsgSegment},
+    util::OneBotBytes,
 };
 
 #[derive(Debug, Clone, TryFromValue)]
@@ -20,6 +21,7 @@ pub struct Image {
     pub file_id: String,
     pub url: Option<String>,
     pub flash: Option<bool>,
+    pub bytes: Option<OneBotBytes>,
 }
 
 #[derive(Debug, Clone, TryFromValue)]
