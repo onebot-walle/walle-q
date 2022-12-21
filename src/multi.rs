@@ -24,6 +24,7 @@ use crate::{
     error::{self, map_action_parse_error},
     handler::Handler,
     login::{action_login, login_resp_to_resp},
+    model::{is_wq_meta, WQMetaAction},
     WALLE_Q,
 };
 
@@ -169,9 +170,10 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
         AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
         EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
-        match action.action.as_str() {
-            "login_client" => match crate::model::LoginClient::try_from(action) {
-                Ok(login) => {
+        let bot = action.get_self();
+        if is_wq_meta(&action.action) {
+            match WQMetaAction::try_from(action) {
+                Ok(WQMetaAction::Login(login)) => {
                     let ah = Handler {
                         client: OnceCell::default(),
                         event_cache: self.event_cache.clone(),
@@ -186,10 +188,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                         .await
                         .map_err(|e| WalleError::Other(e.to_string()))
                 }
-                Err(e) => Ok(map_action_parse_error(e).into()),
-            },
-            "submit_ticket" => match crate::model::SubmitTicket::try_from(action) {
-                Ok(ticket) => {
+                Ok(WQMetaAction::SubmitLogin(ticket)) => {
                     if let Some((_, (handler, rx, net))) =
                         self.unadded_client.remove(&ticket.user_id)
                     {
@@ -212,13 +211,10 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                             Err(e) => Ok(crate::error::rq_error(e).into()),
                         }
                     } else {
-                        Ok(walle_core::resp::resp_error::who_am_i("").into())
+                        Ok(error::client_not_initialized("please call login first").into())
                     }
                 }
-                Err(e) => Ok(map_action_parse_error(e).into()),
-            },
-            "shutdown" => match crate::model::Shutdown::try_from(action) {
-                Ok(shutdown) => {
+                Ok(WQMetaAction::Shutdown(shutdown)) => {
                     if let Some(ref token) = self.super_token {
                         if token == shutdown.super_token.as_str() {
                             let ob = ob.clone();
@@ -228,23 +224,24 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                             Ok(error::bad_param("super_token not match").into())
                         }
                     } else {
-                        Ok(resp_error::bad_handler("super_token unset").into())
+                        Ok(error::bad_param("super_token not set").into())
                     }
+                }
+                Ok(WQMetaAction::Logout(_token)) => {
+                    todo!()
                 }
                 Err(e) => Ok(map_action_parse_error(e).into()),
-            },
-            _ => {
-                let bot_id = action.get_self();
-                if let Some(ah) = self.ahs.get(&bot_id.user_id) {
-                    ah.0.call(action, ob).await
-                } else if self.ahs.len() == 1 {
-                    for ah in self.ahs.iter() {
-                        return ah.0.call(action, ob).await;
-                    }
-                    Ok(resp_error::bad_handler("unreachable! How??").into())
-                } else {
-                    Ok(resp_error::bad_param("self_id required").into())
+            }
+        } else {
+            if let Some(ah) = self.ahs.get(&bot.user_id) {
+                ah.0.call(action, ob).await
+            } else if self.ahs.len() == 1 {
+                for ah in self.ahs.iter() {
+                    return ah.0.call(action, ob).await;
                 }
+                Ok(resp_error::bad_handler("unreachable! How??").into())
+            } else {
+                Ok(resp_error::bad_param("self_id required").into())
             }
         }
     }

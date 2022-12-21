@@ -90,22 +90,22 @@ pub struct WQGetFile {
     pub file_type: Option<String>,
 }
 
-#[derive(Debug, Clone, TryFromAction)]
-pub struct LoginClient {
+#[derive(Debug, TryFromAction, TryFromValue)]
+pub struct Login {
     pub uin: String,
     pub password: Option<String>,
     pub password_md5: Option<String>,
     pub protcol: u8,
 }
 
-#[derive(Debug, TryFromAction)]
-pub struct SubmitTicket {
+#[derive(Debug, TryFromAction, TryFromValue)]
+pub struct SubmitLogin {
     pub user_id: String,
     pub ticket: String,
 }
 
-#[derive(Debug, TryFromAction)]
-pub struct Shutdown {
+#[derive(Debug, TryFromAction, TryFromValue)]
+pub struct Token {
     pub super_token: String,
 }
 
@@ -149,4 +149,16 @@ pub enum WQAction {
     GetJoinGroupRequests {},
     SetGroupInvited(SetGroupInvited),
     GetGroupInviteds {},
+}
+
+#[derive(Debug, TryFromAction)]
+pub enum WQMetaAction {
+    Login(Login),
+    SubmitLogin(SubmitLogin),
+    Shutdown(Token),
+    Logout(Token),
+}
+
+pub(crate) fn is_wq_meta(action: &str) -> bool {
+    ["login", "submit_login", "shutdown", "logout"].contains(&action)
 }
