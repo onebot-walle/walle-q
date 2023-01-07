@@ -40,7 +40,7 @@ pub trait SImage: Sized {
         hex::encode(self.image_id())
     }
     fn path(&self) -> PathBuf {
-        let mut path = PathBuf::from(crate::IMAGE_CACHE_DIR);
+        let mut path = PathBuf::from(crate::IMAGE_DIR);
         path.push(self.hex_image_id());
         path
     }

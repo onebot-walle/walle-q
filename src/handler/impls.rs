@@ -4,6 +4,7 @@ use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use cached::Cached;
+use colored::*;
 use ricq::{
     client::{Client, Connector, DefaultConnector},
     handler::QEvent,
@@ -169,9 +170,27 @@ impl ActionHandler<Event, Action, Resp> for Handler {
         AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
         EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
+        tracing::debug!(target: WALLE_Q, "{}", action.colored_alt());
         match self._handle(action).await {
-            Ok(resp) => Ok(resp),
-            Err(e) => Ok(e.into()),
+            Ok(resp) => {
+                tracing::debug!(
+                    target: WALLE_Q,
+                    "[{}] {}",
+                    "Action Success".green(),
+                    resp.data.colored_alt()
+                );
+                Ok(resp)
+            }
+            Err(e) => {
+                tracing::info!(
+                    target: WALLE_Q,
+                    "[{} {}] {}",
+                    "Action Failed".red(),
+                    e.retcode,
+                    e.message
+                );
+                Ok(e.into())
+            }
         }
     }
     async fn shutdown(&self) {

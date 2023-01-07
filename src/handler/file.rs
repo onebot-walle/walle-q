@@ -109,6 +109,8 @@ impl super::Handler {
                 }
                 "data" => {
                     if let Ok(data) = image.data().await {
+                        let mut c = sha2::Sha256::default();
+                        c.update(&data);
                         Ok(WQUploadFile {
                             ty: "data".to_string(),
                             name: image.get_file_name().to_string(),
@@ -116,7 +118,7 @@ impl super::Handler {
                             url: None,
                             path: None,
                             headers: None,
-                            sha256: None,
+                            sha256: Some(hex::encode(c.finalize())),
                             file_type: Some("image".to_string()),
                         })
                     } else {
@@ -135,9 +137,7 @@ impl super::Handler {
         c: UploadFileFragmented,
     ) -> RespResult<Option<FileId>> {
         match c {
-            UploadFileFragmented::Prepare {
-                name, total_size, ..
-            } => {
+            UploadFileFragmented::Prepare { name, total_size } => {
                 let file_id = format!("{}-{}", name, total_size);
                 self.uploading_fragment.lock().await.cache_set(
                     file_id.clone(),
@@ -151,11 +151,9 @@ impl super::Handler {
             UploadFileFragmented::Transfer {
                 file_id,
                 offset,
-                size,
                 data,
-                ..
             } => {
-                let mut file_path = std::path::PathBuf::from(crate::FILE_CACHE_DIR);
+                let mut file_path = std::path::PathBuf::from(crate::CACHE_DIR);
                 file_path.push(format!("{}-{}", file_id, offset));
                 let mut file = tokio::fs::File::create(file_path)
                     .await
@@ -163,15 +161,14 @@ impl super::Handler {
                 file.write_all(&data.0)
                     .await
                     .map_err(error::file_write_error)?;
+                let size = data.0.len() as i64;
                 match self.uploading_fragment.lock().await.cache_get_mut(&file_id) {
                     Some(f) => f.files.push((offset, size)),
                     None => return Err(error::prepare_file_first(&file_id)),
                 }
                 Ok(None)
             }
-            UploadFileFragmented::Finish {
-                file_id, sha256, ..
-            } => {
+            UploadFileFragmented::Finish { file_id, sha256 } => {
                 let mut fragment = self
                     .uploading_fragment
                     .lock()
@@ -182,7 +179,7 @@ impl super::Handler {
                 let mut data = Vec::with_capacity(fragment.total_size as usize);
                 let mut total_size = 0;
                 for (offset, size) in fragment.files {
-                    let mut file_path = std::path::PathBuf::from(crate::FILE_CACHE_DIR);
+                    let mut file_path = std::path::PathBuf::from(crate::CACHE_DIR);
                     file_path.push(format!("{}-{}", file_id, offset));
                     let mut file = tokio::fs::File::open(&file_path)
                         .await
@@ -236,7 +233,7 @@ impl super::Handler {
             Ok((info, sha256))
         }
         match c {
-            GetFileFragmented::Prepare { file_id, .. } => {
+            GetFileFragmented::Prepare { file_id } => {
                 let (info, sha256) = match self
                     .database
                     .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
@@ -265,7 +262,6 @@ impl super::Handler {
                 file_id,
                 offset,
                 size,
-                ..
             } => {
                 let info: ImageInfo = self
                     .database

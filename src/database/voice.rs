@@ -78,7 +78,7 @@ impl SVoice for LocalVoice {
 
 impl LocalVoice {
     pub fn path(&self) -> PathBuf {
-        let mut path = PathBuf::from(crate::VOICE_CACHE_DIR);
+        let mut path = PathBuf::from(crate::VOICE_DIR);
         path.push(self.hex_voice_id());
         path
     }
