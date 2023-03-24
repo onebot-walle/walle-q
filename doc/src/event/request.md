@@ -23,7 +23,7 @@
 | `invitor_id`   | Option\<String\> | 邀请人 ID     |
 | `invitor_name` | Option\<String\> | 邀请人名称    |
 
-## * 群邀请 request.group_invited
+## * 群邀请 request.group_invite
 
 | 字段           | 类型             | 说明       |
 | -------------- | ---------------- | ---------- |
