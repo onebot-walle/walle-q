@@ -108,8 +108,8 @@ impl NewConfig for Device {
 impl LoadConfig for Device {}
 
 impl Config {
-    pub fn load() -> Result<Self, std::io::Error> {
-        Self::load_or_new(CONFIG_PATH)
+    pub fn load_from_toml_file(path: Option<&str>) -> Result<Self, std::io::Error> {
+        Self::load_or_new(if let Some(p) = path { p } else { CONFIG_PATH })
     }
 }
 
@@ -134,7 +134,7 @@ pub(crate) fn load_device(uin: &str, protocol: u8) -> IOResult<RsQQConfig> {
     })
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum LogLevel {
     Trace,

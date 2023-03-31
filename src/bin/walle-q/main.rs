@@ -8,14 +8,7 @@ mod command;
 #[tokio::main]
 async fn main() {
     let comm = command::Comm::parse();
-    let mut config = match config::Config::load() {
-        Ok(config) => config,
-        Err(e) => {
-            println!("load config failed: {e}");
-            std::process::exit(1)
-        }
-    };
-    comm.merge(&mut config.meta);
+    let config = comm.config();
     config.meta.subscribe();
     init().await;
 
