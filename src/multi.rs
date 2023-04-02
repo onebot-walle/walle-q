@@ -298,21 +298,18 @@ impl MultiAH {
             for task in tasks {
                 task.abort();
             }
-            ob.handle_event(
-                crate::parse::util::new_event(
-                    None,
-                    (
-                        walle_core::event::Meta,
-                        StatusUpdate {
-                            status: ob.get_status().await,
-                        },
-                        (),
-                        crate::model::QQ,
-                        crate::model::WalleQ,
-                    ),
-                )
-                .await,
-            )
+            ob.handle_event(crate::parse::util::new_event(
+                None,
+                (
+                    walle_core::event::Meta,
+                    StatusUpdate {
+                        status: ob.get_status().await,
+                    },
+                    (),
+                    crate::model::QQ,
+                    crate::model::WalleQ,
+                ),
+            ))
             .await?;
             handler
                 .get_client()

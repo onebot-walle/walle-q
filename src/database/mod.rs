@@ -7,15 +7,29 @@ pub(crate) mod voice;
 pub use message::*;
 pub use simage::*;
 pub use voice::*;
-use walle_core::resp::RespError;
+use walle_core::{event::Event, resp::RespError};
 
 pub(crate) trait DatabaseInit {
     fn init() -> Self;
 }
 
+#[derive(serde::Deserialize)]
+pub(crate) struct DataBaseEvent {
+    pub event: Event,
+    pub seqs: Vec<i32>,
+    pub rands: Vec<i32>,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct DataBaseEventRef<'a> {
+    pub event: &'a Event,
+    pub seqs: Vec<i32>,
+    pub rands: Vec<i32>,
+}
+
 pub(crate) trait Database {
-    fn get_message<T: for<'de> serde::Deserialize<'de>>(&self, message_id: &str) -> Option<T>;
-    fn insert_message<T: serde::Serialize + MessageId>(&self, value: &T);
+    fn get_message(&self, message_id: &str) -> Option<DataBaseEvent>;
+    fn insert_message(&self, value: &Event, seqs: Vec<i32>, rands: Vec<i32>);
     fn get_image<T: for<'de> serde::Deserialize<'de>>(
         &self,
         key: &[u8],
@@ -31,16 +45,16 @@ pub(crate) enum WQDatabaseInner {
 }
 
 impl Database for WQDatabaseInner {
-    fn get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: &str) -> Option<T> {
+    fn get_message(&self, key: &str) -> Option<DataBaseEvent> {
         match self {
             Self::SledDb(db) => db.get_message(key),
             Self::LevelDb(db) => db.get_message(key),
         }
     }
-    fn insert_message<T: serde::Serialize + MessageId>(&self, value: &T) {
+    fn insert_message(&self, value: &Event, seqs: Vec<i32>, rands: Vec<i32>) {
         match self {
-            Self::SledDb(db) => db.insert_message(value),
-            Self::LevelDb(db) => db.insert_message(value),
+            Self::SledDb(db) => db.insert_message(value, seqs, rands),
+            Self::LevelDb(db) => db.insert_message(value, seqs, rands),
         }
     }
     fn get_image<T: for<'de> serde::Deserialize<'de>>(
@@ -86,15 +100,18 @@ impl WQDatabase {
             .push(WQDatabaseInner::LevelDb(leveldb::LevelDb::init()));
         self
     }
+    pub(crate) fn not_empty(&self) -> bool {
+        !self.0.is_empty()
+    }
 }
 
 impl Database for WQDatabase {
-    fn insert_message<T: serde::Serialize + MessageId>(&self, value: &T) {
+    fn insert_message(&self, value: &Event, seqs: Vec<i32>, rands: Vec<i32>) {
         for db in &self.0 {
-            db.insert_message(value)
+            db.insert_message(value, seqs.clone(), rands.clone())
         }
     }
-    fn get_message<T: for<'de> serde::Deserialize<'de>>(&self, key: &str) -> Option<T> {
+    fn get_message(&self, key: &str) -> Option<DataBaseEvent> {
         for db in &self.0 {
             match db.get_message(key) {
                 Some(v) => return Some(v),

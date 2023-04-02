@@ -6,6 +6,7 @@ use ricq::client::Client;
 use ricq::structs::{FriendAudio, GroupAudio};
 use tokio::sync::Mutex;
 use walle_core::structs::Selft;
+use walle_core::util::ValueMapExt;
 use walle_core::GetVersion;
 use walle_core::{
     action::*,
@@ -19,10 +20,9 @@ use crate::database::{Database, MessageId, WQDatabase};
 use crate::error::{self, map_action_parse_error};
 use crate::model::*;
 use crate::parse::util::{
-    decode_message_id, new_group_receipt_content, new_group_temp_receipt_content,
-    new_private_receipt_content,
+    decode_message_id, new_group_receipt, new_group_temp_receipt, new_private_receipt,
 };
-use crate::parse::{util::new_event, MsgChainBuilder, RQSendItem};
+use crate::parse::{MsgChainBuilder, RQSendItem};
 
 pub use self::file::FragmentFile;
 
@@ -198,23 +198,19 @@ impl Handler {
                 }
                 let time = receipt.time as f64;
                 let cli = self.get_client()?;
-                let event = new_event(
-                    Some(time as f64),
-                    new_group_receipt_content(
-                        cli,
-                        receipt,
-                        group_code,
-                        c.message,
-                        self.selft().await?,
-                    )
-                    .await,
+                let event = new_group_receipt(
+                    cli,
+                    receipt,
+                    group_code,
+                    c.message,
+                    self.selft().await?,
+                    &self.database,
                 )
                 .await;
                 let respc = SendMessageResp {
                     message_id: event.message_id(),
                     time,
                 };
-                self.database.insert_message(&event);
                 Ok(respc)
             }
             "group_temp" => {
@@ -240,24 +236,20 @@ impl Handler {
                 };
                 let cli = self.get_client()?;
                 let time = receipt.time as f64;
-                let event = new_event(
-                    Some(time),
-                    new_group_temp_receipt_content(
-                        receipt,
-                        c.message,
-                        cli,
-                        group_code,
-                        target,
-                        self.selft().await?,
-                    )
-                    .await,
+                let event = new_group_temp_receipt(
+                    receipt,
+                    c.message,
+                    cli,
+                    group_code,
+                    target,
+                    self.selft().await?,
+                    &self.database,
                 )
                 .await;
                 let respc = SendMessageResp {
                     message_id: event.message_id(),
                     time,
                 };
-                self.database.insert_message(&event);
                 Ok(respc)
             }
             "private" => {
@@ -285,23 +277,19 @@ impl Handler {
                 };
                 let cli = self.get_client()?;
                 let time = receipt.time as f64;
-                let event = new_event(
-                    Some(time),
-                    new_private_receipt_content(
-                        cli,
-                        receipt,
-                        target,
-                        c.message,
-                        self.selft().await?,
-                    )
-                    .await,
+                let event = new_private_receipt(
+                    cli,
+                    receipt,
+                    target,
+                    c.message,
+                    self.selft().await?,
+                    &self.database,
                 )
                 .await;
                 let respc = SendMessageResp {
                     message_id: event.message_id(),
                     time,
                 };
-                self.database.insert_message(&event);
                 Ok(respc)
             }
             ty => Err(resp_error::unsupported_param(ty)),
@@ -309,7 +297,41 @@ impl Handler {
     }
 
     async fn delete_message(&self, c: DeleteMessage) -> RespResult<()> {
-        let message = decode_message_id(&c.message_id)?;
+        let message = if c.message_id.contains(' ') {
+            decode_message_id(&c.message_id)?
+        } else {
+            let event = self
+                .database
+                .get_message(&c.message_id)
+                .ok_or(resp_error::database_error("message event not found."))?;
+            if &event.event.detail_type == "private" {
+                (
+                    event
+                        .event
+                        .extra
+                        .get_downcast::<String>("user_id")
+                        .unwrap()
+                        .parse()
+                        .unwrap(), // todo
+                    event.seqs,
+                    event.rands,
+                    Some(event.event.time as i32),
+                )
+            } else {
+                (
+                    event
+                        .event
+                        .extra
+                        .get_downcast::<String>("group_id")
+                        .unwrap()
+                        .parse()
+                        .unwrap(), // todo
+                    event.seqs,
+                    event.rands,
+                    None,
+                )
+            }
+        };
         match message.3 {
             Some(time) => self
                 .get_client()?
@@ -326,12 +348,12 @@ impl Handler {
     }
 
     async fn get_message(&self, c: GetMessage) -> RespResult<Event> {
-        if let Some(m) = self.database.get_message::<Event>(
+        if let Some(m) = self.database.get_message(
             &c.message_id
                 .parse::<String>()
                 .map_err(|_| error::bad_param("message_id"))?,
         ) {
-            Ok(m)
+            Ok(m.event)
         } else {
             Err(error::message_not_exist(c.message_id))
         }

@@ -4,7 +4,7 @@ use ricq::structs::{ForwardMessage, ForwardNode, MessageNode};
 use ricq::Client;
 use ricq_core::pb::msg::Ptt;
 use tracing::{debug, warn};
-use walle_core::event::{BaseEvent, Event, Message};
+use walle_core::event::{BaseEvent, Message};
 use walle_core::prelude::*;
 use walle_core::resp::RespError;
 use walle_core::segment::{self, Segments};
@@ -122,9 +122,9 @@ impl<'a> MsgChainBuilder<'a> {
             WQSegment::Reply(reply) => {
                 let event = self
                     .db
-                    .get_message::<Event>(&reply.message_id)
+                    .get_message(&reply.message_id)
                     .ok_or_else(|| error::message_not_exist(&reply.message_id))?;
-                let event = BaseEvent::<Message>::try_from(event).unwrap(); //todo check
+                let event = BaseEvent::<Message>::try_from(event.event).unwrap(); //todo check
                 let decoded = decode_message_id(&reply.message_id)?;
                 let sub_chain = {
                     let mut chain = MessageChain::default();

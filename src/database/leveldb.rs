@@ -1,10 +1,10 @@
 use crate::error;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use walle_core::resp::RespError;
+use walle_core::{prelude::Event, resp::RespError};
 
 use rusty_leveldb::{Options, DB};
 
-use super::{Database, DatabaseInit, MessageId, SImage, SVoice};
+use super::{DataBaseEvent, DataBaseEventRef, Database, DatabaseInit, MessageId, SImage, SVoice};
 
 const MEM_CACHE_LIMIT: usize = 10;
 
@@ -33,24 +33,23 @@ impl LevelDb {
 }
 
 impl Database for LevelDb {
-    fn get_message<T>(&self, key: &str) -> Option<T>
-    where
-        T: for<'de> serde::Deserialize<'de>,
-    {
+    fn get_message(&self, key: &str) -> Option<DataBaseEvent> {
         self.0
             .lock()
             .unwrap()
             .get(key.as_bytes())
             .and_then(|v| rmp_serde::from_slice(&v).unwrap())
     }
-    fn insert_message<T>(&self, value: &T)
-    where
-        T: serde::Serialize + MessageId,
-    {
+    fn insert_message(&self, value: &Event, seqs: Vec<i32>, rands: Vec<i32>) {
         let mut db = self.0.lock().unwrap();
         db.put(
             value.message_id().as_bytes(),
-            &rmp_serde::to_vec(value).unwrap(),
+            &rmp_serde::to_vec(&DataBaseEventRef {
+                event: value,
+                seqs,
+                rands,
+            })
+            .unwrap(),
         )
         .unwrap();
         self.flush(db);

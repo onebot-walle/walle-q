@@ -21,24 +21,23 @@ impl DatabaseInit for SledDb {
 }
 
 impl Database for SledDb {
-    fn get_message<T>(&self, key: &str) -> Option<T>
-    where
-        T: for<'de> serde::Deserialize<'de>,
-    {
+    fn get_message(&self, key: &str) -> Option<DataBaseEvent> {
         self.message_tree
             .get(key.as_bytes())
             .unwrap()
             .map(|v| rmp_serde::from_slice(&v).unwrap())
     }
 
-    fn insert_message<T>(&self, value: &T)
-    where
-        T: serde::Serialize + MessageId,
-    {
+    fn insert_message(&self, value: &Event, seqs: Vec<i32>, rands: Vec<i32>) {
         self.message_tree
             .insert(
                 value.message_id().as_bytes(),
-                rmp_serde::to_vec(value).unwrap(),
+                rmp_serde::to_vec(&DataBaseEventRef {
+                    event: value,
+                    seqs,
+                    rands,
+                })
+                .unwrap(),
             )
             .unwrap();
     }
