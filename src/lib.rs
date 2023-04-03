@@ -1,7 +1,7 @@
 #![feature(if_let_guard)]
 
 pub mod config;
-mod database;
+pub mod database;
 mod handler;
 mod login;
 pub mod multi;
