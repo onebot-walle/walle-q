@@ -60,6 +60,7 @@ sha2 = "0.10"
 [features]
 vendored = ["uri-reader/vendored"]
 silk = ["silk-rs"]
+rustls = ["uri-reader/rustls"]
 
 [[bin]]
 name = "walle-q"
