@@ -88,19 +88,19 @@ impl Database for WQDatabaseInner {
 
 // insert all but read the first
 #[derive(Default)]
-pub struct WQDatabase(pub(crate) Vec<WQDatabaseInner>);
+pub struct WQDatabase(Vec<WQDatabaseInner>);
 
 impl WQDatabase {
-    pub(crate) fn sled(mut self) -> Self {
+    pub fn add_sled(mut self) -> Self {
         self.0.push(WQDatabaseInner::SledDb(sleddb::SledDb::init()));
         self
     }
-    pub(crate) fn level(mut self) -> Self {
+    pub fn add_level(mut self) -> Self {
         self.0
             .push(WQDatabaseInner::LevelDb(leveldb::LevelDb::init()));
         self
     }
-    pub(crate) fn not_empty(&self) -> bool {
+    pub fn not_empty(&self) -> bool {
         !self.0.is_empty()
     }
 }

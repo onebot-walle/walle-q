@@ -225,10 +225,10 @@ impl MetaConfig {
     pub fn db(&self) -> Arc<WQDatabase> {
         let mut db = WQDatabase::default();
         if self.sled {
-            db = db.sled();
+            db = db.add_sled();
         }
         if self.leveldb {
-            db = db.level()
+            db = db.add_level()
         }
         Arc::new(db)
     }
