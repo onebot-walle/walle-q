@@ -11,6 +11,7 @@ use walle_core::segment::{self, Segments};
 
 use crate::database::{Database, Images, SImage, Voices, WQDatabase};
 use crate::error;
+use crate::handler::Handler;
 use crate::model::WQSegment;
 
 use super::audio::encode_to_silk;
@@ -20,6 +21,7 @@ pub struct MsgChainBuilder<'a> {
     pub db: &'a WQDatabase,
     pub target: i64,
     pub group: bool,
+    data_path: &'a str,
     results: RQSends,
     reply: bool,
 }
@@ -53,20 +55,22 @@ impl TryFrom<RQSends> for RQSendItem {
 }
 
 impl<'a> MsgChainBuilder<'a> {
-    pub fn group_chain_builder(cli: &'a Client, db: &'a WQDatabase, target: i64) -> Self {
+    pub fn group_chain_builder(cli: &'a Client, handler: &'a Handler, target: i64) -> Self {
         MsgChainBuilder {
             cli,
-            db,
+            db: &handler.database,
+            data_path: &handler.data_path,
             target,
             group: true,
             results: RQSends::default(),
             reply: false,
         }
     }
-    pub fn private_chain_builder(cli: &'a Client, db: &'a WQDatabase, target: i64) -> Self {
+    pub fn private_chain_builder(cli: &'a Client, handler: &'a Handler, target: i64) -> Self {
         MsgChainBuilder {
             cli,
-            db,
+            db: &handler.database,
+            data_path: &handler.data_path,
             target,
             group: false,
             results: RQSends::default(),
@@ -186,7 +190,8 @@ impl<'a> MsgChainBuilder<'a> {
                             .cli
                             .upload_group_audio(
                                 self.target,
-                                encode_to_silk(local.path().to_str().unwrap()).await?,
+                                encode_to_silk(local.path(self.data_path).to_str().unwrap())
+                                    .await?,
                                 1,
                             )
                             .await
@@ -198,7 +203,8 @@ impl<'a> MsgChainBuilder<'a> {
                             .cli
                             .upload_friend_audio(
                                 self.target,
-                                encode_to_silk(local.path().to_str().unwrap()).await?,
+                                encode_to_silk(local.path(self.data_path).to_str().unwrap())
+                                    .await?,
                                 std::time::Duration::from_secs(10), //just a number tired
                             )
                             .await
@@ -215,6 +221,7 @@ impl<'a> MsgChainBuilder<'a> {
                 let sub_builder = MsgChainBuilder {
                     cli: self.cli,
                     target: self.target,
+                    data_path: self.data_path,
                     group: self.group,
                     db: self.db,
                     results: RQSends::default(),
@@ -280,13 +287,19 @@ impl<'a> MsgChainBuilder<'a> {
     }
     pub(crate) async fn push_image(&mut self, image: Images, flash: bool) -> Result<(), RespError> {
         if self.group {
-            if let Some(image) = image.try_into_group_elem(self.cli, self.target).await {
+            if let Some(image) = image
+                .try_into_group_elem(self.cli, self.target, self.data_path)
+                .await
+            {
                 Ok(self.push_flash(image, flash))
             } else {
                 Err(error::rq_error("upload group image failed"))
             }
         } else {
-            if let Some(image) = image.try_into_friend_elem(self.cli, self.target).await {
+            if let Some(image) = image
+                .try_into_friend_elem(self.cli, self.target, self.data_path)
+                .await
+            {
                 Ok(self.push_flash(image, flash))
             } else {
                 Err(error::rq_error("upload friend image failed"))

@@ -51,13 +51,13 @@ impl super::Handler {
     }
 
     pub async fn upload_image(&self, data: Vec<u8>) -> RespResult<FileId> {
-        let info = save_image(&data).await?;
+        let info = save_image(&data, &self.data_path).await?;
         self.database.insert_image(&info);
         Ok(info.as_file_id_content())
     }
 
     pub async fn upload_voice(&self, data: Vec<u8>) -> RespResult<FileId> {
-        let local = save_voice(&data).await?;
+        let local = save_voice(&data, &self.data_path).await?;
         self.database.insert_voice(&local);
         Ok(local.as_file_id_content())
     }
@@ -92,11 +92,11 @@ impl super::Handler {
                     }
                 }
                 "path" => {
-                    if image.path().exists() {
+                    if image.path(&self.data_path).exists() {
                         Ok(WQUploadFile {
                             ty: "path".to_string(),
                             name: image.get_file_name().to_string(),
-                            path: Some(image.path().to_str().unwrap().to_string()),
+                            path: Some(image.path(&self.data_path).to_str().unwrap().to_string()),
                             url: None,
                             headers: None,
                             data: None,
@@ -108,7 +108,7 @@ impl super::Handler {
                     }
                 }
                 "data" => {
-                    if let Ok(data) = image.data().await {
+                    if let Ok(data) = image.data(&self.data_path).await {
                         let mut c = sha2::Sha256::default();
                         c.update(&data);
                         Ok(WQUploadFile {
@@ -153,7 +153,8 @@ impl super::Handler {
                 offset,
                 data,
             } => {
-                let mut file_path = std::path::PathBuf::from(crate::CACHE_DIR);
+                let mut file_path =
+                    std::path::PathBuf::from(format!("{}/{}", &self.data_path, crate::CACHE_DIR));
                 file_path.push(format!("{}-{}", file_id, offset));
                 let mut file = tokio::fs::File::create(file_path)
                     .await
@@ -179,7 +180,11 @@ impl super::Handler {
                 let mut data = Vec::with_capacity(fragment.total_size as usize);
                 let mut total_size = 0;
                 for (offset, size) in fragment.files {
-                    let mut file_path = std::path::PathBuf::from(crate::CACHE_DIR);
+                    let mut file_path = std::path::PathBuf::from(format!(
+                        "{}/{}",
+                        &self.data_path,
+                        crate::CACHE_DIR
+                    ));
                     file_path.push(format!("{}-{}", file_id, offset));
                     let mut file = tokio::fs::File::open(&file_path)
                         .await
@@ -222,13 +227,13 @@ impl super::Handler {
             h: &super::Handler,
             simage: impl SImage,
         ) -> Result<(ImageInfo, String), RespError> {
-            let data = simage.data().await.map_err(error::rq_error)?;
+            let data = simage.data(&h.data_path).await.map_err(error::rq_error)?;
             let sha256 = {
                 let mut s = sha2::Sha256::default();
                 s.update(&data);
                 hex::encode(&s.finalize())
             };
-            let info = save_image(&data).await?;
+            let info = save_image(&data, &h.data_path).await?;
             h.database.insert_image(&info);
             Ok((info, sha256))
         }
@@ -242,7 +247,7 @@ impl super::Handler {
                     Images::Friend(f) => to_info(self, f).await?,
                     Images::Group(g) => to_info(self, g).await?,
                     Images::Info(i) => {
-                        let data = i.data().await.map_err(error::rq_error)?;
+                        let data = i.data(&self.data_path).await.map_err(error::rq_error)?;
                         let sha256 = {
                             let mut s = sha2::Sha256::default();
                             s.update(&data);
@@ -267,7 +272,7 @@ impl super::Handler {
                     .database
                     .get_image(&hex::decode(&file_id).map_err(|_| error::bad_param("file_id"))?)?
                     .ok_or_else(|| error::file_not_found(&file_id))?;
-                let mut file = tokio::fs::File::open(info.path())
+                let mut file = tokio::fs::File::open(info.path(&self.data_path))
                     .await
                     .map_err(error::file_open_error)?;
                 file.seek(SeekFrom::Start(offset as u64))

@@ -160,6 +160,7 @@ impl ActionHandler<Event, Action, Resp> for Handler {
             self.get_client().map_err(WalleError::RespError)?,
             &config.0,
             config.1.clone(),
+            &self.data_path,
         )
         .await
         .map_err(|e| WalleError::Other(e.to_string()))?;

@@ -21,15 +21,20 @@ const EMPTY_MD5: [u8; 16] = [
 ];
 const TOKEN_PATH: &str = "session.token";
 
-fn token_path(uin: &str) -> String {
-    format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH)
+fn token_path(uin: &str, base_path: &str) -> String {
+    format!("{}/{}/{}-{}", base_path, crate::CLIENT_DIR, uin, TOKEN_PATH)
 }
 
 /// if passwords is empty use qrcode login else use password login
 ///
 /// if login success, start client heartbeat
-pub(crate) async fn login(cli: &Arc<Client>, uin: &str, password: Option<String>) -> RQResult<()> {
-    let token_path = token_path(uin);
+pub(crate) async fn login(
+    cli: &Arc<Client>,
+    uin: &str,
+    password: Option<String>,
+    base_path: &str,
+) -> RQResult<()> {
+    let token_path = token_path(uin, base_path);
     let token_login: bool = match fs::read(&token_path).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
@@ -197,8 +202,9 @@ pub(crate) async fn action_login(
     cli: &Arc<Client>,
     uin: &str,
     password: Option<String>,
+    base_path: &str,
 ) -> RQResult<Resp> {
-    match fs::read(&token_path(uin)).map(|s| rmp_serde::from_slice(&s)) {
+    match fs::read(&token_path(uin, base_path)).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
                 target: crate::WALLE_Q,
@@ -224,7 +230,7 @@ pub(crate) async fn action_login(
     };
     if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
         info!(target: crate::WALLE_Q, "login with password");
-        login_resp_to_resp(cli, cli.password_login(uin, password).await?).await
+        login_resp_to_resp(cli, cli.password_login(uin, password).await?, base_path).await
     } else {
         info!(target: crate::WALLE_Q, "login with qrcode");
         match cli.fetch_qrcode().await? {
@@ -242,6 +248,7 @@ pub(crate) async fn action_login(
 pub(crate) async fn login_resp_to_resp(
     cli: &Arc<Client>,
     mut resp: LoginResponse,
+    base_path: &str,
 ) -> RQResult<Resp> {
     if let LoginResponse::DeviceLockLogin(_) = resp {
         resp = cli.device_lock_login().await?;
@@ -250,7 +257,11 @@ pub(crate) async fn login_resp_to_resp(
     Ok(match resp {
         LoginResponse::Success(_) => {
             let token = cli.gen_token().await;
-            fs::write(token_path(&user_id), rmp_serde::to_vec(&token).unwrap()).unwrap();
+            fs::write(
+                token_path(&user_id, base_path),
+                rmp_serde::to_vec(&token).unwrap(),
+            )
+            .unwrap();
             cli.register_client().await?;
             LoginResp {
                 user_id,
