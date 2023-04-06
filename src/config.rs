@@ -113,10 +113,11 @@ impl Config {
     }
 }
 
-pub(crate) fn load_device(uin: &str, protocol: u8) -> IOResult<RsQQConfig> {
+pub(crate) fn load_device(uin: &str, protocol: u8, base_path: &str) -> IOResult<RsQQConfig> {
     Ok(RsQQConfig {
         device: Device::load_or_new(&format!(
-            "{}/{}-{}-{}",
+            "{}/{}/{}-{}-{}",
+            base_path,
             crate::CLIENT_DIR,
             uin,
             protocol,

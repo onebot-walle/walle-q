@@ -21,7 +21,7 @@ const EMPTY_MD5: [u8; 16] = [
 ];
 const TOKEN_PATH: &str = "session.token";
 
-fn token_path(uin: &str, base_path: &str) -> String {
+pub fn token_path(uin: &str, base_path: &str) -> String {
     format!("{}/{}/{}-{}", base_path, crate::CLIENT_DIR, uin, TOKEN_PATH)
 }
 

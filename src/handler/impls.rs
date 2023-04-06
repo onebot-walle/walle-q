@@ -77,7 +77,7 @@ impl Handler {
     ) {
         let (qevent_tx, qevent_rx) = tokio::sync::mpsc::unbounded_channel();
         let qclient = Arc::new(Client::new_with_config(
-            crate::config::load_device(&uin, protocol).unwrap(),
+            crate::config::load_device(&uin, protocol, &self.data_path).unwrap(),
             qevent_tx,
         ));
         let stream = DefaultConnector.connect(&qclient).await.unwrap();
