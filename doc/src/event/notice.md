@@ -29,6 +29,16 @@
 | `user_id`     | String | 发送者 ID |
 | `receiver_id` | String | 接收者 ID |
 
+## * 群友戳一戳 notice.group_poke
+
+> 此事件为扩展事件
+
+| 字段          | 类型   | 说明      |
+| ------------- | ------ | --------- |
+| `group_id`    | String | 群 ID     |
+| `user_id`     | String | 发送者 ID |
+| `receiver_id` | String | 接收者 ID |
+
 ## 群成员增加 notice.group_member_increase
 
 | 字段          | 类型   | 说明             |

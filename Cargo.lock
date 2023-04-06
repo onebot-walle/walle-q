@@ -1882,9 +1882,8 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "ricq"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd44588852775d7416accd9044e1ff3837ca93403064f646b2067d2f77fc48f0"
+version = "0.1.20"
+source = "git+https://github.com/lz1998/ricq.git#5c5a5901bc6951fd2186f841a394f5d3fcd41ad7"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1905,9 +1904,8 @@ dependencies = [
 
 [[package]]
 name = "ricq-core"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9921e29625c65fab984c532382e8954b5de34f83139dfd371aeb59ccb9f3a310"
+version = "0.1.20"
+source = "git+https://github.com/lz1998/ricq.git#5c5a5901bc6951fd2186f841a394f5d3fcd41ad7"
 dependencies = [
  "byteorder",
  "bytes",

@@ -190,7 +190,7 @@ impl<'a> MsgChainBuilder<'a> {
                             .cli
                             .upload_group_audio(
                                 self.target,
-                                encode_to_silk(local.path(self.data_path).to_str().unwrap())
+                                &encode_to_silk(local.path(self.data_path).to_str().unwrap())
                                     .await?,
                                 1,
                             )
@@ -203,7 +203,7 @@ impl<'a> MsgChainBuilder<'a> {
                             .cli
                             .upload_friend_audio(
                                 self.target,
-                                encode_to_silk(local.path(self.data_path).to_str().unwrap())
+                                &encode_to_silk(local.path(self.data_path).to_str().unwrap())
                                     .await?,
                                 std::time::Duration::from_secs(10), //just a number tired
                             )
@@ -312,7 +312,7 @@ impl<'a> MsgChainBuilder<'a> {
         flash: bool,
     ) -> Result<(), RespError> {
         if self.group {
-            match self.cli.upload_group_image(self.target, data).await {
+            match self.cli.upload_group_image(self.target, &data).await {
                 Ok(image) => Ok(self.push_flash(image, flash)),
                 Err(e) => {
                     warn!(target: crate::WALLE_Q, "群图片上传失败：{}", e);
@@ -320,7 +320,7 @@ impl<'a> MsgChainBuilder<'a> {
                 }
             }
         } else {
-            match self.cli.upload_friend_image(self.target, data).await {
+            match self.cli.upload_friend_image(self.target, &data).await {
                 Ok(image) => Ok(self.push_flash(image, flash)),
                 Err(e) => {
                     warn!(target: crate::WALLE_Q, "好友图片上传失败：{}", e);

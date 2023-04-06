@@ -9,6 +9,14 @@ pub struct FriendPoke {
 
 #[derive(Debug, Clone, PushToValueMap, ToEvent)]
 #[event(detail_type)]
+pub struct GroupPoke {
+    pub group_id: String,
+    pub user_id: String,
+    pub receiver_id: String,
+}
+
+#[derive(Debug, Clone, PushToValueMap, ToEvent)]
+#[event(detail_type)]
 pub struct GroupNameUpdate {
     pub group_id: String,
     pub group_name: String,

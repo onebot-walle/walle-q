@@ -6,7 +6,8 @@ use crate::database::{Database, SVoice, WQDatabase};
 use crate::handler::Infos;
 use crate::model::{
     Delete, Disband, FriendPoke, GroupAdminSet, GroupAdminUnset, GroupInvite, GroupMemberBan,
-    GroupNameUpdate, Join, JoinGroup, Kick, Leave, NewFriend, Recall, UserName, WalleQ, QQ,
+    GroupNameUpdate, GroupPoke, Join, JoinGroup, Kick, Leave, NewFriend, Recall, UserName, WalleQ,
+    QQ,
 };
 
 use ricq::client::handler::QEvent;
@@ -379,6 +380,20 @@ where
             (
                 Notice { selft },
                 FriendPoke {
+                    user_id: p.inner.sender.to_string(),
+                    receiver_id: p.inner.receiver.to_string(),
+                },
+                (),
+                QQ,
+                WalleQ,
+            ),
+        ),
+        QEvent::GroupPoke(p) => new_event(
+            None,
+            (
+                Notice { selft },
+                GroupPoke {
+                    group_id: p.inner.group_code.to_string(),
                     user_id: p.inner.sender.to_string(),
                     receiver_id: p.inner.receiver.to_string(),
                 },

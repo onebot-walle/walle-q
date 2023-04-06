@@ -126,7 +126,7 @@ impl SImage for FriendImage {
         base_path: &str,
     ) -> Option<GroupImage> {
         if let Ok(data) = self.data(base_path).await {
-            cli.upload_group_image(target, data.to_vec()).await.ok()
+            cli.upload_group_image(target, &data.to_vec()).await.ok()
         } else {
             None
         }
