@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 use walle_core::resp::RespError;
 use walle_core::structs::FileId;
 
-pub async fn save_voice(data: &[u8]) -> Result<LocalVoice, RespError> {
+pub async fn save_voice(data: &[u8], base_path: &str) -> Result<LocalVoice, RespError> {
     use tokio::io::AsyncWriteExt;
 
     let md5 = md5::compute(data).0.to_vec();
     let size = data.len() as u32;
     let local = LocalVoice { md5, size };
-    let mut file = tokio::fs::File::create(&local.path())
+    let mut file = tokio::fs::File::create(&local.path(base_path))
         .await
         .map_err(error::file_create_error)?;
     file.write_all(data.as_ref())
@@ -77,8 +77,8 @@ impl SVoice for LocalVoice {
 }
 
 impl LocalVoice {
-    pub fn path(&self) -> PathBuf {
-        let mut path = PathBuf::from(crate::VOICE_DIR);
+    pub fn path(&self, base_path: &str) -> PathBuf {
+        let mut path = PathBuf::from(format!("{}/{}", base_path, crate::VOICE_DIR));
         path.push(self.hex_voice_id());
         path
     }

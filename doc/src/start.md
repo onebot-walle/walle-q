@@ -23,6 +23,8 @@ log = "info"                  # 日志级别，可选：trace, debug, info, warn
 event_cache_size = 10         # 事件缓存区大小
 sled = false                  # 启用 sled 数据库
 leveldb = true                # 启用 leveldb 数据库
+data_path = "./data"          # 数据文件路径
+log_path = "./log"            # log 文件保存路径
 super_token =                 # 超级管理 token 默认为未设置，必须设置才可以使用 super manager action
 
 [[onebot.http]]

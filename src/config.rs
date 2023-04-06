@@ -151,6 +151,8 @@ pub struct MetaConfig {
     pub event_cache_size: usize,
     pub sled: bool,
     pub leveldb: bool,
+    pub data_path: Option<String>,
+    pub log_path: Option<String>,
     pub super_token: Option<String>,
 }
 
@@ -159,8 +161,10 @@ impl Default for MetaConfig {
         Self {
             log_level: LogLevel::default(),
             event_cache_size: 10,
-            sled: true,
-            leveldb: false,
+            sled: false,
+            leveldb: true,
+            data_path: None,
+            log_path: None,
             super_token: None,
         }
     }
@@ -199,8 +203,10 @@ impl MetaConfig {
                 (walle_core::WALLE_CORE, self.log_level),
                 (walle_core::obc::OBC, self.log_level),
             ]);
-        let file_appender =
-            tracing_appender::rolling::daily(crate::LOG_PATH, format!("{}.log", crate::WALLE_Q));
+        let file_appender = tracing_appender::rolling::daily(
+            self.log_path.clone().unwrap_or(crate::LOG_PATH.to_owned()),
+            format!("{}.log", crate::WALLE_Q),
+        );
         use tracing_subscriber::{
             prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, Layer,
         };

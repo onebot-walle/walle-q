@@ -10,10 +10,15 @@ async fn main() {
     let comm = command::Comm::parse();
     let config = comm.config();
     config.meta.subscribe();
-    init().await;
+    init(config.meta.data_path.clone(), config.meta.log_path.clone()).await;
 
     let ah = multi::MultiAH::new(
         config.meta.super_token.clone(),
+        config
+            .meta
+            .data_path
+            .clone()
+            .unwrap_or(walle_q::DATA_PATH.to_owned()),
         config.meta.event_cache_size,
         config.meta.db(),
     );

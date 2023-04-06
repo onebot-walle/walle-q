@@ -34,6 +34,7 @@ pub(crate) use infos::Infos;
 
 pub struct Handler {
     pub(crate) client: OnceCell<Arc<ricq::Client>>,
+    pub(crate) data_path: Arc<String>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) uploading_fragment: Arc<Mutex<TimedCache<String, FragmentFile>>>,
@@ -171,7 +172,7 @@ impl Handler {
                 let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
                 let receipt = match MsgChainBuilder::group_chain_builder(
                     self.get_client()?,
-                    &self.database,
+                    &self,
                     group_code,
                 )
                 .build(c.message.clone())
@@ -218,22 +219,21 @@ impl Handler {
                 let group_code = group_id.parse().map_err(|_| error::bad_param("group_id"))?;
                 let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
                 let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
-                let receipt = match MsgChainBuilder::private_chain_builder(
-                    self.get_client()?,
-                    &self.database,
-                    target,
-                )
-                .build(c.message.clone())
-                .await?
-                {
-                    RQSendItem::Chain(chain) => self
-                        .get_client()?
-                        .send_group_temp_message(group_code, target, chain)
-                        .await
-                        .map_err(error::rq_error)?,
-                    RQSendItem::Forward(_) => return Err(resp_error::unsupported_param("forward")),
-                    RQSendItem::Voice(_) => return Err(resp_error::unsupported_param("voice")),
-                };
+                let receipt =
+                    match MsgChainBuilder::private_chain_builder(self.get_client()?, &self, target)
+                        .build(c.message.clone())
+                        .await?
+                    {
+                        RQSendItem::Chain(chain) => self
+                            .get_client()?
+                            .send_group_temp_message(group_code, target, chain)
+                            .await
+                            .map_err(error::rq_error)?,
+                        RQSendItem::Forward(_) => {
+                            return Err(resp_error::unsupported_param("forward"))
+                        }
+                        RQSendItem::Voice(_) => return Err(resp_error::unsupported_param("voice")),
+                    };
                 let cli = self.get_client()?;
                 let time = receipt.time as f64;
                 let event = new_group_temp_receipt(
@@ -255,26 +255,23 @@ impl Handler {
             "private" => {
                 let target_id = c.user_id.ok_or_else(|| error::bad_param("user_id"))?;
                 let target = target_id.parse().map_err(|_| error::bad_param("user_id"))?;
-                let receipt = match MsgChainBuilder::private_chain_builder(
-                    self.get_client()?,
-                    &self.database,
-                    target,
-                )
-                .build(c.message.clone())
-                .await?
-                {
-                    RQSendItem::Chain(chain) => self
-                        .get_client()?
-                        .send_friend_message(target, chain)
-                        .await
-                        .map_err(error::rq_error)?,
-                    RQSendItem::Voice(ptt) => self
-                        .get_client()?
-                        .send_friend_audio(target, FriendAudio(ptt))
-                        .await
-                        .map_err(error::rq_error)?,
-                    _ => return Err(resp_error::unsupported_segment("forward")),
-                };
+                let receipt =
+                    match MsgChainBuilder::private_chain_builder(self.get_client()?, &self, target)
+                        .build(c.message.clone())
+                        .await?
+                    {
+                        RQSendItem::Chain(chain) => self
+                            .get_client()?
+                            .send_friend_message(target, chain)
+                            .await
+                            .map_err(error::rq_error)?,
+                        RQSendItem::Voice(ptt) => self
+                            .get_client()?
+                            .send_friend_audio(target, FriendAudio(ptt))
+                            .await
+                            .map_err(error::rq_error)?,
+                        _ => return Err(resp_error::unsupported_segment("forward")),
+                    };
                 let cli = self.get_client()?;
                 let time = receipt.time as f64;
                 let event = new_private_receipt(

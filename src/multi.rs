@@ -29,7 +29,8 @@ use crate::{
 };
 
 pub struct MultiAH {
-    pub super_token: Option<String>,
+    pub(crate) super_token: Option<String>,
+    pub(crate) data_path: Arc<String>,
     pub(crate) ahs: DashMap<String, (Handler, Vec<JoinHandle<()>>)>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
@@ -47,11 +48,13 @@ pub struct MultiAH {
 impl MultiAH {
     pub fn new(
         super_token: Option<String>,
+        data_path: String,
         event_cache_size: usize,
         database: Arc<WQDatabase>,
     ) -> Self {
         Self {
             super_token,
+            data_path: Arc::new(data_path),
             event_cache: Arc::new(Mutex::new(SizedCache::with_size(event_cache_size))),
             file_cache: Arc::new(Mutex::new(TimedCache::with_lifespan(60))),
             database,
@@ -142,6 +145,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
         for (id, cs) in config {
             let ah = Handler {
                 client: OnceCell::default(),
+                data_path: self.data_path.clone(),
                 event_cache: self.event_cache.clone(),
                 database: self.database.clone(),
                 uploading_fragment: self.file_cache.clone(),
@@ -176,6 +180,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                 Ok(WQMetaAction::Login(login)) => {
                     let ah = Handler {
                         client: OnceCell::default(),
+                        data_path: self.data_path.clone(),
                         event_cache: self.event_cache.clone(),
                         database: self.database.clone(),
                         uploading_fragment: self.file_cache.clone(),
@@ -184,7 +189,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                     let (net, rx) = ah.init_client(login.uin.clone(), login.protcol).await;
                     let cli = ah.get_client().unwrap().clone();
                     self.unadded_client.insert(login.uin.clone(), (ah, rx, net));
-                    action_login(&cli, &login.uin, login.password)
+                    action_login(&cli, &login.uin, login.password, &self.data_path)
                         .await
                         .map_err(|e| WalleError::Other(e.to_string()))
                 }
@@ -206,7 +211,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                             handler.update_infos().await.ok(); //todo
                             self.ahs.insert(ticket.user_id, (handler, tasks));
                         }
-                        match login_resp_to_resp(&cli, resp).await {
+                        match login_resp_to_resp(&cli, resp, &self.data_path).await {
                             Ok(resp) => Ok(resp),
                             Err(e) => Ok(crate::error::rq_error(e).into()),
                         }
