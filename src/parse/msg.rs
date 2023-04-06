@@ -14,7 +14,6 @@ use crate::error;
 use crate::model::WQSegment;
 
 use super::audio::encode_to_silk;
-use super::util::decode_message_id;
 
 pub struct MsgChainBuilder<'a> {
     pub cli: &'a Client,
@@ -120,12 +119,11 @@ impl<'a> MsgChainBuilder<'a> {
                 target: 0,
             })),
             WQSegment::Reply(reply) => {
-                let event = self
+                let db_event = self
                     .db
                     .get_message(&reply.message_id)
                     .ok_or_else(|| error::message_not_exist(&reply.message_id))?;
-                let event = BaseEvent::<Message>::try_from(event.event).unwrap(); //todo check
-                let decoded = decode_message_id(&reply.message_id)?;
+                let event = BaseEvent::<Message>::try_from(db_event.event).unwrap(); //todo check
                 let sub_chain = {
                     let mut chain = MessageChain::default();
                     chain.push(elem::Text {
@@ -135,7 +133,7 @@ impl<'a> MsgChainBuilder<'a> {
                 };
                 self.reply = true;
                 Ok(self.results.chain.with_reply(elem::Reply {
-                    reply_seq: *decoded.1.first().unwrap(),
+                    reply_seq: *db_event.seqs.first().unwrap(),
                     sender: event.ty.user_id.parse().unwrap(),
                     time: event.time as i32,
                     elements: sub_chain,
@@ -435,7 +433,7 @@ pub(crate) fn msg_chain2msg_seg_vec(chain: MessageChain, wqdb: &WQDatabase) -> V
         rv.push(
             segment::Reply {
                 message_id: reply.reply_seq.to_string(),
-                user_id: reply.sender.to_string(),
+                user_id: Some(reply.sender.to_string()),
             }
             .into(),
         )

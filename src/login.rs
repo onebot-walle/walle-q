@@ -21,11 +21,15 @@ const EMPTY_MD5: [u8; 16] = [
 ];
 const TOKEN_PATH: &str = "session.token";
 
+fn token_path(uin: &str) -> String {
+    format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH)
+}
+
 /// if passwords is empty use qrcode login else use password login
 ///
 /// if login success, start client heartbeat
 pub(crate) async fn login(cli: &Arc<Client>, uin: &str, password: Option<String>) -> RQResult<()> {
-    let token_path = format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH);
+    let token_path = token_path(uin);
     let token_login: bool = match fs::read(&token_path).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
@@ -194,8 +198,7 @@ pub(crate) async fn action_login(
     uin: &str,
     password: Option<String>,
 ) -> RQResult<Resp> {
-    let token_path = format!("{}/{}-{}", crate::CLIENT_DIR, uin, TOKEN_PATH);
-    match fs::read(&token_path).map(|s| rmp_serde::from_slice(&s)) {
+    match fs::read(&token_path(uin)).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
                 target: crate::WALLE_Q,
@@ -247,11 +250,7 @@ pub(crate) async fn login_resp_to_resp(
     Ok(match resp {
         LoginResponse::Success(_) => {
             let token = cli.gen_token().await;
-            fs::write(
-                format!("{}/{}-{}", crate::CLIENT_DIR, user_id, TOKEN_PATH),
-                rmp_serde::to_vec(&token).unwrap(),
-            )
-            .unwrap();
+            fs::write(token_path(&user_id), rmp_serde::to_vec(&token).unwrap()).unwrap();
             cli.register_client().await?;
             LoginResp {
                 user_id,

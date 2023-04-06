@@ -66,6 +66,7 @@ impl GetVersion for Handler {
 }
 
 impl Handler {
+    /// start net connect without login
     pub async fn init_client(
         &self,
         uin: String,
