@@ -10,8 +10,8 @@ pub(crate) struct SledDb {
 }
 
 impl DatabaseInit for SledDb {
-    fn init() -> Self {
-        let s = sled::open("./data/sled").unwrap();
+    fn init(base_path: &str) -> Self {
+        let s = sled::open(format!("{}/{}", base_path, "sled")).unwrap();
         Self {
             message_tree: s.open_tree("message").unwrap(),
             image_tree: s.open_tree("image").unwrap(),

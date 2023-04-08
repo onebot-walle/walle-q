@@ -12,15 +12,18 @@ async fn main() {
     config.meta.subscribe();
     init(config.meta.data_path.clone(), config.meta.log_path.clone()).await;
 
-    let ah = multi::MultiAH::new(
-        config.meta.super_token.clone(),
+    let data_path = std::sync::Arc::new(
         config
             .meta
             .data_path
             .clone()
             .unwrap_or(walle_q::DATA_PATH.to_owned()),
+    );
+    let ah = multi::MultiAH::new(
+        config.meta.super_token.clone(),
         config.meta.event_cache_size,
-        config.meta.db(),
+        config.meta.db(&data_path),
+        data_path,
     );
     let ob = Arc::new(walle_core::OneBot::new(
         ah,

@@ -48,13 +48,13 @@ pub struct MultiAH {
 impl MultiAH {
     pub fn new(
         super_token: Option<String>,
-        data_path: String,
         event_cache_size: usize,
         database: Arc<WQDatabase>,
+        data_path: Arc<String>,
     ) -> Self {
         Self {
             super_token,
-            data_path: Arc::new(data_path),
+            data_path,
             event_cache: Arc::new(Mutex::new(SizedCache::with_size(event_cache_size))),
             file_cache: Arc::new(Mutex::new(TimedCache::with_lifespan(60))),
             database,

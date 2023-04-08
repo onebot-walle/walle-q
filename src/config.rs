@@ -229,8 +229,8 @@ impl MetaConfig {
             .init();
     }
 
-    pub fn db(&self) -> Arc<WQDatabase> {
-        let mut db = WQDatabase::default();
+    pub fn db(&self, base_path: &Arc<String>) -> Arc<WQDatabase> {
+        let mut db = WQDatabase::new(base_path);
         if self.sled {
             db = db.add_sled();
         }

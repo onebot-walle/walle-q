@@ -4,13 +4,15 @@ pub(crate) mod simage;
 pub(crate) mod sleddb;
 pub(crate) mod voice;
 
+use std::sync::Arc;
+
 pub use message::*;
 pub use simage::*;
 pub use voice::*;
 use walle_core::{event::Event, resp::RespError};
 
 pub(crate) trait DatabaseInit {
-    fn init() -> Self;
+    fn init(base_path: &str) -> Self;
 }
 
 #[derive(serde::Deserialize)]
@@ -87,17 +89,21 @@ impl Database for WQDatabaseInner {
 }
 
 // insert all but read the first
-#[derive(Default)]
-pub struct WQDatabase(Vec<WQDatabaseInner>);
+// #[derive(Default)]
+pub struct WQDatabase(Vec<WQDatabaseInner>, Arc<String>);
 
 impl WQDatabase {
+    pub fn new(base_path: &Arc<String>) -> Self {
+        Self(vec![], base_path.clone())
+    }
     pub fn add_sled(mut self) -> Self {
-        self.0.push(WQDatabaseInner::SledDb(sleddb::SledDb::init()));
+        self.0
+            .push(WQDatabaseInner::SledDb(sleddb::SledDb::init(&self.1)));
         self
     }
     pub fn add_level(mut self) -> Self {
         self.0
-            .push(WQDatabaseInner::LevelDb(leveldb::LevelDb::init()));
+            .push(WQDatabaseInner::LevelDb(leveldb::LevelDb::init(&self.1)));
         self
     }
     pub fn not_empty(&self) -> bool {

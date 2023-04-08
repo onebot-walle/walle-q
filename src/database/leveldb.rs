@@ -11,10 +11,11 @@ const MEM_CACHE_LIMIT: usize = 10;
 pub(crate) struct LevelDb(std::sync::Mutex<DB>, AtomicUsize);
 
 impl DatabaseInit for LevelDb {
-    fn init() -> Self {
-        let opt = Options::default();
+    fn init(base_path: &str) -> Self {
         Self(
-            std::sync::Mutex::new(DB::open("./data/leveldb", opt).unwrap()),
+            std::sync::Mutex::new(
+                DB::open(format!("{}/{}", base_path, "leveldb"), Options::default()).unwrap(),
+            ),
             AtomicUsize::new(0),
         )
     }
