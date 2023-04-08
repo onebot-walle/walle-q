@@ -45,7 +45,7 @@ pub(crate) async fn console_login(
             qrcode_login(cli).await?;
         }
     }
-    after_login(cli, base_path).await?;
+    after_login(cli, base_path, uin).await?;
     Ok(())
 }
 
@@ -71,12 +71,12 @@ pub(crate) async fn token_login(cli: &Client, uin: &str, base_path: &str) -> boo
     }
 }
 
-pub async fn after_login(cli: &Arc<Client>, base_path: &str) -> RQResult<()> {
+pub async fn after_login(cli: &Arc<Client>, base_path: &str, bot_id: &str) -> RQResult<()> {
     cli.register_client().await?;
     start_heartbeat(cli.clone()).await;
     let token = cli.gen_token().await;
     fs::write(
-        token_path(&cli.uin().await.to_string(), base_path),
+        token_path(bot_id, base_path),
         rmp_serde::to_vec(&token).unwrap(),
     )
     .unwrap();
@@ -221,14 +221,14 @@ async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResu
 
 pub(crate) async fn action_login(
     cli: &Arc<Client>,
-    uin: &str,
+    bot_id: &str,
     password: Option<String>,
     base_path: &str,
 ) -> RQResult<(Resp, Option<Bytes>)> {
-    if token_login(cli, uin, base_path).await {
+    if token_login(cli, bot_id, base_path).await {
         return Ok((
             LoginResp {
-                bot_id: cli.uin().await.to_string(),
+                bot_id: bot_id.to_string(),
                 url: None,
                 qrcode: None,
                 qrcode_str: None,
@@ -237,9 +237,9 @@ pub(crate) async fn action_login(
             None,
         ));
     }
-    if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
+    if let (Ok(uin), Some(ref password)) = (bot_id.parse(), password) {
         info!(target: crate::WALLE_Q, "login with password");
-        login_resp_to_resp(cli, cli.password_login(uin, password).await?, base_path)
+        login_resp_to_resp(cli, cli.password_login(uin, password).await?, bot_id)
             .await
             .map(|r| (r, None))
     } else {
@@ -247,7 +247,7 @@ pub(crate) async fn action_login(
         match cli.fetch_qrcode().await? {
             QRCodeState::ImageFetch(f) => Ok((
                 LoginResp {
-                    bot_id: uin.to_string(),
+                    bot_id: bot_id.to_string(),
                     url: None,
                     qrcode_str: Some(crate::util::qrcode2str(&f.image_data)),
                     qrcode: Some(f.image_data.to_vec().into()),
@@ -263,33 +263,23 @@ pub(crate) async fn action_login(
 pub(crate) async fn login_resp_to_resp(
     cli: &Arc<Client>,
     mut resp: LoginResponse,
-    base_path: &str,
+    bot_id: &str,
 ) -> RQResult<Resp> {
     if let LoginResponse::DeviceLockLogin(_) = resp {
         resp = cli.device_lock_login().await?;
     }
-    let user_id = cli.uin().await.to_string();
     Ok(match resp {
-        LoginResponse::Success(_) => {
-            let token = cli.gen_token().await;
-            fs::write(
-                token_path(&user_id, base_path),
-                rmp_serde::to_vec(&token).unwrap(),
-            )
-            .unwrap();
-            cli.register_client().await?;
-            LoginResp {
-                bot_id: user_id,
-                url: None,
-                qrcode: None,
-                qrcode_str: None,
-            }
-            .into()
+        LoginResponse::Success(_) => LoginResp {
+            bot_id: bot_id.to_owned(),
+            url: None,
+            qrcode: None,
+            qrcode_str: None,
         }
+        .into(),
         LoginResponse::NeedCaptcha(n) => (
             login_failed("need_captcha"),
             LoginResp {
-                bot_id: user_id,
+                bot_id: bot_id.to_owned(),
                 url: n.verify_url,
                 qrcode: None,
                 qrcode_str: None,
@@ -299,7 +289,7 @@ pub(crate) async fn login_resp_to_resp(
         LoginResponse::DeviceLocked(l) => (
             login_failed("devicd_locked"),
             LoginResp {
-                bot_id: user_id,
+                bot_id: bot_id.to_owned(),
                 url: l.verify_url,
                 qrcode: None,
                 qrcode_str: None,

@@ -186,28 +186,30 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                                 let ob = ob.clone();
                                 tokio::spawn(async move {
                                     wait_qrcode(&cli, 60, &sig).await.ok();
-                                    after_login(&cli, &base_path).await.ok();
+                                    after_login(&cli, &base_path, &login.bot_id).await.ok();
                                     ah.update_infos().await.ok(); //todo
                                     if let Ok(tasks) = ah.spawn(net, rx, &ob).await {
                                         ahs.insert(cli.uin().await.to_string(), (ah, tasks));
                                     }
                                 });
                                 Ok(r)
-                            } else {
-                                if let Err(e) = after_login(&cli, &self.data_path).await {
+                            } else if r.0.retcode == 0 {
+                                if let Err(e) =
+                                    after_login(&cli, &self.data_path, &login.bot_id).await
+                                {
                                     return Ok(rqe2resp(e));
                                 }
                                 ah.update_infos().await.ok(); //todo
                                 let tasks = ah.spawn(net, rx, ob).await?;
                                 self.ahs.insert(cli.uin().await.to_string(), (ah, tasks));
                                 Ok(r.0)
+                            } else {
+                                self.unadded_client
+                                    .insert(login.bot_id.clone(), (ah, rx, net));
+                                Ok(r.0)
                             }
                         }
-                        Err(e) => {
-                            self.unadded_client
-                                .insert(login.bot_id.clone(), (ah, rx, net));
-                            Ok(rqe2resp(e))
-                        }
+                        Err(e) => Ok(rqe2resp(e)),
                     }
                 }
                 Ok(WQMetaAction::SubmitLogin(ticket)) => {
@@ -222,16 +224,19 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                             Ok(resp) => resp,
                             Err(e) => return Ok(crate::error::rq_error(e).into()),
                         };
-                        if let ricq::LoginResponse::Success(_) = resp {
-                            if let Err(e) = after_login(&cli, &self.data_path).await {
-                                return Ok(rqe2resp(e));
+                        match login_resp_to_resp(&cli, resp, &ticket.bot_id).await {
+                            Ok(resp) if resp.retcode == 0 => {
+                                if let Err(e) =
+                                    after_login(&cli, &self.data_path, &ticket.bot_id).await
+                                {
+                                    return Ok(rqe2resp(e));
+                                }
+                                let tasks = handler.spawn(net, rx, ob).await?;
+                                handler.update_infos().await.ok(); //todo
+                                self.ahs
+                                    .insert(cli.uin().await.to_string(), (handler, tasks));
+                                Ok(resp)
                             }
-                            let tasks = handler.spawn(net, rx, ob).await?;
-                            handler.update_infos().await.ok(); //todo
-                            self.ahs
-                                .insert(cli.uin().await.to_string(), (handler, tasks));
-                        }
-                        match login_resp_to_resp(&cli, resp, &self.data_path).await {
                             Ok(resp) => Ok(resp),
                             Err(e) => Ok(crate::error::rq_error(e).into()),
                         }
