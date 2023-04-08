@@ -83,9 +83,9 @@ A qq platform OneBot Implementation
 - [x] 获取运行状态 get_status
 - [x] 获取版本信息 get_version
 - [x] * 关闭应用 shutdown
-- [ ] * 登录账号 login
-- [ ] * 提交登录信息 submit_login
-- [ ] * 登出账号 logout
+- [x] * 登录账号 login
+- [x] * 提交登录信息 submit_login
+- [x] * 登出账号 logout
 
 ### 消息动作
 

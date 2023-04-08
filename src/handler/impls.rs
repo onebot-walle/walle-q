@@ -156,7 +156,7 @@ impl ActionHandler<Event, Action, Resp> for Handler {
         EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
         let (net, qevent_rx) = self.init_client(config.0.clone(), config.2).await;
-        crate::login::login(
+        crate::login::console_login(
             self.get_client().map_err(WalleError::RespError)?,
             &config.0,
             config.1.clone(),

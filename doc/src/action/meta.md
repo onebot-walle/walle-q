@@ -45,32 +45,43 @@
 
 无动作响应
 
-## * [Plan to add] 登录新账号 login_client
+## * 登录新账号 login_client
 
 动作请求:
 
 | 字段           | 类型   | 说明            |
 | -------------- | ------ | --------------- |
-| `uin`          | u32    | QQ 号           |
+| `bot_id`       | u32    | QQ 号           |
 | `password`     | String | 可选，明文密码  |
 | `password_md5` | String | 可选，MD5 密码  |
 | `protcol`      | u8     | client 使用协议 |
 
 动作响应:
 
-| 字段      | 类型   | 说明                         |
-| --------- | ------ | ---------------------------- |
-| `user_id` | String | user_id                      |
-| `url`     | String | 可选，ticket_url             |
-| `qrcode`  | bytes  | 可选，密码缺失将会返回二维码 |
+| 字段     | 类型   | 说明                         |
+| -------- | ------ | ---------------------------- |
+| `bot_id` | String | QQ 号                        |
+| `url`    | String | 可选，ticket_url             |
+| `qrcode` | bytes  | 可选，密码缺失将会返回二维码 |
 
-## * [Plan to add] 提交ticket submit_ticket
+## * 提交 ticket submit_ticket
 
 动作请求:
 
-| 字段      | 类型   | 说明   |
-| --------- | ------ | ------ |
-| `user_id` | String | -      |
-| `ticket`  | String | ticket |
+| 字段     | 类型   | 说明   |
+| -------- | ------ | ------ |
+| `bot_id` | String | QQ 号  |
+| `ticket` | String | ticket |
 
 无动作响应字段
+
+## * 登出账号 logout
+
+动作请求:
+
+| 字段          | 类型   | 说明             |
+| ------------- | ------ | ---------------- |
+| `super_token` | String | 超级管理员 token |
+| `bot_id`      | String | QQ 号            |
+
+无动作响应

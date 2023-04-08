@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use cached::{SizedCache, TimedCache};
 use dashmap::DashMap;
 use once_cell::sync::OnceCell;
-use ricq::{ext::common::after_login, handler::QEvent};
+use ricq::{handler::QEvent, RQError};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::warn;
@@ -15,7 +15,7 @@ use walle_core::{
     resp::Resp,
     structs::{Selft, Version},
     util::GetSelf,
-    ActionHandler, EventHandler, GetSelfs, GetStatus, GetVersion, OneBot, WalleError,
+    ActionHandler, EventHandler, GetSelfs, GetStatus, GetVersion, OneBot,
 };
 
 use crate::{
@@ -23,15 +23,15 @@ use crate::{
     database::WQDatabase,
     error::{self, map_action_parse_error},
     handler::Handler,
-    login::{action_login, login_resp_to_resp},
+    login::{action_login, after_login, login_resp_to_resp, wait_qrcode},
     model::{is_wq_meta, WQMetaAction},
     WALLE_Q,
 };
 
 pub struct MultiAH {
+    pub ahs: Arc<DashMap<String, (Handler, Vec<JoinHandle<()>>)>>,
     pub(crate) super_token: Option<String>,
     pub(crate) data_path: Arc<String>,
-    pub(crate) ahs: DashMap<String, (Handler, Vec<JoinHandle<()>>)>,
     pub(crate) database: Arc<WQDatabase>,
     pub(crate) event_cache: Arc<Mutex<SizedCache<String, Event>>>,
     pub(crate) file_cache: Arc<Mutex<TimedCache<String, crate::handler::FragmentFile>>>,
@@ -58,7 +58,7 @@ impl MultiAH {
             event_cache: Arc::new(Mutex::new(SizedCache::with_size(event_cache_size))),
             file_cache: Arc::new(Mutex::new(TimedCache::with_lifespan(60))),
             database,
-            ahs: DashMap::default(),
+            ahs: Arc::new(DashMap::default()),
             unadded_client: DashMap::default(),
         }
     }
@@ -127,23 +127,14 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
     async fn start<AH, EH>(
         &self,
         ob: &Arc<OneBot<AH, EH>>,
-        mut config: Self::Config,
+        config: Self::Config,
     ) -> WalleResult<Vec<tokio::task::JoinHandle<()>>>
     where
         AH: ActionHandler<Event, Action, Resp> + Send + Sync + 'static,
         EH: EventHandler<Event, Action, Resp> + Send + Sync + 'static,
     {
-        if config.is_empty() {
-            config.insert(
-                String::default(),
-                QQConfig {
-                    password: None,
-                    protocol: Some(0),
-                },
-            );
-        }
         for (id, cs) in config {
-            let ah = Handler {
+            let single_handler = Handler {
                 client: OnceCell::default(),
                 data_path: self.data_path.clone(),
                 event_cache: self.event_cache.clone(),
@@ -151,14 +142,14 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                 uploading_fragment: self.file_cache.clone(),
                 infos: Arc::default(),
             };
-            match ah
+            match single_handler
                 .start(ob, (id, cs.password, cs.protocol.unwrap_or_default()))
                 .await
             {
                 Ok(tasks) => {
                     self.ahs.insert(
-                        ah.get_client().unwrap().uin().await.to_string(),
-                        (ah, tasks),
+                        single_handler.get_client().unwrap().uin().await.to_string(),
+                        (single_handler, tasks),
                     );
                 }
                 Err(e) => warn!(target: WALLE_Q, "{}", e),
@@ -186,16 +177,45 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                         uploading_fragment: self.file_cache.clone(),
                         infos: Arc::default(),
                     };
-                    let (net, rx) = ah.init_client(login.uin.clone(), login.protcol).await;
+                    let (net, rx) = ah.init_client(login.bot_id.clone(), login.protocol).await;
                     let cli = ah.get_client().unwrap().clone();
-                    self.unadded_client.insert(login.uin.clone(), (ah, rx, net));
-                    action_login(&cli, &login.uin, login.password, &self.data_path)
-                        .await
-                        .map_err(|e| WalleError::Other(e.to_string()))
+                    let r =
+                        action_login(&cli, &login.bot_id, login.password, &self.data_path).await;
+                    match r {
+                        Ok(r) => {
+                            if let (r, Some(sig)) = r {
+                                let base_path = self.data_path.clone();
+                                let ahs = self.ahs.clone();
+                                let ob = ob.clone();
+                                tokio::spawn(async move {
+                                    wait_qrcode(&cli, 60, &sig).await.ok();
+                                    after_login(&cli, &base_path).await.ok();
+                                    ah.update_infos().await.ok(); //todo
+                                    if let Ok(tasks) = ah.spawn(net, rx, &ob).await {
+                                        ahs.insert(cli.uin().await.to_string(), (ah, tasks));
+                                    }
+                                });
+                                Ok(r)
+                            } else {
+                                if let Err(e) = after_login(&cli, &self.data_path).await {
+                                    return Ok(rqe2resp(e));
+                                }
+                                ah.update_infos().await.ok(); //todo
+                                let tasks = ah.spawn(net, rx, ob).await?;
+                                self.ahs.insert(cli.uin().await.to_string(), (ah, tasks));
+                                Ok(r.0)
+                            }
+                        }
+                        Err(e) => {
+                            self.unadded_client
+                                .insert(login.bot_id.clone(), (ah, rx, net));
+                            Ok(rqe2resp(e))
+                        }
+                    }
                 }
                 Ok(WQMetaAction::SubmitLogin(ticket)) => {
                     if let Some((_, (handler, rx, net))) =
-                        self.unadded_client.remove(&ticket.user_id)
+                        self.unadded_client.remove(&ticket.bot_id)
                     {
                         let cli = match handler.get_client() {
                             Ok(cli) => cli.clone(),
@@ -206,10 +226,13 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                             Err(e) => return Ok(crate::error::rq_error(e).into()),
                         };
                         if let ricq::LoginResponse::Success(_) = resp {
-                            after_login(&cli).await;
+                            if let Err(e) = after_login(&cli, &self.data_path).await {
+                                return Ok(rqe2resp(e));
+                            }
                             let tasks = handler.spawn(net, rx, ob).await?;
                             handler.update_infos().await.ok(); //todo
-                            self.ahs.insert(ticket.user_id, (handler, tasks));
+                            self.ahs
+                                .insert(cli.uin().await.to_string(), (handler, tasks));
                         }
                         match login_resp_to_resp(&cli, resp, &self.data_path).await {
                             Ok(resp) => Ok(resp),
@@ -235,7 +258,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                 Ok(WQMetaAction::Logout(token)) => {
                     if let Some(ref super_token) = self.super_token {
                         if super_token == token.super_token.as_str() {
-                            if let Ok(Some(_)) = self.remove_handler(&bot.user_id, ob).await {
+                            if let Ok(Some(_)) = self.remove_handler(&token.bot_id, ob).await {
                                 Ok(Resp::ok((), ""))
                             } else {
                                 Ok(resp_error::internal_handler("bot not found").into())
@@ -262,6 +285,10 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
             }
         }
     }
+}
+
+fn rqe2resp(e: RQError) -> Resp {
+    error::rq_error(e).into()
 }
 
 impl MultiAH {

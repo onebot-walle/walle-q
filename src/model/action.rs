@@ -92,21 +92,22 @@ pub struct WQGetFile {
 
 #[derive(Debug, TryFromAction, TryFromValue)]
 pub struct Login {
-    pub uin: String,
+    pub bot_id: String,
     pub password: Option<String>,
     pub password_md5: Option<String>,
-    pub protcol: u8,
+    pub protocol: u8,
 }
 
 #[derive(Debug, TryFromAction, TryFromValue)]
 pub struct SubmitLogin {
-    pub user_id: String,
+    pub bot_id: String,
     pub ticket: String,
 }
 
 #[derive(Debug, TryFromAction, TryFromValue)]
 pub struct Token {
     pub super_token: String,
+    pub bot_id: String
 }
 
 #[derive(Debug, Clone, TryFromAction)]

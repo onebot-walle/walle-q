@@ -2,9 +2,10 @@ use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bytes::Bytes;
 use futures_util::StreamExt;
 use ricq::client::{Client, DefaultConnector};
-use ricq::ext::common::after_login;
+use ricq::ext::common::start_heartbeat;
 use ricq::ext::reconnect::{auto_reconnect, Credential, Password};
 use ricq::{LoginResponse, QRCodeState};
 use ricq::{RQError, RQResult};
@@ -28,14 +29,28 @@ pub fn token_path(uin: &str, base_path: &str) -> String {
 /// if passwords is empty use qrcode login else use password login
 ///
 /// if login success, start client heartbeat
-pub(crate) async fn login(
+pub(crate) async fn console_login(
     cli: &Arc<Client>,
     uin: &str,
     password: Option<String>,
     base_path: &str,
 ) -> RQResult<()> {
-    let token_path = token_path(uin, base_path);
-    let token_login: bool = match fs::read(&token_path).map(|s| rmp_serde::from_slice(&s)) {
+    let token_login = token_login(cli, uin, base_path).await;
+    if !token_login {
+        if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
+            info!(target: crate::WALLE_Q, "login with password");
+            handle_login_resp(cli, cli.password_login(uin, password).await?).await?;
+        } else {
+            info!(target: crate::WALLE_Q, "login with qrcode");
+            qrcode_login(cli).await?;
+        }
+    }
+    after_login(cli, base_path).await?;
+    Ok(())
+}
+
+pub(crate) async fn token_login(cli: &Client, uin: &str, base_path: &str) -> bool {
+    match fs::read(&token_path(uin, base_path)).map(|s| rmp_serde::from_slice(&s)) {
         Ok(Ok(token)) => {
             info!(
                 target: crate::WALLE_Q,
@@ -53,20 +68,18 @@ pub(crate) async fn login(
             }
         }
         _ => false,
-    };
-    if !token_login {
-        if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
-            info!(target: crate::WALLE_Q, "login with password");
-            handle_login_resp(cli, cli.password_login(uin, password).await?).await?;
-        } else {
-            info!(target: crate::WALLE_Q, "login with qrcode");
-            qrcode_login(cli).await?;
-        }
-        let token = cli.gen_token().await;
-        fs::write(token_path, rmp_serde::to_vec(&token).unwrap()).unwrap();
-        cli.register_client().await?;
     }
-    after_login(cli).await;
+}
+
+pub async fn after_login(cli: &Arc<Client>, base_path: &str) -> RQResult<()> {
+    cli.register_client().await?;
+    start_heartbeat(cli.clone()).await;
+    let token = cli.gen_token().await;
+    fs::write(
+        token_path(&cli.uin().await.to_string(), base_path),
+        rmp_serde::to_vec(&token).unwrap(),
+    )
+    .unwrap();
     Ok(())
 }
 
@@ -110,9 +123,18 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
         let rended = crate::util::qrcode2str(&f.image_data);
         info!(target: crate::WALLE_Q, "扫描二维码登录:");
         println!("{}", rended);
+        wait_qrcode(cli, 60, &f.sig).await
+    } else {
+        warn!(target: crate::WALLE_Q, "二维码获取失败");
+        Err(RQError::Other("二维码获取失败".to_owned()))
+    }
+}
+
+pub async fn wait_qrcode(cli: &Arc<Client>, timeout: u64, sig: &[u8]) -> RQResult<()> {
+    tokio::time::timeout(std::time::Duration::from_secs(timeout), async {
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            match cli.query_qrcode_result(&f.sig).await? {
+            match cli.query_qrcode_result(sig).await? {
                 QRCodeState::WaitingForScan => debug!("二维码待扫描"),
                 QRCodeState::WaitingForConfirm => debug!("二维码待确认"),
                 QRCodeState::Timeout => {
@@ -134,10 +156,9 @@ async fn qrcode_login(cli: &Arc<Client>) -> RQResult<()> {
                 QRCodeState::ImageFetch(_) => unreachable!(),
             }
         }
-    } else {
-        warn!(target: crate::WALLE_Q, "二维码获取失败");
-        Err(RQError::Other("二维码获取失败".to_owned()))
-    }
+    })
+    .await
+    .unwrap_or_else(|_e| Err(RQError::Other("二维码等待超时".to_owned())))
 }
 
 async fn handle_login_resp(cli: &Arc<Client>, mut resp: LoginResponse) -> RQResult<()> {
@@ -203,44 +224,36 @@ pub(crate) async fn action_login(
     uin: &str,
     password: Option<String>,
     base_path: &str,
-) -> RQResult<Resp> {
-    match fs::read(&token_path(uin, base_path)).map(|s| rmp_serde::from_slice(&s)) {
-        Ok(Ok(token)) => {
-            info!(
-                target: crate::WALLE_Q,
-                "成功读取 Token, 尝试使用 Token 登录"
-            );
-            match cli.token_login(token).await {
-                Ok(_) => {
-                    info!(target: crate::WALLE_Q, "Token 登录成功");
-                    after_login(cli).await;
-                    return Ok(LoginResp {
-                        user_id: cli.uin().await.to_string(),
-                        url: None,
-                        qrcode: None,
-                    }
-                    .into());
-                }
-                Err(_) => {
-                    warn!(target: crate::WALLE_Q, "Token 登录失败");
-                }
+) -> RQResult<(Resp, Option<Bytes>)> {
+    if token_login(cli, uin, base_path).await {
+        return Ok((
+            LoginResp {
+                bot_id: cli.uin().await.to_string(),
+                url: None,
+                qrcode: None,
             }
-        }
-        _ => {}
-    };
+            .into(),
+            None,
+        ));
+    }
     if let (Ok(uin), Some(ref password)) = (uin.parse(), password) {
         info!(target: crate::WALLE_Q, "login with password");
-        login_resp_to_resp(cli, cli.password_login(uin, password).await?, base_path).await
+        login_resp_to_resp(cli, cli.password_login(uin, password).await?, base_path)
+            .await
+            .map(|r| (r, None))
     } else {
         info!(target: crate::WALLE_Q, "login with qrcode");
         match cli.fetch_qrcode().await? {
-            QRCodeState::ImageFetch(image) => Ok(LoginResp {
-                user_id: uin.to_string(),
-                url: None,
-                qrcode: Some(image.image_data.to_vec().into()),
-            }
-            .into()), //todo
-            _ => Ok(login_failed("二维码获取失败").into()),
+            QRCodeState::ImageFetch(f) => Ok((
+                LoginResp {
+                    bot_id: uin.to_string(),
+                    url: None,
+                    qrcode: Some(f.image_data.to_vec().into()),
+                }
+                .into(),
+                Some(f.sig),
+            )), //todo
+            _ => Ok((login_failed("二维码获取失败").into(), None)),
         }
     }
 }
@@ -264,22 +277,25 @@ pub(crate) async fn login_resp_to_resp(
             .unwrap();
             cli.register_client().await?;
             LoginResp {
-                user_id,
+                bot_id: user_id,
                 url: None,
                 qrcode: None,
             }
             .into()
         }
-        LoginResponse::NeedCaptcha(n) => LoginResp {
-            user_id,
-            url: n.verify_url,
-            qrcode: None,
-        }
-        .into(),
+        LoginResponse::NeedCaptcha(n) => (
+            login_failed("need_captcha"),
+            LoginResp {
+                bot_id: user_id,
+                url: n.verify_url,
+                qrcode: None,
+            },
+        )
+            .into(),
         LoginResponse::DeviceLocked(l) => (
             login_failed("devicd_locked"),
             LoginResp {
-                user_id,
+                bot_id: user_id,
                 url: l.verify_url,
                 qrcode: None,
             },
