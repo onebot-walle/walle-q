@@ -155,9 +155,6 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                 Err(e) => warn!(target: WALLE_Q, "{}", e),
             }
         }
-        if self.ahs.is_empty() {
-            std::process::exit(1)
-        }
         Ok(vec![])
     }
     async fn call<AH, EH>(&self, action: Action, ob: &Arc<OneBot<AH, EH>>) -> WalleResult<Resp>
