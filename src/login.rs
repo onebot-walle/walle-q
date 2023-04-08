@@ -231,6 +231,7 @@ pub(crate) async fn action_login(
                 bot_id: cli.uin().await.to_string(),
                 url: None,
                 qrcode: None,
+                qrcode_str: None,
             }
             .into(),
             None,
@@ -248,6 +249,7 @@ pub(crate) async fn action_login(
                 LoginResp {
                     bot_id: uin.to_string(),
                     url: None,
+                    qrcode_str: Some(crate::util::qrcode2str(&f.image_data)),
                     qrcode: Some(f.image_data.to_vec().into()),
                 }
                 .into(),
@@ -280,6 +282,7 @@ pub(crate) async fn login_resp_to_resp(
                 bot_id: user_id,
                 url: None,
                 qrcode: None,
+                qrcode_str: None,
             }
             .into()
         }
@@ -289,6 +292,7 @@ pub(crate) async fn login_resp_to_resp(
                 bot_id: user_id,
                 url: n.verify_url,
                 qrcode: None,
+                qrcode_str: None,
             },
         )
             .into(),
@@ -298,6 +302,7 @@ pub(crate) async fn login_resp_to_resp(
                 bot_id: user_id,
                 url: l.verify_url,
                 qrcode: None,
+                qrcode_str: None,
             },
         )
             .into(),

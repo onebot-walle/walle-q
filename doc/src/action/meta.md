@@ -58,11 +58,12 @@
 
 动作响应:
 
-| 字段     | 类型   | 说明                         |
-| -------- | ------ | ---------------------------- |
-| `bot_id` | String | QQ 号                        |
-| `url`    | String | 可选，ticket_url             |
-| `qrcode` | bytes  | 可选，密码缺失将会返回二维码 |
+| 字段         | 类型   | 说明                         |
+| ------------ | ------ | ---------------------------- |
+| `bot_id`     | String | QQ 号                        |
+| `url`        | String | 可选，ticket_url             |
+| `qrcode`     | bytes  | 可选，密码缺失将会返回二维码 |
+| `qrcode_str` | String | 可选，二维码字符画           |
 
 ## * 提交 ticket submit_ticket
 

@@ -4,5 +4,6 @@ use walle_core::{prelude::PushToValueMap, util::OneBotBytes};
 pub struct LoginResp {
     pub bot_id: String,
     pub url: Option<String>,
+    pub qrcode_str: Option<String>,
     pub qrcode: Option<OneBotBytes>,
 }
