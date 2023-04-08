@@ -16,6 +16,8 @@ use walle_core::resp::Resp;
 use crate::error::login_failed;
 use crate::model::LoginResp;
 
+pub const LOGIN_SUCCESS: &str = "login_success";
+
 #[allow(dead_code)]
 const EMPTY_MD5: [u8; 16] = [
     0xd4, 0x1d, 0x8c, 0xd9, 0x8f, 0x00, 0xb2, 0x04, 0xe9, 0x80, 0x09, 0x98, 0xec, 0xf8, 0x42, 0x7e,
@@ -227,13 +229,16 @@ pub(crate) async fn action_login(
 ) -> RQResult<(Resp, Option<Bytes>)> {
     if token_login(cli, bot_id, base_path).await {
         return Ok((
-            LoginResp {
-                bot_id: bot_id.to_string(),
-                url: None,
-                qrcode: None,
-                qrcode_str: None,
-            }
-            .into(),
+            (
+                LoginResp {
+                    bot_id: bot_id.to_string(),
+                    url: None,
+                    qrcode: None,
+                    qrcode_str: None,
+                },
+                LOGIN_SUCCESS,
+            )
+                .into(),
             None,
         ));
     }
@@ -246,13 +251,16 @@ pub(crate) async fn action_login(
         info!(target: crate::WALLE_Q, "login with qrcode");
         match cli.fetch_qrcode().await? {
             QRCodeState::ImageFetch(f) => Ok((
-                LoginResp {
-                    bot_id: bot_id.to_string(),
-                    url: None,
-                    qrcode_str: Some(crate::util::qrcode2str(&f.image_data)),
-                    qrcode: Some(f.image_data.to_vec().into()),
-                }
-                .into(),
+                (
+                    LoginResp {
+                        bot_id: bot_id.to_string(),
+                        url: None,
+                        qrcode_str: Some(crate::util::qrcode2str(&f.image_data)),
+                        qrcode: Some(f.image_data.to_vec().into()),
+                    },
+                    LOGIN_SUCCESS,
+                )
+                    .into(),
                 Some(f.sig),
             )), //todo
             _ => Ok((login_failed("二维码获取失败").into(), None)),
@@ -269,33 +277,30 @@ pub(crate) async fn login_resp_to_resp(
         resp = cli.device_lock_login().await?;
     }
     Ok(match resp {
-        LoginResponse::Success(_) => LoginResp {
+        LoginResponse::Success(_) => (
+            LoginResp {
+                bot_id: bot_id.to_owned(),
+                url: None,
+                qrcode: None,
+                qrcode_str: None,
+            },
+            LOGIN_SUCCESS,
+        )
+            .into(),
+        LoginResponse::NeedCaptcha(n) => LoginResp {
             bot_id: bot_id.to_owned(),
-            url: None,
+            url: n.verify_url,
             qrcode: None,
             qrcode_str: None,
         }
         .into(),
-        LoginResponse::NeedCaptcha(n) => (
-            login_failed("need_captcha"),
-            LoginResp {
-                bot_id: bot_id.to_owned(),
-                url: n.verify_url,
-                qrcode: None,
-                qrcode_str: None,
-            },
-        )
-            .into(),
-        LoginResponse::DeviceLocked(l) => (
-            login_failed("devicd_locked"),
-            LoginResp {
-                bot_id: bot_id.to_owned(),
-                url: l.verify_url,
-                qrcode: None,
-                qrcode_str: None,
-            },
-        )
-            .into(),
+        LoginResponse::DeviceLocked(l) => LoginResp {
+            bot_id: bot_id.to_owned(),
+            url: l.verify_url,
+            qrcode: None,
+            qrcode_str: None,
+        }
+        .into(),
         LoginResponse::AccountFrozen => login_failed("账号被冻结").into(),
         LoginResponse::TooManySMSRequest => login_failed("短信验证码请求过于频繁").into(),
         LoginResponse::UnknownStatus(_) => login_failed("未知状态").into(),

@@ -193,7 +193,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                                     }
                                 });
                                 Ok(r)
-                            } else if r.0.retcode == 0 {
+                            } else if r.0.message.as_str() == crate::login::LOGIN_SUCCESS {
                                 if let Err(e) =
                                     after_login(&cli, &self.data_path, &login.bot_id).await
                                 {
@@ -225,7 +225,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                             Err(e) => return Ok(crate::error::rq_error(e).into()),
                         };
                         match login_resp_to_resp(&cli, resp, &ticket.bot_id).await {
-                            Ok(resp) if resp.retcode == 0 => {
+                            Ok(resp) if resp.message == crate::login::LOGIN_SUCCESS => {
                                 if let Err(e) =
                                     after_login(&cli, &self.data_path, &ticket.bot_id).await
                                 {
