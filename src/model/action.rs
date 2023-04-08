@@ -99,7 +99,7 @@ pub struct Login {
 }
 
 #[derive(Debug, TryFromAction, TryFromValue)]
-pub struct SubmitLogin {
+pub struct SubmitTicket {
     pub bot_id: String,
     pub ticket: String,
 }
@@ -107,7 +107,7 @@ pub struct SubmitLogin {
 #[derive(Debug, TryFromAction, TryFromValue)]
 pub struct Token {
     pub super_token: String,
-    pub bot_id: String
+    pub bot_id: String,
 }
 
 #[derive(Debug, Clone, TryFromAction)]
@@ -155,11 +155,11 @@ pub enum WQAction {
 #[derive(Debug, TryFromAction)]
 pub enum WQMetaAction {
     Login(Login),
-    SubmitLogin(SubmitLogin),
+    SubmitTicket(SubmitTicket),
     Shutdown(Token),
     Logout(Token),
 }
 
 pub(crate) fn is_wq_meta(action: &str) -> bool {
-    ["login", "submit_login", "shutdown", "logout"].contains(&action)
+    ["login", "submit_ticket", "shutdown", "logout"].contains(&action)
 }

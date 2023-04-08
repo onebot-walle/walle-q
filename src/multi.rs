@@ -212,7 +212,7 @@ impl ActionHandler<Event, Action, Resp> for MultiAH {
                         Err(e) => Ok(rqe2resp(e)),
                     }
                 }
-                Ok(WQMetaAction::SubmitLogin(ticket)) => {
+                Ok(WQMetaAction::SubmitTicket(ticket)) => {
                     if let Some((_, (handler, rx, net))) =
                         self.unadded_client.remove(&ticket.bot_id)
                     {
